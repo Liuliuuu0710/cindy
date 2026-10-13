@@ -543,10 +543,35 @@ describe('Bot settings profile consolidation', () => {
     expect(allowed).toBe(true);
     // 放弃后界面回到已保存值，卸载补写不得再把这份草稿发出去。
     expect((screen.getByRole('textbox', { name: 'bots.nameLabel' }) as HTMLInputElement).value).toBe('PR steward');
+    expect(screen.queryByRole('button', { name: 'bots.autosave.retry' })).toBeNull();
     const writes = mocks.updateBotProfile.mock.calls.length;
     view.unmount();
     await act(async () => {});
     expect(mocks.updateBotProfile).toHaveBeenCalledTimes(writes);
+  });
+
+  it('shares one leave confirmation while concurrent close requests are pending', async () => {
+    mocks.updateBotProfile.mockRejectedValue(new Error('offline'));
+    let resolveConfirm!: (discard: boolean) => void;
+    mocks.confirm.mockReturnValue(new Promise<boolean>((resolve) => {
+      resolveConfirm = resolve;
+    }));
+    const beforeCloseRef = { current: null as (() => Promise<boolean>) | null };
+    render(<BotSettings bot={bot()} onBack={vi.fn()} onOpenSession={vi.fn()} beforeCloseRef={beforeCloseRef} />);
+    fireEvent.click(screen.getByRole('button', { name: 'bots.profile.title' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'bots.nameLabel' }), { target: { value: 'Keep this draft' } });
+    fireEvent.blur(screen.getByRole('textbox', { name: 'bots.nameLabel' }));
+    await screen.findByRole('button', { name: 'bots.autosave.retry' });
+
+    let firstLeave!: Promise<boolean>;
+    let secondLeave!: Promise<boolean>;
+    await act(async () => {
+      firstLeave = beforeCloseRef.current!();
+      secondLeave = beforeCloseRef.current!();
+    });
+    await waitFor(() => expect(mocks.confirm).toHaveBeenCalledTimes(1));
+    await act(async () => resolveConfirm(false));
+    expect(await Promise.all([firstLeave, secondLeave])).toEqual([false, false]);
   });
 
   it('leaves without asking when the draft is saved', async () => {

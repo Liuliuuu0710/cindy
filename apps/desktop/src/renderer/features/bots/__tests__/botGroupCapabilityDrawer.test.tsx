@@ -5,9 +5,11 @@
  * 这条链路横跨群设置抽屉、路由与真实设置页,所以用真实路由 + 真实组件渲染。
  */
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { createMemoryRouter, RouterProvider, useLocation } from 'react-router-dom';
 import { transferableAbortController } from 'node:util';
+import { ConfirmDialogProvider } from '@/components/ui/confirm-dialog-provider';
 import type { BotCapabilities, BotModelRoute, BotProfile } from '../botStore';
 import type { CustomMcpListContext, CustomMcpListResult } from '../../../../shared/customMcp';
 import type { BotGroupSummary } from '../../../../shared/botGroupChat';
@@ -15,7 +17,6 @@ import type { BotGroupSummary } from '../../../../shared/botGroupChat';
 const mocks = vi.hoisted(() => {
   const sessionGet = vi.fn();
   return {
-    confirm: vi.fn(),
     readSession: sessionGet,
     listCustomMcpServers: vi.fn<(context?: CustomMcpListContext) => Promise<CustomMcpListResult>>(),
     onSessionPatched: vi.fn(),
@@ -42,9 +43,6 @@ vi.mock('@/components/onboarding/ConnectProviderCard', () => ({ ConnectProviderC
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ dataOwnerId: 'fixture-owner' }) }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('@/lib/sessionService', () => ({ get: mocks.readSession }));
-vi.mock('@/components/ui/confirm-dialog-provider', () => ({
-  useConfirmDialog: () => ({ confirm: mocks.confirm }),
-}));
 vi.mock('@/components/settings/ProfileEditDialog', () => ({ ProfileEditDialog: () => null }));
 vi.mock('@/contexts/dataOwnerGeneration', () => ({
   getDataOwnerGeneration: () => 1,
@@ -199,7 +197,7 @@ function renderFlow() {
     ],
     { initialEntries: ['/bots/groups/g1?groupSettings=1'] },
   );
-  render(<RouterProvider router={router} />);
+  render(<ConfirmDialogProvider><RouterProvider router={router} /></ConfirmDialogProvider>);
   return router;
 }
 
@@ -221,7 +219,6 @@ beforeEach(() => {
   mocks.profiles = [profile()];
   mocks.groups = [group()];
   mocks.defaultModelChain = capabilities().modelChain;
-  mocks.confirm.mockReset().mockResolvedValue(true);
   mocks.updateBotProfile.mockReset().mockImplementation(async (_id, patch) => ({
     id: 'bot-1',
     currentVersion: 1,
@@ -267,11 +264,12 @@ it('closes the capability drawer opened from the group sidebar', async () => {
   await openCapabilityDrawerFromGroup(router);
   fireEvent.click(screen.getByRole('button', { name: 'bots.close' }));
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-  expect(mocks.confirm).not.toHaveBeenCalled();
+  expect(screen.queryByText('bots.unsavedChanges.title')).toBeNull();
   expect(router.state.location.pathname + router.state.location.search).toBe('/bots/bot-1');
 });
 
 it('asks before discarding a draft the host refused, then closes the sidebar', async () => {
+  const user = userEvent.setup();
   mocks.updateBotProfile.mockRejectedValue(new Error('PRECONDITION_FAILED'));
   const router = renderFlow();
   await openCapabilityDrawerFromGroup(router);
@@ -279,20 +277,29 @@ it('asks before discarding a draft the host refused, then closes the sidebar', a
   fireEvent.click(toggle);
   await screen.findByRole('button', { name: 'bots.autosave.retry' });
 
-  // 取消:留在抽屉里,草稿还在。
-  mocks.confirm.mockResolvedValueOnce(false);
+  // Esc 只取消确认框,抽屉和草稿仍保留。
   fireEvent.click(screen.getByRole('button', { name: 'bots.close' }));
-  await waitFor(() => expect(mocks.confirm).toHaveBeenCalledTimes(1));
+  await screen.findByRole('alertdialog');
+  await user.keyboard('{Escape}');
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
   expect(screen.getAllByRole('dialog')).toHaveLength(1);
+  expect(screen.getByRole('switch', { name: 'release-check' }).getAttribute('aria-checked')).toBe('true');
+
+  // 「继续编辑」也只收起确认框。
+  fireEvent.click(screen.getByRole('button', { name: 'bots.close' }));
+  await screen.findByRole('alertdialog');
+  fireEvent.click(screen.getByRole('button', { name: 'bots.unsavedChanges.continueEditing' }));
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
   expect(screen.getByRole('switch', { name: 'release-check' }).getAttribute('aria-checked')).toBe('true');
 
   // 确认放弃:关掉抽屉,回到伙伴页,不再补写这份草稿。
   const writesBeforeLeave = mocks.updateBotProfile.mock.calls.length;
   fireEvent.click(screen.getByRole('button', { name: 'bots.close' }));
+  await screen.findByRole('alertdialog');
+  fireEvent.click(screen.getByRole('button', { name: 'bots.unsavedChanges.discard' }));
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   expect(screen.getByTestId('location').textContent).toBe('/bots/bot-1');
   await act(async () => {});
   // 唯一一次写入是弹确认之前的 flush 尝试;用户放弃之后(含卸载补写)不得再发第二次。
   expect(mocks.updateBotProfile.mock.calls.length).toBe(writesBeforeLeave + 1);
 });
-

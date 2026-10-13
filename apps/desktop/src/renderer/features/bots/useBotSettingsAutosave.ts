@@ -171,7 +171,8 @@ export function useBotSettingsAutosave(
     const saved = baselineRef.current;
     payloadRef.current = saved;
     committablePayloadRef.current = saved;
-  }, [autosave]);
+    handleStatus('idle');
+  }, [autosave, handleStatus]);
 
   const isDirty = useCallback(() => enabledRef.current && autosave.isDirty(), [autosave]);
 

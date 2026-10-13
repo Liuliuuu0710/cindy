@@ -247,30 +247,40 @@ export function BotSettings({
     setCapabilities(saved.capabilities);
     autosave.discard();
   }, [autosave.discard]);
+  const leavePromiseRef = useRef<Promise<boolean> | null>(null);
 
   /**
    * 关闭 / 返回这类真正离开抽屉的路径:保存没能落库时不再静默拒绝,
    * 给用户一个明确的「放弃修改」出口 —— 宿主拒绝这次写入时草稿会一直判脏,
    * 只靠重试的话抽屉就成了关不掉的全屏壳。
    */
-  const leaveForClose = useCallback(async () => {
-    if (avatarInFlight.current) return false;
-    // 冲刷本身失败也按「没保存成功」处理:这条路径不允许把用户关在抽屉里。
-    await autosave.flush().catch(() => undefined);
-    if (autosave.isDirty()) {
-      const discard = await confirm({
-        presentation: 'standard',
-        title: t('bots.unsavedChanges.title'),
-        description: t('bots.unsavedChanges.description'),
-        confirmText: t('bots.unsavedChanges.discard'),
-        cancelText: t('bots.unsavedChanges.continueEditing'),
-        confirmVariant: 'destructive',
-      });
-      if (!discard) return false;
-      discardDraft();
-    }
-    if (!((await memoryLeaveRef.current?.()) ?? true)) return false;
-    return (await routineLeaveRef.current?.()) ?? true;
+  const leaveForClose = useCallback(() => {
+    if (leavePromiseRef.current) return leavePromiseRef.current;
+    if (avatarInFlight.current) return Promise.resolve(false);
+    const pending = (async () => {
+      // 冲刷本身失败也按「没保存成功」处理:这条路径不允许把用户关在抽屉里。
+      await autosave.flush().catch(() => undefined);
+      if (autosave.isDirty()) {
+        const discard = await confirm({
+          presentation: 'standard',
+          title: t('bots.unsavedChanges.title'),
+          description: t('bots.unsavedChanges.description'),
+          confirmText: t('bots.unsavedChanges.discard'),
+          cancelText: t('bots.unsavedChanges.continueEditing'),
+          confirmVariant: 'destructive',
+        });
+        if (!discard) return false;
+        discardDraft();
+      }
+      if (!((await memoryLeaveRef.current?.()) ?? true)) return false;
+      return (await routineLeaveRef.current?.()) ?? true;
+    })();
+    leavePromiseRef.current = pending;
+    const clearPending = () => {
+      if (leavePromiseRef.current === pending) leavePromiseRef.current = null;
+    };
+    void pending.then(clearPending, clearPending);
+    return pending;
   }, [autosave.flush, autosave.isDirty, confirm, discardDraft, t]);
 
   useEffect(() => {
