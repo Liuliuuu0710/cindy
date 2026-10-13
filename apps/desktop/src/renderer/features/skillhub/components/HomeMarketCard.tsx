@@ -21,7 +21,7 @@ export function HomeMarketCard({ skill: s, onClick, onUpdate, updating }: Market
       )}
     >
       <div className="flex items-center gap-2">
-        <SkillIcon url={s.icon} />
+        <SkillIcon url={s.icon} categories={s.categories} tags={s.tags} />
         <button
           type="button"
           onClick={(event) => { event.stopPropagation(); onClick(s); }}

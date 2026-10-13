@@ -162,7 +162,7 @@ export function MarketCard({
     >
       {/* Title */}
       <div className="flex w-full min-w-0 items-center" style={{ gap: '10px' }}>
-        <SkillIcon url={skill.icon} />
+        <SkillIcon url={skill.icon} categories={skill.categories} tags={skill.tags} />
         <h3
           className="min-w-0 flex-1 truncate font-medium text-[var(--msg-assistant-text)]"
           style={{ fontSize: 'var(--text-16)' }}

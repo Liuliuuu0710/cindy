@@ -551,7 +551,7 @@ function LocalGroup({
               )}
             >
               {s.kind === 'skill' ? (
-                <SkillIcon />
+                <SkillIcon frontmatter={s.frontmatter} />
               ) : (
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-[22%] border-[0.5px] border-[var(--border-default)] bg-[var(--surface-elevated)] text-[var(--text-primary)] shadow-[var(--plugin-card-shadow)]">
                   <Icon size={17} strokeWidth={1.75} />
