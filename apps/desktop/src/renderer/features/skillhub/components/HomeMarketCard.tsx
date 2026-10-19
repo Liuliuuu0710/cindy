@@ -29,13 +29,14 @@ export function HomeMarketCard({ skill: s, onClick, onUpdate, updating }: Market
         <div className="flex min-h-6 min-w-0 items-start justify-between gap-2">
           <button type="button" title={s.displayName || s.name}
             onClick={(event) => { event.stopPropagation(); onClick(s); }}
-            className="min-w-0 truncate text-left text-15 font-medium leading-5 text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
+            style={{ lineHeight: 20 / 15 }}
+            className="min-w-0 truncate text-left text-15 font-medium text-[var(--text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]">
             {s.displayName || s.name}
           </button>
           <MarketInstallStatus skill={s} onUpdate={onUpdate} updating={updating} />
         </div>
-        {s.description && <p title={s.description} className="min-w-0 line-clamp-2 text-13 leading-5 text-[var(--text-secondary)]">{s.description}</p>}
-        <div className="mt-auto flex min-h-6 min-w-0 items-center gap-2 text-11 leading-4 text-[var(--text-secondary)]">
+        {s.description && <p title={s.description} style={{ lineHeight: 20 / 13 }} className="min-w-0 line-clamp-2 text-13 text-[var(--text-secondary)]">{s.description}</p>}
+        <div style={{ lineHeight: 16 / 11 }} className="mt-auto flex min-h-6 min-w-0 items-center gap-2 text-11 text-[var(--text-secondary)]">
           <SkillTagList tags={s.tags} maxVisible={1} className="shrink-0 max-w-[50%]" />
           <span className="min-w-0 truncate" title={skillPublisherLabel(s)}>{skillPublisherLabel(s)}</span>
           {hasDownloadCount(s) && <span className="ml-auto inline-flex shrink-0 items-center gap-1 tabular-nums" title={t('skillhub.marketCard.downloadsLabel')} aria-label={t('skillhub.marketCard.downloadsLabel')}>

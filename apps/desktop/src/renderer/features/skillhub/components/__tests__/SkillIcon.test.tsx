@@ -6,6 +6,14 @@ import { SkillIcon } from '../SkillIcon';
 afterEach(cleanup);
 
 describe('SkillIcon', () => {
+  it.each(['research', 'code', 'writing', 'creative', 'business'])('keeps %s category fallbacks on the neutral surface', (category) => {
+    const { container } = render(<SkillIcon categories={[category]} />);
+    const avatar = container.firstElementChild as HTMLElement;
+    expect(avatar.style.backgroundColor).toBe('');
+    expect(avatar.className).toContain('bg-[var(--surface-elevated)]');
+    expect(container.querySelector('svg')).not.toBeNull();
+  });
+
   it('keeps the existing neutral Package for missing or unknown local metadata', () => {
     const { container, rerender } = render(<SkillIcon />);
     const baseline = container.innerHTML;
