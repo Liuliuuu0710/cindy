@@ -736,6 +736,8 @@ interface TodaySpendChipProps {
     modelLabel: string;
     effortLabel?: string;
     sourceLabel: string;
+    /** Archived/demoted task views can inspect usage but cannot edit this local companion. */
+    readOnly?: boolean;
     onOpenSettings: () => void;
   };
   vendorKey?: 'cc' | 'codex' | 'pi';
@@ -1686,7 +1688,7 @@ export function TodaySpendChip({
                   </span>
                 ) : null}
                 <span className="shrink-0 border-l border-[var(--border-default)] pl-2 text-12 text-[var(--text-secondary)]">{t('bots.runtimeUsage.usage')}</span>
-                {account.windows.some(({ window }) => Number.isFinite(window.utilization) && window.utilization >= 99.95) ? (
+                {chipWindows.some(window => !window.resetPending && window.remainingPercent <= 0.05) ? (
                   <span className="shrink-0 text-12 text-[var(--error-fg)]">{t('quotaCard.remainingPercent', { percent: 0 })}</span>
                 ) : null}
                 <ChevronDown size={12} className="shrink-0 text-[var(--text-tertiary)]" />
@@ -1744,10 +1746,12 @@ export function TodaySpendChip({
                 <div className="text-12 text-[var(--text-secondary)]">{t('bots.runtimeUsage.currentSelection')}</div>
                 <div className="mt-1 break-words text-13 font-medium">{composer.modelLabel}</div>
                 <div className="mt-1 break-words text-12 text-[var(--text-tertiary)]">{[composer.sourceLabel, composer.effortLabel].filter(Boolean).join(' · ')}</div>
-                <Button size="xs" compact tone="quiet" className="mt-2" onClick={() => {
-                  closeQuotaPopoverImmediately();
-                  composer.onOpenSettings();
-                }}>{t('bots.runtimeUsage.modelSettings')}</Button>
+                {!composer.readOnly ? (
+                  <Button size="xs" compact tone="quiet" className="mt-2" onClick={() => {
+                    closeQuotaPopoverImmediately();
+                    composer.onOpenSettings();
+                  }}>{t('bots.runtimeUsage.modelSettings')}</Button>
+                ) : null}
               </div>
             ) : undefined}
             account={composer ? { ...account, windows: account.windows.map(window => ({ ...window, showRemaining: true })) } : account}

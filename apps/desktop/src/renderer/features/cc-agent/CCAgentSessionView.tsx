@@ -5888,6 +5888,7 @@ function CCAgentSessionContent({
                       deviceLinkDeviceId={remoteDeviceId ?? null}
                       usageAccount={botUsageAccount}
                       composer={{
+                        readOnly,
                         modelLabel: session?.model ? localizedModelName(botUsageModel?.name ?? session.model, t) : t('bots.runtimeUsage.modelPending'),
                         effortLabel: session?.effort ? modelEffortLabel(t, botUsageModel, session.effort as Effort) : undefined,
                         sourceLabel: [botUsageVendor === 'cc' ? 'Claude Code' : botUsageVendor === 'codex' ? 'Codex' : 'Pi', botUsageProvider?.name ?? session?.providerId ?? t('bots.runtimeUsage.defaultSource')].join(' · '),

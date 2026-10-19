@@ -263,9 +263,9 @@ it('does not renew a changed remote revision into authority to overwrite it', as
   );
   expect(h.model.value[0].providerId).toBe('openai:remote-account');
 });
-it('never falls back to local settings on an old host', async () => {
+it.each(['home', 'model'] as const)('never falls back to local settings on an old host (%s)', async (initialPage) => {
   h.invoke.mockResolvedValue({ ...resource(), actions: [], blocks: [] });
-  render(<RemoteBotSettings bot={bot} beforeCloseRef={close} onDeleted={vi.fn()} />);
+  render(<RemoteBotSettings bot={bot} initialPage={initialPage} beforeCloseRef={close} onDeleted={vi.fn()} />);
   await waitFor(() => expect(screen.getByText('bots.remoteSettings.unsupported')).toBeTruthy());
   expect(screen.queryByText('Choose account')).toBeNull();
 });

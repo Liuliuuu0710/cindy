@@ -1317,6 +1317,47 @@ describe('Teammate composer model and usage', () => {
     expect(screen.getByText('等待额度数据')).toBeTruthy();
   });
 
+  it('hides model settings for a read-only companion while retaining usage details', () => {
+    render(<TodaySpendChip vendorKey="codex" providerId="openai" modelId="gpt-6-astra" sessionId="bot"
+      composer={{ ...composer, readOnly: true }} />);
+    fireEvent.click(trigger());
+    const card = screen.getByTestId('quota-hover-card');
+    expect(within(card).getByText('当前任务选择')).toBeTruthy();
+    expect(within(card).queryByRole('button', { name: '模型设置' })).toBeNull();
+    expect(settings).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])('does not call an expired window exhausted during reset suspense (another exhausted window=%s)', (anotherExhausted) => {
+    mocks.codexSnapshot = {
+      primary: { usedPercent: 100, resetsAt: Date.now() / 1000 + 1 },
+      ...(anotherExhausted ? { secondary: { usedPercent: 100 } } : {}),
+    };
+    const view = render(chip());
+    expect(trigger().textContent).toContain('剩余 0%');
+    act(() => vi.advanceTimersByTime(1500));
+    expect(trigger().textContent?.includes('剩余 0%')).toBe(anotherExhausted);
+    mocks.codexSnapshot = { primary: { usedPercent: 20, resetsAt: Date.now() / 1000 + 18000 } };
+    view.rerender(chip());
+    expect(trigger().textContent).not.toContain('剩余 0%');
+  });
+
+  it.each(['Opus', 'Fable'])('uses only the current Claude model quota for the exhausted badge (%s)', (modelFamily) => {
+    mocks.claudeSnapshot = {
+      source: 'oauth-endpoint', fiveHour: { utilization: 20 }, sevenDay: { utilization: 40 },
+      scoped: [{ modelDisplayName: 'Fable', utilization: 100 }],
+    };
+    render(<TodaySpendChip vendorKey="cc" providerId="anthropic" modelId={modelFamily === 'Opus' ? 'claude-opus-5[1m]' : 'claude-fable-5'}
+      sessionId="bot" composer={{ ...composer, modelLabel: modelFamily }} />);
+    const button = screen.getByRole('button', { name: '查看 ' + modelFamily + ' 的模型与用量' });
+    expect(button.textContent?.includes('剩余 0%')).toBe(modelFamily === 'Fable');
+  });
+
+  it('does not turn the gateway daily soft budget into an exhausted badge', () => {
+    mocks.gatewaySnapshot = { spend: 40, maxBudget: 100, currency: 'CNY', todaySpend: 20, fetchedAt: Date.now() };
+    render(<TodaySpendChip vendorKey="cc" providerId="xd" sessionId="bot" composer={composer} />);
+    expect(trigger().textContent).not.toContain('剩余 0%');
+  });
+
   it('supports keyboard entry and Escape without opening an external page', () => {
     render(chip());
     act(() => trigger().focus());

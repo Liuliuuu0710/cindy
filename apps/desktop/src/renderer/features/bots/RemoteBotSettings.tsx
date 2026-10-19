@@ -150,8 +150,13 @@ function RemoteBotSettingsContent({ bot, beforeCloseRef, onDeleted, initialPage 
         setData(next);
         setRevisionPending(false);
         setError(null);
-        if (!latest.current.dirty)
-          setDraft(next.panels.find((item) => item.id === latest.current.page)?.values ?? {});
+        if (!latest.current.dirty) {
+          const nextPanel = next.panels.find((item) => item.id === latest.current.page);
+          // Older hosts may not advertise the requested inner page. Keep their existing
+          // unsupported/settings overview reachable instead of leaving the drawer blank.
+          if (latest.current.page && !nextPanel) setPage(null);
+          setDraft(nextPanel?.values ?? {});
+        }
       } catch {
         if (current() && token === sequence.current) setError('loadFailed');
       } finally {
