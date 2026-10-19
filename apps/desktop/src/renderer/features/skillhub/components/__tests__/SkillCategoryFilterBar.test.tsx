@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import { SkillCategoryFilterBar } from '../SkillCategoryFilterBar';
@@ -53,7 +53,88 @@ Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
   value: vi.fn(),
 });
 
+function pointer(target: HTMLElement | Window, type: string, values: Record<string, number> = {}) {
+  const event = new Event(type, { bubbles: true, cancelable: true });
+  Object.assign(event, { pointerId: 1, pointerType: 'mouse', button: 0, buttons: 1, clientX: 100, ...values });
+  fireEvent(target, event);
+}
+
 describe('SkillCategoryFilterBar', () => {
+  // PR #6032: exercise the real component's pointer/resize boundaries. jsdom only
+  // supplies events and dimensions; the production component owns all scrolling.
+  it.each(['pointerup', 'pointercancel', 'missed-release'])('stops dragging after %s outside the bar', (release) => {
+    const { onSelectCategory } = renderBar();
+    const scroller = screen.getByTestId('skill-category-filter-scroller');
+    mockScroller(scroller, { scrollLeft: 100, clientWidth: 200, scrollWidth: 600 });
+    scroller.setPointerCapture = vi.fn();
+    pointer(scroller, 'pointerdown');
+    if (release !== 'missed-release') pointer(window, release, { buttons: 0 });
+    pointer(scroller, 'pointermove', { clientX: 60, buttons: release === 'missed-release' ? 0 : 1 });
+    expect(scroller.scrollLeft).toBe(100);
+    expect(onSelectCategory).not.toHaveBeenCalled();
+  });
+
+  it('keeps held-button dragging and suppresses its click, then allows a fresh click', () => {
+    const { onSelectCategory } = renderBar();
+    const scroller = screen.getByTestId('skill-category-filter-scroller');
+    mockScroller(scroller, { scrollLeft: 100, clientWidth: 200, scrollWidth: 600 });
+    scroller.setPointerCapture = vi.fn();
+    pointer(scroller, 'pointerdown');
+    pointer(scroller, 'pointermove', { clientX: 60 });
+    expect(scroller.scrollLeft).toBe(140);
+    pointer(scroller, 'pointerup', { buttons: 0 });
+    fireEvent.click(screen.getByRole('radio', { name: 'Productivity' }));
+    expect(onSelectCategory).not.toHaveBeenCalled();
+    pointer(scroller, 'pointerdown');
+    pointer(scroller, 'pointerup', { buttons: 0 });
+    fireEvent.click(screen.getByRole('radio', { name: 'Productivity' }));
+    expect(onSelectCategory).toHaveBeenCalledExactlyOnceWith('productivity');
+  });
+
+  it('recenters on width changes, ignores unchanged width, and disconnects on unmount', () => {
+    const observers = new Map<Element, { notify: ResizeObserverCallback; disconnect: ReturnType<typeof vi.fn> }>();
+    vi.stubGlobal('ResizeObserver', class {
+      constructor(private callback: ResizeObserverCallback) {}
+      disconnect = vi.fn();
+      observe = (element: Element) => { observers.set(element, { notify: this.callback, disconnect: this.disconnect }); };
+    });
+    try {
+      const { unmount, onSelectCategory } = renderBar();
+      const scroller = screen.getByTestId('skill-category-filter-scroller');
+      expect(observers.has(scroller)).toBe(true);
+      const { notify, disconnect } = observers.get(scroller)!;
+      mockScroller(scroller, { scrollLeft: 0, clientWidth: 200, scrollWidth: 600 });
+      const selected = screen.getByRole('radio', { name: 'Automation' });
+      Object.defineProperty(selected, 'offsetLeft', { configurable: true, value: 260 });
+      Object.defineProperty(selected, 'offsetWidth', { configurable: true, value: 96 });
+      act(() => notify([], {} as ResizeObserver));
+      expect(scroller.scrollTo).toHaveBeenLastCalledWith({ left: 208, behavior: 'auto' });
+      vi.mocked(scroller.scrollTo).mockClear();
+      act(() => notify([], {} as ResizeObserver));
+      expect(scroller.scrollTo).not.toHaveBeenCalled();
+      Object.defineProperty(scroller, 'clientWidth', { configurable: true, value: 120 });
+      act(() => notify([], {} as ResizeObserver));
+      expect(scroller.scrollTo).toHaveBeenLastCalledWith({ left: 248, behavior: 'auto' });
+      Object.defineProperty(scroller, 'clientWidth', { configurable: true, value: 400 });
+      act(() => notify([], {} as ResizeObserver));
+      expect(scroller.scrollTo).toHaveBeenLastCalledWith({ left: 108, behavior: 'auto' });
+      // A loaded font can widen the row while the capsule keeps the same width.
+      Object.defineProperty(scroller, 'scrollWidth', { configurable: true, value: 800 });
+      Object.defineProperty(selected, 'offsetLeft', { configurable: true, value: 320 });
+      act(() => notify([], {} as ResizeObserver));
+      expect(scroller.scrollTo).toHaveBeenLastCalledWith({ left: 168, behavior: 'auto' });
+      expect(onSelectCategory).not.toHaveBeenCalled();
+      unmount();
+      expect(disconnect).toHaveBeenCalledOnce();
+      vi.mocked(scroller.scrollTo).mockClear();
+      Object.defineProperty(scroller, 'clientWidth', { configurable: true, value: 100 });
+      act(() => notify([], {} as ResizeObserver));
+      expect(scroller.scrollTo).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('renders a single-select category group', () => {
     const { onSelectCategory } = renderBar();
 

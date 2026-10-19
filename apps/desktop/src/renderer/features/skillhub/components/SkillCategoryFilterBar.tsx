@@ -38,20 +38,50 @@ export function SkillCategoryFilterBar({
       element.scrollLeft += delta * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? element.clientWidth : 1);
       if (element.scrollLeft !== previous) event.preventDefault();
     };
+    const onRelease = (event: PointerEvent) => {
+      if (event.pointerId !== drag.current.pointerId) return;
+      drag.current.pointerId = -1;
+      if (event.type === 'pointercancel') drag.current.moved = false;
+    };
     element.addEventListener('wheel', onWheel, { passive: false });
-    return () => element.removeEventListener('wheel', onWheel);
+    // Capture begins only after a horizontal drag, so ordinary option clicks keep
+    // their original target. A release outside the bar must still end the gesture.
+    window.addEventListener('pointerup', onRelease, true);
+    window.addEventListener('pointercancel', onRelease, true);
+    return () => {
+      element.removeEventListener('wheel', onWheel);
+      window.removeEventListener('pointerup', onRelease, true);
+      window.removeEventListener('pointercancel', onRelease, true);
+    };
   }, []);
   useLayoutEffect(() => {
     const element = scrollRef.current;
     if (!element) return;
-    const selected = element.querySelector<HTMLElement>('[aria-checked="true"]');
-    if (!selected) return;
-    const target = selected.offsetLeft - (element.clientWidth - selected.offsetWidth) / 2;
-    const max = Math.max(0, element.scrollWidth - element.clientWidth);
-    element.scrollTo({
-      left: Math.max(0, Math.min(target, max)),
-      behavior: 'auto',
+    const centerSelected = () => {
+      const selected = element.querySelector<HTMLElement>('[aria-checked="true"]');
+      if (!selected) return;
+      const target = selected.offsetLeft - (element.clientWidth - selected.offsetWidth) / 2;
+      const max = Math.max(0, element.scrollWidth - element.clientWidth);
+      element.scrollTo({ left: Math.max(0, Math.min(target, max)), behavior: 'auto' });
+    };
+    centerSelected();
+    if (typeof ResizeObserver === 'undefined') return;
+    let active = true;
+    let previousWidth = element.clientWidth;
+    let previousContentWidth = element.scrollWidth;
+    const observer = new ResizeObserver(() => {
+      if (!active || (element.clientWidth === previousWidth && element.scrollWidth === previousContentWidth)) return;
+      previousWidth = element.clientWidth;
+      previousContentWidth = element.scrollWidth;
+      centerSelected();
     });
+    observer.observe(element);
+    // Font loading can resize the option row without changing the outer capsule.
+    if (element.firstElementChild) observer.observe(element.firstElementChild);
+    return () => {
+      active = false;
+      observer.disconnect();
+    };
   }, [categories, selectedCategory]);
 
   return (
@@ -70,6 +100,11 @@ export function SkillCategoryFilterBar({
         onPointerMove={(event) => {
           const state = drag.current;
           if (event.pointerId !== state.pointerId) return;
+          if ((event.buttons & 1) === 0) {
+            state.pointerId = -1;
+            state.moved = false;
+            return;
+          }
           const delta = event.clientX - state.startX;
           if (!state.moved && Math.abs(delta) < 5) return;
           state.moved = true;
@@ -78,7 +113,7 @@ export function SkillCategoryFilterBar({
           event.preventDefault();
         }}
         onPointerUp={() => { drag.current.pointerId = -1; }}
-        onPointerCancel={() => { drag.current.pointerId = -1; }}
+        onPointerCancel={() => { drag.current.pointerId = -1; drag.current.moved = false; }}
         onLostPointerCapture={() => { drag.current.pointerId = -1; }}
         onClickCapture={(event) => {
           if (!drag.current.moved) return;
