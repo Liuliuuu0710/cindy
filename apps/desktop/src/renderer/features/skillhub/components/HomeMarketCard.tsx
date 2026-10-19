@@ -35,8 +35,8 @@ export function HomeMarketCard({ skill: s, onClick, onUpdate, updating }: Market
           </button>
           <MarketInstallStatus skill={s} onUpdate={onUpdate} updating={updating} />
         </div>
-        {s.description && <p title={s.description} style={{ lineHeight: 20 / 13 }} className="min-w-0 line-clamp-2 text-13 text-[var(--text-secondary)]">{s.description}</p>}
-        <div style={{ lineHeight: 16 / 11 }} className="mt-auto flex min-h-6 min-w-0 items-center gap-2 text-11 text-[var(--text-secondary)]">
+        {s.description && <p title={s.description} style={{ lineHeight: 20 / 13 }} className="min-w-0 line-clamp-2 text-13 text-[var(--text-tertiary)]">{s.description}</p>}
+        <div style={{ lineHeight: 16 / 11 }} className="mt-auto flex min-h-6 min-w-0 items-center gap-2 text-11 text-[var(--text-tertiary)]">
           <SkillTagList tags={s.tags} maxVisible={1} className="shrink-0 max-w-[50%]" />
           <span className="min-w-0 truncate" title={skillPublisherLabel(s)}>{skillPublisherLabel(s)}</span>
           {hasDownloadCount(s) && <span className="ml-auto inline-flex shrink-0 items-center gap-1 tabular-nums" title={t('skillhub.marketCard.downloadsLabel')} aria-label={t('skillhub.marketCard.downloadsLabel')}>

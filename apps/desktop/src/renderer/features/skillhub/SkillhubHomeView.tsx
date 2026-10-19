@@ -332,14 +332,14 @@ export function SkillhubHomeContent({
         )}
       >
         <main className="h-full overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable_both-edges]">
-          <PluginManagementPage className="gap-5">
+          <PluginManagementPage className="skillhub-compact-page gap-4">
             <header className="plugin-motion-page-header flex flex-col gap-3" data-catalog-region="heading">
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0 flex-1 basis-72 pt-1">
-                  <h1 className="text-28 font-medium leading-tight text-[var(--text-primary)]">
+                <div className="skillhub-heading-copy min-w-0 flex-1 basis-72">
+                  <h1 className="shrink-0 text-24 font-medium leading-snug text-[var(--text-primary)]">
                     {t('skillhub.home.title')}
                   </h1>
-                  <p className="mt-2 max-w-2xl text-14 leading-6 text-[var(--text-secondary)]">
+                  <p className="max-w-2xl text-13 leading-relaxed text-[var(--text-tertiary)]">
                     {t('skillhub.home.description')}
                   </p>
                 </div>
