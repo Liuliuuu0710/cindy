@@ -493,6 +493,20 @@ Reuse themed controls for Light/Dark; this contract does not claim runtime visua
 
 ### Inputs & Forms
 
+**Running composer actions (user decision, 2026-10-19, #6079).** When a task is
+running and the composer has sendable content, show adjacent text actions for
+Steer and Queue. Steer uses the existing delivery path and explains that the
+message is prioritized after the current operation; Queue explains that it is
+processed after the current response. Do not imply immediate cancellation.
+Keep Stop separate, preserve the configured keyboard shortcuts, and only show
+the steer shortcut when that key combination actually steers. Queue editing
+continues to expose Save instead. Use themed pill controls in both modes.
+Keep the original compact microphone and Stop layout while input is empty;
+do not reserve space for hidden actions. Expand Steer and Queue only for
+sendable content or active voice input. On the narrowest toolbar, give the
+expanded actions their own row instead of clipping labels. Queue-row steering remains
+available as a correction after sending.
+
 ```
 input/text
   fill        --surface-elevated  #ffffff / #2c2c2a

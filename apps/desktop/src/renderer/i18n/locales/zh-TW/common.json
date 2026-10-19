@@ -10193,10 +10193,12 @@
       "sendBlocked": "來源已斷開，無法傳送 — 請切換或重新連線來源"
     },
     "sendButton": {
+      "steer": "插話",
+      "queueLabel": "排隊傳送",
+      "steerTooltip": "目前操作結束後，優先處理這則補充",
       "send": "傳送訊息",
       "queue": "排隊傳送",
-      "queueTooltip": "點選排隊傳送；按 {{shortcut}} 插話，不打斷當前任務",
-      "queueTooltipSendMode": "點選可排隊；按 {{shortcut}} 傳送此訊息",
+      "queueTooltipSendMode": "目前回覆完成後再處理 · {{shortcut}}",
       "stop": "停止生成"
     },
     "pluginSetup": {

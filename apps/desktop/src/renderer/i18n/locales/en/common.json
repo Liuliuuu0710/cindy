@@ -10233,10 +10233,12 @@
       "sendBlocked": "Source disconnected — switch or reconnect a source to send"
     },
     "sendButton": {
+      "steer": "Steer",
+      "queueLabel": "Queue",
+      "steerTooltip": "Prioritize this message after the current operation finishes",
       "send": "Send message",
       "queue": "Queue message",
-      "queueTooltip": "Click to queue; press {{shortcut}} to steer without interrupting the task",
-      "queueTooltipSendMode": "Click to queue; press {{shortcut}} to send this message",
+      "queueTooltipSendMode": "Process after the current response finishes · {{shortcut}}",
       "stop": "Stop generating"
     },
     "pluginSetup": {

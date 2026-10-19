@@ -13,6 +13,8 @@ interface SendButtonProps {
   highlighted?: boolean;
   /** Override for the accessible action name when Send visually means Queue. */
   ariaLabel?: string;
+  /** Visible action label for the running composer; idle Send/Stop stay icon-only. */
+  label?: string;
   /** Save reuses the send button shell while queue content is edited in the composer. */
   action?: 'send' | 'save';
   /** CREATE AGENT 首页按 Figma 185:2724 使用独立私有 token。 */
@@ -45,6 +47,7 @@ export const SendButton = forwardRef<HTMLButtonElement, SendButtonProps>(functio
     isStreaming = false,
     highlighted = false,
     ariaLabel,
+    label,
     action = 'send',
     visualVariant = 'default',
   },
@@ -64,7 +67,10 @@ export const SendButton = forwardRef<HTMLButtonElement, SendButtonProps>(functio
         !disabled && 'active:scale-[0.98]',
         // create-agent(新建对话框)send 与会话内共用 send-btn-* token,三态(hover/pressed/disabled)一致;
         // 仅尺寸随所在工具条密度不同(新建对话框行高 30px,会话内 28px)。
-        isCreateAgentVariant ? 'h-[30px] w-[30px]' : 'h-7 w-7',
+        isCreateAgentVariant ? 'h-[30px]' : 'h-7',
+        label && !isStreaming
+          ? 'gap-1.5 px-3 text-13 font-medium whitespace-nowrap'
+          : isCreateAgentVariant ? 'w-[30px]' : 'w-7',
         'bg-[var(--send-btn-bg)] text-[var(--send-btn-icon)]',
         !disabled && 'hover:bg-[var(--send-btn-hover-bg)] active:bg-[var(--send-btn-pressed-bg)]',
         highlighted && !disabled && !isStreaming && 'opacity-85',
@@ -72,6 +78,7 @@ export const SendButton = forwardRef<HTMLButtonElement, SendButtonProps>(functio
       )}
       aria-label={ariaLabel ?? (isStreaming ? t('newChat.sendButton.stop') : t('newChat.sendButton.send'))}
     >
+      {label && !isStreaming && <span>{label}</span>}
       {/* send / stop 两态图标叠放同格交叉淡切(150ms,opacity+scale,
           compositor-only),替代条件渲染的瞬间硬换。 */}
       <span className="relative grid h-3.5 w-3.5 place-items-center" aria-hidden>

@@ -140,7 +140,8 @@ describe('ChatInput steer shortcut contract', () => {
     expect(composerSettingsSource).toContain("setPreference('enter');");
     expect(chatInputSource).toContain('useComposerSendShortcutPreference()');
     expect(chatInputSource).toContain('getComposerSendShortcutLabel(');
-    expect(chatInputSource).toContain("composerSendShortcutPreference === 'modifier-enter'");
+    expect(chatInputSource).toContain("composerSendShortcutPreference === 'enter'");
+    expect(chatInputSource).toContain("newChat.sendButton.steerTooltip");
     expect(chatInputSource).toContain('newChat.sendButton.queueTooltipSendMode');
     expect(pendingQueuePanelSource).toContain('isPendingQueueSteerShortcut');
     expect(pendingQueuePanelSource).toContain('void onSteer(entry.clientId);');

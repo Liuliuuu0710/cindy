@@ -524,3 +524,86 @@ it.each([320, 480, 800])('preserves the model slot across hydration (width=%s)',
   await act(async () => {});
   expect(onSend).not.toHaveBeenCalled();
 });
+
+it.each(['steer', 'queue'] as const)(
+  'offers an explicit running composer %s action and preserves its delivery mode',
+  async (deliveryMode) => {
+    const onSend = vi.fn().mockResolvedValue(true);
+    const onStop = vi.fn();
+    render(<ChatInput {...props} sessionId={`running-${deliveryMode}`} isAgentBusy onStop={onStop}
+      initialModel="gpt-6-astra" initialProviderId="openai" onSend={onSend} />);
+    await act(async () => { h.editor!.commands.setContent('<p>Check the citations first</p>'); });
+    const steer = screen.getByRole('button', { name: 'newChat.sendButton.steer' });
+    const queue = screen.getByRole('button', { name: 'newChat.sendButton.queue' });
+    expect(steer.textContent).toBe('newChat.sendButton.steer');
+    expect(queue.textContent).toBe('newChat.sendButton.queueLabel');
+    expect(screen.getByRole('button', { name: 'newChat.sendButton.stop' })).toBeTruthy();
+    await act(async () => { fireEvent.click(deliveryMode === 'steer' ? steer : queue); });
+    await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
+    expect(onSend.mock.calls[0][0]).toBe('Check the citations first');
+    expect(onSend.mock.calls[0][6]).toEqual(expect.objectContaining({ deliveryMode }));
+    expect(onStop).not.toHaveBeenCalled();
+    expect(h.confirm).not.toHaveBeenCalled();
+  },
+);
+
+it('keeps both running actions blocked until model metadata is available', async () => {
+  const onSend = vi.fn();
+  render(<ChatInput {...props} sessionId="running-loading" isAgentBusy onSend={onSend} />);
+  await act(async () => { h.editor!.commands.setContent('<p>Keep this draft</p>'); });
+  for (const action of ['steer', 'queue']) {
+    const button = screen.getByRole('button', { name: `newChat.sendButton.${action}` }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    fireEvent.click(button);
+  }
+  expect(onSend).not.toHaveBeenCalled();
+  expect(h.editor!.getText()).toBe('Keep this draft');
+});
+
+it('shows only stop for empty running input and removes steer when the task finishes', async () => {
+  const inputProps = { ...props, sessionId: 'running-empty', initialModel: 'gpt-6-astra', onSend: vi.fn() };
+  const view = render(<ChatInput {...inputProps} isAgentBusy narrowToolbar />);
+  const toolbar = screen.getByTestId('permission-selector').parentElement!.parentElement!;
+  expect(toolbar.classList.contains('flex-nowrap')).toBe(true);
+  expect(toolbar.classList.contains('flex-wrap')).toBe(false);
+  expect(screen.queryByRole('button', { name: 'newChat.sendButton.steer' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'newChat.sendButton.queue' })).toBeNull();
+  expect(view.container.textContent).not.toContain('newChat.sendButton.steer');
+  expect(view.container.textContent).not.toContain('newChat.sendButton.queueLabel');
+  expect(screen.getByRole('button', { name: 'newChat.sendButton.stop' })).toBeTruthy();
+  await act(async () => { h.editor!.commands.setContent('<p>Next message</p>'); });
+  expect(screen.getByRole('button', { name: 'newChat.sendButton.steer' })).toBeTruthy();
+  expect(toolbar.classList.contains('flex-wrap')).toBe(true);
+  expect(toolbar.classList.contains('flex-nowrap')).toBe(false);
+  await act(async () => { h.editor!.commands.clearContent(); });
+  expect(toolbar.classList.contains('flex-wrap')).toBe(false);
+  expect(toolbar.classList.contains('flex-nowrap')).toBe(true);
+  await act(async () => { h.editor!.commands.setContent('<p>Next message</p>'); });
+  view.rerender(<ChatInput {...inputProps} isAgentBusy={false} />);
+  expect(screen.queryByRole('button', { name: 'newChat.sendButton.steer' })).toBeNull();
+  expect(screen.getByRole('button', { name: 'newChat.sendButton.send' })).toBeTruthy();
+});
+
+it('keeps queue editing as save, without exposing the two running send actions', async () => {
+  render(<ChatInput {...props} sessionId="running-queue-edit" isAgentBusy onSend={vi.fn()}
+    pendingQueue={[queuedMessage]} queueEditingClientId={queuedMessage.clientId}
+    onQueueEditSubmit={vi.fn()} onQueueEditCancel={vi.fn()} />);
+  expect(await screen.findByRole('button', { name: 'newChat.pendingQueue.editSaveAria' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'newChat.sendButton.steer' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'newChat.sendButton.queue' })).toBeNull();
+});
+
+it('finishes active voice input before dispatching an explicit steer', async () => {
+  h.listening = true;
+  const onSend = vi.fn().mockResolvedValue(true);
+  render(<ChatInput {...props} sessionId="running-voice-steer" isAgentBusy
+    initialModel="gpt-6-astra" initialProviderId="openai" onSend={onSend} />);
+  await act(async () => { h.editor!.commands.setContent('<p>Check the citations first</p>'); });
+  await act(async () => {
+    fireEvent.click(screen.getByRole('button', { name: 'newChat.sendButton.steer' }));
+  });
+  await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
+  expect(h.stop).toHaveBeenCalled();
+  expect(h.stop.mock.invocationCallOrder[0]).toBeLessThan(onSend.mock.invocationCallOrder[0]);
+  expect(onSend.mock.calls[0][6]).toEqual(expect.objectContaining({ deliveryMode: 'steer' }));
+});

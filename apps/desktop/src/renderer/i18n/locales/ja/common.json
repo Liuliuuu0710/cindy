@@ -10193,10 +10193,12 @@
       "sendBlocked": "ソースが切断されているため送信できません。ソースを切り替えるか再接続してください"
     },
     "sendButton": {
+      "steer": "割り込み",
+      "queueLabel": "キューに追加",
+      "steerTooltip": "現在の操作が終わったら、このメッセージを優先して処理します",
       "send": "メッセージを送信",
       "queue": "キューに追加",
-      "queueTooltip": "クリックでキューに追加。{{shortcut}} でタスクを中断せずに割り込み送信",
-      "queueTooltipSendMode": "クリックでキューに追加、{{shortcut}}でこのメッセージを送信",
+      "queueTooltipSendMode": "現在の応答が完了してから処理します · {{shortcut}}",
       "stop": "生成を停止"
     },
     "pluginSetup": {

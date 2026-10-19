@@ -191,6 +191,7 @@ import {
 import { PendingQueuePanel } from './PendingQueuePanel';
 import { resolveSoleSteerableQueuedMessage } from './pendingQueueRowPresentation';
 import { SendButton } from './SendButton';
+import { Button } from '@/components/ui/button';
 import { FolderPickerPopover, addRecentFolder } from './FolderPickerPopover';
 import { SlashCommandPalette } from './SlashCommandPalette';
 import {
@@ -8728,11 +8729,10 @@ export function ChatInput({
   // 到主槽, Stop 退到次槽. sendDispatchInFlight 锁次槽, 避免 send 瞬间主槽 Send→Stop 切换
   // 的同帧再多出一个 Stop 把模型选择推一下又复位的 bug.
   //
-  // 次槽必须在语音按钮**左边**, 不能夹在语音与 Send 之间 (2026-07-25): 本组右对齐, 语音
-  // 按钮永远紧邻主槽左侧, 于是它的右边缘恒等于「容器右 - 主槽宽 - gap」, 与是否 streaming /
-  // 是否有草稿 / 是否录音全部无关 —— 录音时计时胶囊只向左生长, 原来的麦克风命中点始终留在
-  // 按钮内, 用户可以"原地再点一下"停止录音. 若把 Stop 塞进语音与 Send 之间, 语音按钮会随
-  // Stop 的出现/消失整格横跳, 而它让出的位置正好被 Stop 占据, 原地再点一下就会误停任务.
+  // 次槽必须在语音按钮**左边**, 不能夹在语音与发送动作组之间。本组右对齐, 语音
+  // 按钮紧邻发送动作组左侧。空输入保持原有语音 + Stop 紧凑布局，不预留双动作宽度；
+  // 有内容或 voice busy 时才展开插话 + 排队。展开时语音按钮会随动作组左移，
+  // 次槽 Stop 仍在语音左侧，不占用语音原来的位置。
   //
   // 槽位判定用 isBusy 而不是 isListening (2026-07-25): 停止录音的瞬间 state 就离开
   // listening 进入 submitting/refining, 但转写文本要等润色完才落进草稿, 中间这一小段
@@ -8743,6 +8743,7 @@ export function ChatInput({
   const mainSlotIsStop =
     !queueEditActive &&
     showStopButton && (sendDispatchInFlight || (!canSend && !voiceBusyOnCurrentComposer));
+  const showRunningSendActions = !queueEditActive && showStopButton && !mainSlotIsStop;
   const showSecondaryStop =
     !queueEditActive &&
     showStopButton && (canSend || voiceBusyOnCurrentComposer) && !sendDispatchInFlight;
@@ -9257,6 +9258,7 @@ export function ChatInput({
                       ? 'min-w-0 flex-nowrap justify-between gap-2 overflow-hidden'
                       : 'min-w-0 flex-nowrap justify-between gap-1 overflow-hidden'
                     : 'justify-between',
+                showRunningSendActions && useUltraCompactToolbar && 'flex-wrap',
               )}
             >
               <div
@@ -9365,7 +9367,9 @@ export function ChatInput({
                         ? 'flex min-w-0 shrink items-center justify-end gap-2'
                         : 'flex min-w-0 shrink items-center justify-end gap-1'
                       : 'flex items-center gap-2',
-                  // compact 模式下所有输入框工具行保持单行;权限 / 模型 pill 内部截断承压,
+                  showRunningSendActions && useUltraCompactToolbar && 'basis-full flex-wrap',
+                  // compact 模式下输入框工具行保持单行;运行中最窄档为双动作留出独立一行。
+                  // 权限 / 模型 pill 内部截断承压,
                   // vendor tab 与圆形操作按钮保持固定宽,避免控件重叠或掉到第二行。
                 )}
               >
@@ -9580,14 +9584,15 @@ export function ChatInput({
                 </div>
                 ) : null}
                 <div
-                  className={
+                  className={cn(
                     useNarrowToolbar
                       ? 'flex shrink-0 items-center gap-1'
-                      : 'flex items-center gap-2'
-                  }
+                      : 'flex items-center gap-2',
+                    showRunningSendActions && useUltraCompactToolbar && 'w-full justify-end',
+                  )}
                 >
                   {/* 次槽 Stop 必须在语音按钮左边 —— 见 showSecondaryStop 定义处的
-                 双槽语义与"语音按钮位置守恒"说明, 不要挪到语音与 Send 之间。 */}
+                 双槽语义说明, 不要挪到语音与 Send 之间。 */}
                   {showSecondaryStop && (
                     <SendButton
                       disabled={false}
@@ -9639,76 +9644,103 @@ export function ChatInput({
                       }
                     />
                   )}
-                  {/* mousedown 吃掉默认行为:否则点发送会把焦点从 contenteditable
-                      挪到 button 上,发完光标就没了(接着打字要先点回输入框),
-                      推荐提示词的 Tab 也会因为编辑器失焦而落到原生焦点导航上。
-                      只压默认的「点击聚焦」,click 照常触发,键盘 Tab 聚焦不受影响。 */}
-                  <span
-                    ref={sendButtonRef}
-                    className="inline-flex rounded-full"
-                    onMouseDown={(event) => {
-                      // 只在编辑器已聚焦时压默认聚焦:点发送会先把焦点从
-                      // contenteditable 挪到 button 上,发完光标就没了;
-                      // 编辑器未聚焦时保留按钮正常聚焦行为(可访问性)。
-                      if (editor?.isFocused) event.preventDefault();
-                    }}
-                  >
-                    {mainSlotIsStop ? (
-                      <SendButton
-                        disabled={false}
-                        onClick={handleStop}
-                        isStreaming
-                        visualVariant={isCreateAgentVariant ? 'create-agent' : 'default'}
-                      />
-                    ) : (
-                      <Tip
-                        text={
-                          queueEditActive
-                            ? t('newChat.pendingQueue.editSaveAria')
-                            : voiceReleaseToSendActive
-                            ? t('newChat.chatInput.voiceInput.releaseToSend')
-                            : voiceInput.isListening && !sendButtonDisabled
-                              ? `${t('newChat.chatInput.voiceInput.finishAndSend')} · ${composerSendShortcutLabel}`
-                              : showStopButton
-                                ? composerSendShortcutPreference === 'modifier-enter'
-                                  ? t('newChat.sendButton.queueTooltipSendMode', {
-                                      shortcut: composerSendShortcutLabel,
-                                    })
-                                  : t('newChat.sendButton.queueTooltip', {
-                                      shortcut: steerShortcutLabel,
-                                    })
-                                : !sendButtonDisabled
-                                  ? `${t('newChat.sendButton.send')} · ${composerSendShortcutLabel}`
-                                  : selectedSourceDisconnected
-                                    ? t('newChat.sourceDisconnected.sendBlocked')
-                                    : null
-                        }
-                        side="top"
-                        forceOpen={voiceReleaseToSendActive}
+                  <span className="inline-grid shrink-0 items-center justify-items-end [&>*]:col-start-1 [&>*]:row-start-1">
+                    <span className="inline-flex items-center gap-1">
+                      {showRunningSendActions && (
+                        <Tip
+                          text={composerSendShortcutPreference === 'enter'
+                            ? `${t('newChat.sendButton.steerTooltip')} · ${steerShortcutLabel}`
+                            : t('newChat.sendButton.steerTooltip')}
+                          side="top"
+                        >
+                          <span
+                            className="inline-flex rounded-full"
+                            onMouseDown={(event) => {
+                              if (editor?.isFocused) event.preventDefault();
+                            }}
+                          >
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              compact
+                              disabled={sendButtonDisabled}
+                              onClick={() => { void handleClickSend('steer'); }}
+                            >
+                              {t('newChat.sendButton.steer')}
+                            </Button>
+                          </span>
+                        </Tip>
+                      )}
+                      {/* mousedown 吃掉默认行为:否则点发送会把焦点从 contenteditable
+                          挪到 button 上,发完光标就没了(接着打字要先点回输入框),
+                          推荐提示词的 Tab 也会因为编辑器失焦而落到原生焦点导航上。
+                          只压默认的「点击聚焦」,click 照常触发,键盘 Tab 聚焦不受影响。 */}
+                      <span
+                        ref={sendButtonRef}
+                        className="inline-flex rounded-full"
+                        onMouseDown={(event) => {
+                          // 只在编辑器已聚焦时压默认聚焦:点发送会先把焦点从
+                          // contenteditable 挪到 button 上,发完光标就没了;
+                          // 编辑器未聚焦时保留按钮正常聚焦行为(可访问性)。
+                          if (editor?.isFocused) event.preventDefault();
+                        }}
                       >
-                        {/* Tip 的 trigger 放在稳定 wrapper 上，而不是 button 本身。
-                            disabled button 不会可靠地产生 hover/focus 事件；曾经因此让
-                            running 时“排队/快捷键插话”提示完全不出现。 */}
-                        <span className="inline-flex rounded-full">
+                        {mainSlotIsStop ? (
                           <SendButton
-                            disabled={sendButtonDisabled}
-                            highlighted={voiceReleaseToSendActive}
-                            action={queueEditActive ? 'save' : 'send'}
+                            disabled={false}
+                            onClick={handleStop}
+                            isStreaming
                             visualVariant={isCreateAgentVariant ? 'create-agent' : 'default'}
-                            ariaLabel={
+                          />
+                        ) : (
+                          <Tip
+                            text={
                               queueEditActive
                                 ? t('newChat.pendingQueue.editSaveAria')
-                                : showStopButton
-                                  ? t('newChat.sendButton.queue')
-                                  : t('newChat.sendButton.send')
+                                : voiceReleaseToSendActive
+                                ? t('newChat.chatInput.voiceInput.releaseToSend')
+                                : voiceInput.isListening && !sendButtonDisabled
+                                  ? `${t('newChat.chatInput.voiceInput.finishAndSend')} · ${composerSendShortcutLabel}`
+                                  : showStopButton
+                                    ? t('newChat.sendButton.queueTooltipSendMode', {
+                                        shortcut: composerSendShortcutLabel,
+                                      })
+                                    : !sendButtonDisabled
+                                      ? `${t('newChat.sendButton.send')} · ${composerSendShortcutLabel}`
+                                      : selectedSourceDisconnected
+                                        ? t('newChat.sourceDisconnected.sendBlocked')
+                                        : null
                             }
-                            onClick={() => {
-                              void handleClickSend();
-                            }}
-                          />
-                        </span>
-                      </Tip>
-                    )}
+                            side="top"
+                            forceOpen={voiceReleaseToSendActive}
+                          >
+                            {/* Tip 的 trigger 放在稳定 wrapper 上，而不是 button 本身。
+                                disabled button 不会可靠地产生 hover/focus 事件；曾经因此让
+                                running 时“排队/快捷键插话”提示完全不出现。 */}
+                            <span className="inline-flex rounded-full">
+                              <SendButton
+                                disabled={sendButtonDisabled}
+                                highlighted={voiceReleaseToSendActive}
+                                label={showRunningSendActions ? t('newChat.sendButton.queueLabel') : undefined}
+                                action={queueEditActive ? 'save' : 'send'}
+                                visualVariant={isCreateAgentVariant ? 'create-agent' : 'default'}
+                                ariaLabel={
+                                  queueEditActive
+                                    ? t('newChat.pendingQueue.editSaveAria')
+                                    : showStopButton
+                                      ? t('newChat.sendButton.queue')
+                                      : t('newChat.sendButton.send')
+                                }
+                                onClick={() => {
+                                  void handleClickSend();
+                                }}
+                              />
+                            </span>
+                          </Tip>
+                        )}
+                      </span>
+                    </span>
                   </span>
                 </div>
               </div>

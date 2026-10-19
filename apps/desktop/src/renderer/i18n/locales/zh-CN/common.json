@@ -10193,10 +10193,12 @@
       "sendBlocked": "来源已断开，无法发送 — 请切换或重新连接来源"
     },
     "sendButton": {
+      "steer": "插话",
+      "queueLabel": "排队发送",
+      "steerTooltip": "当前操作结束后，优先处理这条补充",
       "send": "发送消息",
       "queue": "排队发送",
-      "queueTooltip": "点击排队发送；按 {{shortcut}} 插话，不打断当前任务",
-      "queueTooltipSendMode": "点击可排队；按 {{shortcut}} 发送此消息",
+      "queueTooltipSendMode": "当前回复完成后再处理 · {{shortcut}}",
       "stop": "停止生成"
     },
     "pluginSetup": {

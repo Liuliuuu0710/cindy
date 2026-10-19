@@ -10193,10 +10193,12 @@
       "sendBlocked": "소스 연결이 끊어져 보낼 수 없습니다. 소스를 전환하거나 다시 연결하세요"
     },
     "sendButton": {
+      "steer": "끼어들기",
+      "queueLabel": "대기열 추가",
+      "steerTooltip": "현재 작업이 끝나면 이 메시지를 우선 처리합니다",
       "send": "메시지 전송",
       "queue": "대기열에 추가",
-      "queueTooltip": "클릭하면 대기열에 추가됩니다. {{shortcut}} 를 누르면 작업을 중단하지 않고 끼어듭니다",
-      "queueTooltipSendMode": "클릭하면 대기열에 추가하고, {{shortcut}}를 누르면 이 메시지를 보냅니다.",
+      "queueTooltipSendMode": "현재 응답이 완료된 후 처리합니다 · {{shortcut}}",
       "stop": "생성 중지"
     },
     "pluginSetup": {
