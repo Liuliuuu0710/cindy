@@ -131,7 +131,7 @@ export function SkillhubHomeContent({
   const target = useSkillhubTarget();
   const navigate = useNavigate();
   const { skills, projects, bootstrapped, syncResults } = useSkillhub();
-  const { catalogTab, query, setCatalogTab, setQuery, sort: savedSort, category: savedCategory, setSort: saveSort, setCategory: saveCategory } = useSkillhubHomeNavigation(navigationLocation);
+  const { homeState, catalogTab, query, setCatalogTab, setQuery, sort: savedSort, category: savedCategory, setSort: saveSort, setCategory: saveCategory } = useSkillhubHomeNavigation(navigationLocation);
   const normalizedQuery = query.trim().toLocaleLowerCase();
 
   // 未登录也请求公开 Skill 目录；登录身份只扩大服务端可见范围。
@@ -261,7 +261,7 @@ export function SkillhubHomeContent({
   const openLocal = (local: SkillhubSkill) => {
     if (target) return target.openLocal(local);
     const route = withSkillDetailReturn(buildLocalSkillRoute(local), returnTo);
-    navigate(route, { state: { from: '/skillhub/local', resetHistory: true, skillhubHome: { catalogTab, query, sort: savedSort, category: savedCategory } } });
+    navigate(route, { state: { from: '/skillhub/local', resetHistory: true, skillhubHome: homeState } });
   };
   const openMarket = () => target ? target.openMarketList() : navigate('/skillhub/market');
   const openCatalogSkill = (skill: MarketSkill) => target ? target.openMarket(skill) : navigate(buildMarketSkillRoute(skill, returnTo));
@@ -529,7 +529,7 @@ export function SkillhubHomeContent({
                 : undefined;
               if (imported) {
                 navigate(buildLocalSkillRoute(imported), {
-                  state: { from: '/skillhub/local', resetHistory: true, skillhubHome: { catalogTab, query, sort: savedSort, category: savedCategory } },
+                  state: { from: '/skillhub/local', resetHistory: true, skillhubHome: homeState },
                 });
                 return;
               }
@@ -546,7 +546,7 @@ export function SkillhubHomeContent({
                 name: result.name,
               };
               navigate(buildLocalSkillRoute(fallback), {
-                state: { from: '/skillhub/local', resetHistory: true, skillhubHome: { catalogTab, query, sort: savedSort, category: savedCategory } },
+                state: { from: '/skillhub/local', resetHistory: true, skillhubHome: homeState },
               });
             });
           }}

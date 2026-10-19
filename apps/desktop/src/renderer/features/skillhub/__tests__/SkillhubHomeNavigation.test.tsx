@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   user: null as { membershipKind: 'org' } | null,
@@ -30,7 +31,10 @@ vi.mock('../hooks/useSkillhub', () => ({ useSkillhub: () => mocks.store, refresh
 vi.mock('../hooks/useMarketList', () => ({
   MARKET_PAGE_SIZE: 24,
   useMarketList: () => mocks.market,
-  useCategoryList: () => ({ categories: [] }),
+  useCategoryList: (scope: string) => ({ categories: [{
+    slug: scope === 'team' ? 'team-only' : 'public-only',
+    name: scope === 'team' ? 'Team category' : 'Public category', count: 1, myCount: 0,
+  }] }),
 }));
 vi.mock('../hooks/useMarketManagement', () => ({
   useMarketManagement: () => ({}), MarketManagementDialogs: () => null,
@@ -119,6 +123,10 @@ function selectLocalAndSearch() {
   });
 }
 
+beforeAll(() => {
+  HTMLElement.prototype.scrollTo = vi.fn();
+  HTMLElement.prototype.scrollIntoView = vi.fn();
+});
 beforeEach(() => {
   mocks.user = null;
   mocks.dataOwnerId = 'owner-a';
@@ -137,11 +145,17 @@ describe('Skill home navigation', () => {
     mocks.market.setSortBy.mockClear();
     renderCatalog();
     const trigger = screen.getByRole('button', { name: 'skillhub.home.sortDownloads' });
-    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    trigger.focus();
+    await userEvent.keyboard('{Enter}');
+    expect(screen.getByRole('menuitemradio', { name: 'skillhub.home.sortDownloads' }).getAttribute('aria-checked')).toBe('true');
     mocks.market.setSortBy.mockClear();
     const updateOption = await screen.findByRole('menuitemradio', { name: 'skillhub.home.sortUpdated' });
-    fireEvent.click(updateOption);
+    act(() => updateOption.focus());
+    await userEvent.keyboard('{Enter}');
     expect(mocks.market.setSortBy).toHaveBeenCalledExactlyOnceWith('updated_at');
+    await userEvent.keyboard('{Enter}');
+    expect(screen.getByRole('menuitemradio', { name: 'skillhub.home.sortUpdated' }).getAttribute('aria-checked')).toBe('true');
+    await userEvent.keyboard('{Escape}');
     fireEvent.click(screen.getByRole('radio', { name: 'skillhub.home.catalogFilter.organization' }));
     expect(mocks.market.setSortBy).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole('radio', { name: 'skillhub.home.local' }));
@@ -158,6 +172,31 @@ describe('Skill home navigation', () => {
   it('still opens a fresh catalog on Public', () => {
     renderCatalog();
     expectTab('public');
+  });
+
+  it.each(['/skillhub/local', '/settings?tab=ghosts#catalog'])('isolates public and team categories across local, detail and history navigation: %s', (entry) => {
+    mocks.user = { membershipKind: 'org' };
+    renderCatalog(entry);
+    const currentCategory = () => JSON.parse(screen.getByTestId('navigation-state').textContent!).skillhubHome.category;
+    fireEvent.click(screen.getByRole('radio', { name: 'Public category' }));
+    expect(currentCategory()).toBe('public-only');
+    fireEvent.click(screen.getByRole('radio', { name: 'skillhub.home.catalogFilter.organization' }));
+    expect(currentCategory()).toBe('all');
+    expect(mocks.market.setCategoryFilter).toHaveBeenLastCalledWith('all');
+    expect(screen.queryByRole('radio', { name: 'Public category' })).toBeNull();
+    fireEvent.click(screen.getByRole('radio', { name: 'Team category' }));
+    expect(currentCategory()).toBe('team-only');
+    fireEvent.click(screen.getByRole('radio', { name: 'skillhub.home.local' }));
+    fireEvent.click(screen.getByRole('button', { name: /calendar-tools/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Detail Back' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'skillhub.home.catalogFilter.public' }));
+    expect(currentCategory()).toBe('public-only');
+    expect(mocks.market.setCategoryFilter).toHaveBeenLastCalledWith('public-only');
+    fireEvent.click(screen.getByRole('button', { name: 'Leave catalog' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Browser Back' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'skillhub.home.catalogFilter.organization' }));
+    expect(currentCategory()).toBe('team-only');
+    expect(mocks.market.setCategoryFilter).toHaveBeenLastCalledWith('team-only');
   });
 
   it.each([

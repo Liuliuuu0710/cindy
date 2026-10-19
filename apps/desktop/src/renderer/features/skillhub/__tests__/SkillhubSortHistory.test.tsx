@@ -13,6 +13,7 @@ function Harness({ navigationLocation }: { navigationLocation?: Location }) {
     <button onClick={() => h.setSort('updated_at')}>Updated</button>
     <button onClick={() => h.setCategory('code')}>Code</button>
     <button onClick={() => h.setCatalogTab('organization')}>Team</button>
+    <button onClick={() => h.setCatalogTab('public')}>Public</button>
     <button onClick={() => h.setCatalogTab('local')}>Local</button>
     <button onClick={() => navigate('/away')}>Away</button>
     <button onClick={() => navigate(-1)}>Back</button>
@@ -26,7 +27,9 @@ const click = (name: string) => fireEvent.click(screen.getByRole('button', { nam
 describe('catalog sort and category history', () => {
   it.each(['/skillhub/local', '/settings?tab=plugins'])('restores history without modifying URL %s', path => {
     render(<MemoryRouter initialEntries={[path]}><Harness /></MemoryRouter>);
-    click('Updated'); click('Code'); click('Team'); click('Local');
+    click('Updated'); click('Code'); click('Team');
+    expect(state()).toEqual({ sort: 'updated_at', category: 'all', tab: 'organization' });
+    click('Public'); click('Local');
     expect(screen.getByTestId('url').textContent).toBe(path);
     expect(state()).toEqual({ sort: 'updated_at', category: 'code', tab: 'local' });
     click('Away'); click('Back');
