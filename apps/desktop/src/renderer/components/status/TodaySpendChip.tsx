@@ -18,7 +18,9 @@ import { useProviders } from '@/hooks/useProviders';
 
 import React from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X } from 'lucide-react';
+import { Brain, ChevronDown, X } from 'lucide-react';
+import { ProviderLogoMark } from '@/components/icons/ProviderLogoMark';
+import { modelBrand } from '@/lib/modelDisplayNames';
 import { Tip } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { useTranslation } from 'react-i18next';
@@ -729,6 +731,13 @@ function renderSegmentedLabel(segments: React.ReactNode[]): React.ReactNode {
 }
 
 interface TodaySpendChipProps {
+  /** Teammate composer: read-only selection and usage, never a model override. */
+  composer?: {
+    modelLabel: string;
+    effortLabel?: string;
+    sourceLabel: string;
+    onOpenSettings: () => void;
+  };
   vendorKey?: 'cc' | 'codex' | 'pi';
   /** 当前会话模型;codex/ 折扣 GPT 恒走 gateway API, 即使 oauth-bearer spawn 也按 API 形态显示。 */
   modelId?: string | null;
@@ -763,6 +772,7 @@ interface TodaySpendChipProps {
 }
 
 export function TodaySpendChip({
+  composer,
   vendorKey = 'cc',
   modelId,
   providerId,
@@ -1604,12 +1614,15 @@ export function TodaySpendChip({
   // 与 ContextCapacityRing 视觉对齐 (h-5 = 20px) + reset button UA 默认 padding/border。
   // tabular-nums 让 "$306 / $1.2k" 这类数字段的字符宽度等宽, 段间数字落点对齐。
   const buttonClass = cn(
-    'inline-flex h-5 shrink-0 items-center',
-    'text-12 font-medium leading-none tabular-nums',
+    composer
+      ? 'inline-flex h-[30px] min-w-0 max-w-[340px] items-center gap-2 px-2 hover:bg-[var(--model-trigger-hover)]'
+      : 'inline-flex h-5 shrink-0 items-center',
+    composer ? 'text-13 font-normal leading-none' : 'text-12 font-medium leading-none tabular-nums',
     chipAlertingFallback
       ? 'text-[var(--error-fg)] hover:text-[var(--error-fg-strong)]'
       : 'text-[var(--msg-tool-card-chevron)] hover:text-foreground',
-    'border-0 bg-transparent p-0 m-0',
+    'border-0 bg-transparent m-0',
+    !composer && 'p-0',
     'transition-colors',
     'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] rounded-full',
   );
@@ -1617,7 +1630,7 @@ export function TodaySpendChip({
   return (
     <div
       ref={chipRef}
-      className="inline-flex h-5 shrink-0 items-center gap-3"
+      className={composer ? 'inline-flex min-w-0 shrink items-center' : 'inline-flex h-5 shrink-0 items-center gap-3'}
       onMouseEnter={refreshCodexRateLimits}
       onFocusCapture={refreshCodexRateLimits}
     >
@@ -1634,9 +1647,9 @@ export function TodaySpendChip({
             ref={setQuotaPopoverFocusTarget}
             type="button"
             onClick={(event) => {
-              // 阻止 Radix 把 dashboard 点击解释成开关，chip 原动作保持不变。
+              // Footer keeps its dashboard action; the read-only composer opens details.
               event.preventDefault();
-              if (isDashboardClickable) handleClick();
+              if (isDashboardClickable && !composer) handleClick();
               else openQuotaPopoverImmediately();
             }}
             onMouseEnter={handleQuotaPopoverTriggerMouseEnter}
@@ -1656,9 +1669,29 @@ export function TodaySpendChip({
               closeQuotaPopoverImmediately();
             }}
             className={buttonClass}
-            aria-label={usageDashboardLabel ?? t('quotaCard.usageTitle')}
+            aria-label={composer ? t('bots.runtimeUsage.open', { model: composer.modelLabel }) : usageDashboardLabel ?? t('quotaCard.usageTitle')}
           >
-            {labelNode}
+            {composer ? (
+              <>
+                <ProviderLogoMark
+                  providerId={providerId ?? ''}
+                  logoKind={modelId ? modelBrand({ id: modelId })?.logoKind : undefined}
+                  size={14}
+                  className="shrink-0"
+                />
+                <span className="min-w-0 truncate text-13 text-[var(--text-primary)]">{composer.modelLabel}</span>
+                {composer.effortLabel ? (
+                  <span className="inline-flex shrink-0 items-center gap-1 text-12 text-[var(--text-tertiary)]">
+                    <Brain size={12} />{composer.effortLabel}
+                  </span>
+                ) : null}
+                <span className="shrink-0 border-l border-[var(--border-default)] pl-2 text-12 text-[var(--text-secondary)]">{t('bots.runtimeUsage.usage')}</span>
+                {account.windows.some(({ window }) => Number.isFinite(window.utilization) && window.utilization >= 99.95) ? (
+                  <span className="shrink-0 text-12 text-[var(--error-fg)]">{t('quotaCard.remainingPercent', { percent: 0 })}</span>
+                ) : null}
+                <ChevronDown size={12} className="shrink-0 text-[var(--text-tertiary)]" />
+              </>
+            ) : labelNode}
           </button>
         </PopoverTrigger>
         <PopoverContent
@@ -1706,7 +1739,18 @@ export function TodaySpendChip({
           className="w-auto max-w-[calc(100vw-16px)] border-0 bg-transparent p-0 shadow-none"
         >
           <QuotaHoverCard
-            account={account}
+            header={composer ? (
+              <div className="border-b border-[var(--border-default)] px-4 py-3">
+                <div className="text-12 text-[var(--text-secondary)]">{t('bots.runtimeUsage.currentSelection')}</div>
+                <div className="mt-1 break-words text-13 font-medium">{composer.modelLabel}</div>
+                <div className="mt-1 break-words text-12 text-[var(--text-tertiary)]">{[composer.sourceLabel, composer.effortLabel].filter(Boolean).join(' · ')}</div>
+                <Button size="xs" compact tone="quiet" className="mt-2" onClick={() => {
+                  closeQuotaPopoverImmediately();
+                  composer.onOpenSettings();
+                }}>{t('bots.runtimeUsage.modelSettings')}</Button>
+              </div>
+            ) : undefined}
+            account={composer ? { ...account, windows: account.windows.map(window => ({ ...window, showRemaining: true })) } : account}
             nowMs={windowLabelNowMs}
             sessionUsage={quotaCardSessionUsage}
             turnUsage={quotaCardTurnUsage}

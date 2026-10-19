@@ -663,3 +663,11 @@ it.each(['gallery', 'file'])(
     await waitFor(async () => expect(await close.current?.()).toBe(true));
   },
 );
+
+
+it('opens the requested model page with the saved remote model chain', async () => {
+  h.invoke.mockResolvedValue(resource());
+  render(<RemoteBotSettings bot={bot} initialPage="model" beforeCloseRef={{ current: null }} onDeleted={() => {}} />);
+  await screen.findByRole('button', { name: 'Choose account' });
+  await waitFor(() => expect(h.model.value).toEqual(chain));
+});

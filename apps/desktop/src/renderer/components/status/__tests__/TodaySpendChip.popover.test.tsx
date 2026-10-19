@@ -48,6 +48,10 @@ vi.mock('react-i18next', () => ({
     t: (key: string, options: Record<string, string | number> = {}) => {
       const templates: Record<string, string> = {
         'quotaCard.usageTitle': '用量明细',
+        'bots.runtimeUsage.open': '查看 {{model}} 的模型与用量',
+        'bots.runtimeUsage.currentSelection': '当前任务选择',
+        'bots.runtimeUsage.modelSettings': '模型设置',
+        'bots.runtimeUsage.usage': '用量',
         'todaySpend.openXaiUsage': '打开 Grok 用量页面',
         'todaySpend.codex.sessionTokensLine': '本任务 Token {{tokens}}',
         'quotaCard.speedLabel': '速度',
@@ -1256,5 +1260,70 @@ describe('TodaySpendChip Claude subscription popover', () => {
     expect(
       screen.getAllByRole('progressbar').map((bar) => bar.getAttribute('aria-valuenow')),
     ).toEqual(['80', '60']);
+  });
+});
+
+
+describe('Teammate composer model and usage', () => {
+  const settings = vi.fn();
+  const composer = { modelLabel: 'GPT-6-Astra', effortLabel: '中', sourceLabel: 'Codex · OpenAI', onOpenSettings: settings };
+  const chip = () => <TodaySpendChip vendorKey="codex" providerId="openai" modelId="gpt-6-astra" sessionId="bot" composer={composer} />;
+  const trigger = () => screen.getByRole('button', { name: '查看 GPT-6-Astra 的模型与用量' });
+
+  beforeEach(() => {
+    settings.mockReset();
+    mocks.codexAuthInjection = 'oauth-bearer';
+  });
+
+  it('opens details on click instead of the subscription dashboard, keeps selection distinct from reply evidence', () => {
+    render(chip());
+    fireEvent.click(trigger());
+    const card = screen.getByTestId('quota-hover-card');
+    expect(within(card).getByText('当前任务选择')).toBeTruthy();
+    expect(within(card).getByText('GPT-6-Astra')).toBeTruthy();
+    expect(within(card).getByText(TURN_USAGE_DETAILS.model)).toBeTruthy();
+    expect(mocks.openExternal).not.toHaveBeenCalled();
+    fireEvent.click(within(card).getByRole('button', { name: '模型设置' }));
+    expect(settings).toHaveBeenCalledOnce();
+    expect(screen.queryByTestId('quota-hover-card')).toBeNull();
+  });
+
+  it('keeps a missing first snapshot unknown, including when a read is requested', () => {
+    mocks.displaySnapshot.messages = [];
+    render(chip());
+    fireEvent.click(trigger());
+    expect(screen.getByText('等待额度数据')).toBeTruthy();
+    expect(screen.queryByText('剩余 0%')).toBeNull();
+    expect(screen.queryByRole('progressbar')).toBeNull();
+    fireEvent.mouseEnter(trigger());
+    expect(screen.getByText('等待额度数据')).toBeTruthy();
+  });
+
+  it('shows exhausted quota without inventing a reset deadline and preserves it during refresh', () => {
+    mocks.codexSnapshot = { primary: { usedPercent: 100 }, rateLimitReachedType: 'rate_limit_reached' };
+    const view = render(chip());
+    expect(trigger().textContent).toContain('剩余 0%');
+    fireEvent.click(trigger());
+    const card = screen.getByTestId('quota-hover-card');
+    expect(within(card).getByText('剩余 0%')).toBeTruthy();
+    expect(card.textContent).not.toContain('后重置');
+    fireEvent.mouseEnter(trigger());
+    view.rerender(chip());
+    expect(trigger().textContent).toContain('剩余 0%');
+    // The hook owns pending-read caching. A completed empty snapshot must clear the old account data.
+    mocks.codexSnapshot = null;
+    view.rerender(chip());
+    expect(trigger().textContent).not.toContain('剩余 0%');
+    expect(screen.getByText('等待额度数据')).toBeTruthy();
+  });
+
+  it('supports keyboard entry and Escape without opening an external page', () => {
+    render(chip());
+    act(() => trigger().focus());
+    expect(screen.getByTestId('quota-hover-card')).toBeTruthy();
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    expect(screen.queryByTestId('quota-hover-card')).toBeNull();
+    expect(document.activeElement).toBe(trigger());
+    expect(mocks.openExternal).not.toHaveBeenCalled();
   });
 });

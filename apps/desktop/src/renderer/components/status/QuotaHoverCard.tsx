@@ -45,6 +45,8 @@ export interface QuotaHoverCardSessionUsage {
 }
 
 export interface QuotaHoverCardProps {
+  /** Optional current selection; distinct from measured last-turn usage below. */
+  header?: React.ReactNode;
   /** One compact provider action beside the last quota window’s reset countdown. */
   windowAction?: React.ReactNode;
   /** Provider-specific manual actions, inside the existing scrollable card. */
@@ -444,6 +446,7 @@ function SessionUsageSection({
 
 /** 套餐、配额、任务合计与本轮明细按同一信息层级渲染；供应商差异只来自 account。 */
 export function QuotaHoverCard({
+  header,
   windowAction,
   children,
   variant = 'popover',
@@ -512,6 +515,7 @@ export function QuotaHoverCard({
           !embedded && 'overflow-y-auto pt-[6px]',
         )}
       >
+        {header}
         {title && (!embedded || !hideIdentity) ? (
           <>
             <div className="flex items-center gap-2 px-4 pb-2 pt-3 text-12 text-[var(--text-secondary)]">
