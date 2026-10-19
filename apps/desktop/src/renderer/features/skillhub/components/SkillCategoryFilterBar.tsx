@@ -10,10 +10,6 @@ interface SkillCategoryFilterBarProps {
   selectedCategory: CategoryFilter;
   allLabel: string;
   ariaLabel: string;
-  scrollLeftLabel: string;
-  scrollRightLabel: string;
-  scrollStartLabel: string;
-  scrollEndLabel: string;
   onSelectCategory: (category: CategoryFilter) => void;
   className?: string;
 }
@@ -63,6 +59,9 @@ export function SkillCategoryFilterBar({
       <div
         ref={scrollRef}
         data-testid="skill-category-filter-scroller"
+        onFocusCapture={(event) => {
+          event.target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        }}
         className="min-w-0 w-max max-w-full flex-initial rounded-full overflow-x-auto overscroll-x-contain select-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         onPointerDown={(event) => {
           if (event.pointerType !== 'mouse' || event.button !== 0) return;

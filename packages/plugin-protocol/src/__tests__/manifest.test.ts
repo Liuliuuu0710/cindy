@@ -31,6 +31,32 @@ const validManifest = {
 } as const;
 
 describe('Ghost manifest contract', () => {
+  it.each([2, 3])('preserves the optional Host task card visibility flag in schema v%s', (schemaVersion) => {
+    const base = {
+      ...validManifest,
+      schemaVersion,
+      ...(schemaVersion === 3 ? { minCindyVersion: '0.1.0' } : {}),
+      slots: schemaVersion === 2 ? ['agent'] : undefined,
+      tools: undefined,
+      agent: { tasks: true },
+    };
+    for (const showTaskPreferences of [undefined, true, false]) {
+      const result = validateGhostManifest({ ...base, showTaskPreferences });
+      expect(result.ok).toBe(true);
+      if (!result.ok) continue;
+      expect(result.manifest.showTaskPreferences).toBe(showTaskPreferences);
+      expect(Object.hasOwn(result.manifest, 'showTaskPreferences')).toBe(showTaskPreferences !== undefined);
+      expect(result.manifest.agent?.tasks).toBe(true);
+      expect(validateGhostManifest(result.manifest)).toEqual(result);
+    }
+    for (const showTaskPreferences of [null, 0, 1, 'false', {}, []]) {
+      expect(validateGhostManifest({ ...base, showTaskPreferences })).toMatchObject({
+        ok: false,
+        reason: 'showTaskPreferences 必须是布尔值',
+      });
+    }
+  });
+
   it('keeps main-view in the v2 compatibility contract', () => {
     expect(LEGACY_GHOST_SLOTS).toContain('main-view');
     expect(GHOST_MAIN_VIEW_ICONS).toEqual([
@@ -1863,5 +1889,17 @@ describe('cindy 详单:media/text/embed/search 类目与 oneshotModel 校验', (
       const rejected = validateGhostManifest({ ...base, cindy: bad });
       expect(rejected.ok, JSON.stringify(bad)).toBe(false);
     }
+  });
+});
+
+describe('agent.hiddenTasks declaration', () => {
+  const v3 = { schemaVersion: 3, minCindyVersion: '0.1.0', id: 'bg-tasks', name: 'Background', version: '1.0.0', entry: 'main.js' };
+  it('accepts it only together with agent.tasks', () => {
+    const ok = validateGhostManifest({ ...v3, agent: { tasks: true, hiddenTasks: true } });
+    expect(ok.ok && ok.manifest.agent).toEqual({ tasks: true, hiddenTasks: true });
+    expect(validateGhostManifest({ ...v3, agent: { hiddenTasks: true } }).ok).toBe(false);
+    expect(validateGhostManifest({ ...v3, agent: { tasks: true, hiddenTasks: 'yes' } }).ok).toBe(false);
+    const visible = validateGhostManifest({ ...v3, agent: { tasks: true, hiddenTasks: false } });
+    expect(visible.ok && visible.manifest.agent).toEqual({ tasks: true });
   });
 });

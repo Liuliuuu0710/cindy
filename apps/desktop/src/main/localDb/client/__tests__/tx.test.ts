@@ -69,6 +69,7 @@ CREATE TABLE sessions (
   working_dir TEXT,
   model TEXT NOT NULL DEFAULT 'claude-sonnet-4-6',
   provider_id TEXT,
+  agent_device_id TEXT,
   effort TEXT NOT NULL DEFAULT 'high',
   permission_mode TEXT NOT NULL DEFAULT 'ask',
   status TEXT NOT NULL DEFAULT 'active',
@@ -886,7 +887,7 @@ describe('db worker tx handlers', () => {
     },
   );
 
-  it('claude.importMessages caps oversized tool_result content at the persistence limit', async () => {
+  it.each([false, true])('claude.importMessages caps oversized results and preserves card references (inline=%s)', async (useInlineWorker) => {
     await withClient(async (client) => {
       await seedSession(client, 's1');
       const cap = 8 * 1024;
@@ -905,6 +906,15 @@ describe('db worker tx handlers', () => {
             createdAt: 3100,
           },
           {
+            lineNo: 10,
+            partIndex: 0,
+            role: 'tool_result',
+            content: JSON.stringify({ ok: true, result: { bodyHtml: '邮件'.repeat(cap) }, xdt_card_id: 'draft-card' }),
+            toolUseId: 'tool-card',
+            agentMeta: null,
+            createdAt: 3300,
+          },
+          {
             lineNo: 9,
             partIndex: 0,
             role: 'assistant',
@@ -916,7 +926,7 @@ describe('db worker tx handlers', () => {
         ],
       });
 
-      expect(result).toEqual({ changed: 2 });
+      expect(result).toEqual({ changed: 3 });
       const toolResult = (await client.queryOne(
         'SELECT content FROM messages WHERE client_id = ?',
         ['claude-import:8-0'],
@@ -929,7 +939,9 @@ describe('db worker tx handlers', () => {
         ['claude-import:9-0'],
       )) as { content: string };
       expect((JSON.parse(assistant.content) as { text: string }).text.length).toBe(cap * 2);
-    });
+      const card = await client.queryOne<{ content: string }>('SELECT content FROM messages WHERE client_id = ?', ['claude-import:10-0']);
+      expect(JSON.parse(JSON.parse(card!.content))).toMatchObject({ xdt_card_id: 'draft-card' });
+    }, { useInlineWorker });
   });
 
   it('claude.importMessages does not rewrite rewound imported messages', async () => {
@@ -3011,6 +3023,7 @@ describe('db worker tx handlers', () => {
           fastMode: false,
           agentKind: 'pi',
           providerId: 'xai',
+          agentDeviceId: 'share:owner',
           imDefaultRoute: 'default-route-record',
           source: 'telegram',
           imBotContextId: 'bot',
@@ -3020,6 +3033,8 @@ describe('db worker tx handlers', () => {
       });
 
       expect(result).toEqual({ previousStatus: 'active' });
+      await expect(client.query("SELECT agent_device_id FROM sessions WHERE id = 'telegram-new'"))
+        .resolves.toEqual([{ agent_device_id: 'share:owner' }]);
       await expect(
         client.query(
           `SELECT id, status, im_bot_context_id, im_user_id, im_default_route

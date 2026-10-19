@@ -97,11 +97,17 @@ function parseCommand(raw: unknown): RsbWindowCommand {
   if (r.type === 'toggle-review-tab') {
     return { type: 'toggle-review-tab', sessionId: r.sessionId };
   }
-  if (r.type === 'open-web-browser') {
+  if (r.type === 'open-web-browser' || r.type === 'open-mail-preview') {
     if (typeof r.url !== 'string' || r.url.length === 0) {
       throwIpcError('INVALID_PARAMS', 'command.url required');
     }
-    return { type: 'open-web-browser', sessionId: r.sessionId, url: r.url };
+    return { type: r.type, sessionId: r.sessionId, url: r.url };
+  }
+  if (r.type === 'open-mail-card') {
+    if (typeof r.callId !== 'string' || !r.callId || r.callId.length > 128) {
+      throwIpcError('INVALID_PARAMS', 'command.callId must be a 1–128 character string');
+    }
+    return { type: r.type, sessionId: r.sessionId, callId: r.callId };
   }
   if (r.type === 'ensure-orca-workers-tab') {
     const hasFocusWorkerSessionId =
@@ -141,7 +147,11 @@ function parseCommand(raw: unknown): RsbWindowCommand {
   }
   if (r.type === 'open-bot-workbench-tab') {
     if (typeof r.botId !== 'string' || !r.botId || r.botId.length > 128) throwIpcError('INVALID_PARAMS', 'Invalid teammate');
-    return { type: 'open-bot-workbench-tab', sessionId: r.sessionId, botId: r.botId };
+    if (r.focusTab !== undefined && typeof r.focusTab !== 'boolean') throwIpcError('INVALID_PARAMS', 'command.focusTab must be boolean');
+    return {
+      type: 'open-bot-workbench-tab', sessionId: r.sessionId, botId: r.botId,
+      ...(r.focusTab === undefined ? {} : { focusTab: r.focusTab }),
+    };
   }
   if (r.type === 'open-background-tasks-tab') {
     const hasFocusTaskId =

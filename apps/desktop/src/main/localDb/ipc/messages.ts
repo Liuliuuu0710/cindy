@@ -23,10 +23,12 @@ import {
   type SQL,
 } from 'drizzle-orm';
 import { createId } from '@paralleldrive/cuid2';
-import { historyOutlineContent, withHistoryArtifacts } from './historyViewOutline';
+import { historyOutlineContent, historyOutlineContentStamp, withHistoryArtifacts } from './historyViewOutline';
 import { historyViewLeaves, isHistoryViewUnavailable } from '@cindy/maker-shared/message-window';
+import { projectMcpAppContent } from '@cindy/maker-shared/mcp-apps';
 
 import { getDbClient, getCurrentDbClientSnapshot } from '../client/current';
+import type { DbClient } from '../client/DbClient';
 import type { ContextRebuildArgs } from '../client/tx/types';
 import { latestVisiblePreviewRow } from '../latestMessageText';
 import { messages, sessions } from '../schema';
@@ -40,6 +42,7 @@ import { throwIpcError, requireString } from '../../utils/ipcValidate';
 import * as broadcastTap from '../../device-link/broadcast-tap';
 import { createLogger } from '../../logger';
 import { collectCindyMediaHashes, commitMessageMediaRefs } from '../../cindy-media/chatAttachments';
+import { recoverGeneratedImagesForHistory } from '../../cindy-media/generatedImageRecovery';
 import { restoreTaskImageRows } from '../../cindy-media/taskImageDelivery';
 import {
   removeRefs as removeMediaRefs,
@@ -68,7 +71,8 @@ import { capReferenceMessageRows } from './history.js';
 import type { Message, MessageRole, AgentMeta } from '../../../renderer/lib/ccAgent.types';
 import { scheduleBotRemoteResourceChangedForSession } from '../../maker-ipc/botRemoteResourceInvalidation';
 import { assertTrustedAppRendererEvent } from '../../security/trustedAppRenderer';
-import { createHistoryViewReader, MAX_HISTORY_SCAN_ROWS } from './historyViewReader';
+import { createHistoryViewReader, MAX_HISTORY_SCAN_ROWS, type HistoryPageShape } from './historyViewReader';
+import { setHistoryWorkPageReader } from '../../device-link/historyViewPush';
 
 const log = createLogger('localDb/messages');
 
@@ -247,6 +251,9 @@ export async function readMessagesList(sessionId: unknown, opts: unknown, skipIm
     const after = (opts as { after?: string } | undefined)?.after;
     const imageDbClient = getDbClient();
     const db = imageDbClient.drizzle;
+    if (!before && beforeTs == null && !after && !outline) {
+      void recoverGeneratedImagesForHistory(sid).catch(() => undefined);
+    }
 
     // 外部历史导入(Codex rollout / Claude transcript):device-link 隧道调用
     // 只在首页请求跑(分页跳过,#318 性能语义;首页判定 = 无任何分页游标),
@@ -319,7 +326,7 @@ export async function readMessagesList(sessionId: unknown, opts: unknown, skipIm
     const rows = await db
       .select({
         ...getMessageSelectFields(),
-        ...(outline ? { content: historyOutlineContent() } : {}),
+        ...(outline ? { content: historyOutlineContent(), historyContentStamp: historyOutlineContentStamp() } : {}),
         rowid: messageRowid,
       })
       .from(messages)
@@ -332,7 +339,9 @@ export async function readMessagesList(sessionId: unknown, opts: unknown, skipIm
     const orderedRows = afterCursor ? rows.slice().reverse() : rows;
     const restored = await restoreTaskImageRows(imageDbClient, orderedRows);
     const listed = await hydrateLegacyUserTurnCosts(restored.map(messageToCamelWithRowid));
-    return outline ? listed.map(withHistoryArtifacts) : listed;
+    if (!outline) return listed;
+    const stamps = new Map(orderedRows.map((row) => [row.id, (row as { historyContentStamp?: string }).historyContentStamp]));
+    return listed.map((row) => withHistoryArtifacts({ ...row, historyContentStamp: stamps.get(row.id) ?? undefined }));
 }
 
 export function registerMessageIpc(
@@ -418,18 +427,25 @@ export function registerMessageIpc(
     if (!isDeviceLinkInvoke()) assertTrustedAppRendererEvent(event);
     const sid = requireString(sessionId, 'sessionId');
     const before = (opts as { before?: unknown } | null)?.before;
+    const context = getDeviceLinkInvokeContext();
+    // Work lines and their patches serve same-account remote controllers only; a shared
+    // guest keeps the existing projection and authorization path unchanged.
+    const workLines = (opts as { workLines?: unknown } | null)?.workLines === true && !!context?.historyView && !context.sharedTask;
+    let shape: HistoryPageShape | undefined;
     const page = await historyView.page(sid, before == null ? undefined : requireString(before, 'before'),
-      (opts as { lazyDetails?: unknown } | null)?.lazyDetails === true).catch((error) => {
-      if (isHistoryViewUnavailable(error)) getDeviceLinkInvokeContext()?.historyView?.disable();
+      (opts as { lazyDetails?: unknown } | null)?.lazyDetails === true,
+      workLines ? { workLines, onShape: (value) => { shape = value; } } : {}).catch((error) => {
+      if (isHistoryViewUnavailable(error)) context?.historyView?.disable();
       throw error;
     });
     if (before == null) {
       const liveKeys = historyViewLeaves(page.items)
         .filter((item) => item.type === 'work' && item.summary.isStreaming).map((item) => item.key);
-      getDeviceLinkInvokeContext()?.historyView?.update(liveKeys);
+      context?.historyView?.update(liveKeys, { workLines, shape });
     }
     return page;
   });
+  setHistoryWorkPageReader((sid, onShape) => historyView.page(sid, undefined, true, { workLines: true, onShape }));
   ipcMain.handle('local-db:messages:view-intent', (event, sessionId: unknown, refs: unknown) => {
     if (!isDeviceLinkInvoke()) assertTrustedAppRendererEvent(event);
     requireString(sessionId, 'sessionId');
@@ -842,7 +858,11 @@ export function broadcastMessageRow(
   msg: Message,
   ownerScope?: DataOwnerBroadcastScope | null,
 ): void {
-  broadcastOwnedPayload('local-db:messages:created', { sessionId, message: msg }, ownerScope);
+  // Main-created rows may bypass the DB mapper. Never broadcast View-only data
+  // to top-level renderers or same-account control devices.
+  const content = projectMcpAppContent(msg.content, msg.agentMeta?.mcpApp === true);
+  const message = content === msg.content ? msg : { ...msg, content };
+  broadcastOwnedPayload('local-db:messages:created', { sessionId, message }, ownerScope);
   if (msg.role === 'user' || msg.role === 'assistant') {
     scheduleBotRemoteResourceChangedForSession(sessionId, ownerScope?.ownerScopeKey);
   }
@@ -1140,7 +1160,11 @@ export async function commitContextRebuild(
   handoff: string,
   meta: {
     reason:
-      'context-overflow' | 'model-window-switch' | 'pi-prompt-timeout' | 'native-session-recovery';
+      | 'context-overflow'
+      | 'model-window-switch'
+      | 'pi-prompt-timeout'
+      | 'native-session-recovery'
+      | 'idle-gap';
     sourceUserClientId: string | null;
     sourceAgentKind?: 'cc' | 'codex' | 'pi';
     sourceModel?: string | null;
@@ -1591,6 +1615,8 @@ export async function createMessage(
     /** Host-only admission guard, checked before and after the publication transaction.
      * Must be repeatable. A failed final check rolls back this exact row before delivery hooks. */
     beforePublish?: () => Promise<void>;
+    /** Host delivery owns its guarded attachment commit and compensation. */
+    deferMediaRefs?: boolean;
     /**
      * Optional clear-boundary compare-and-set for optimistic user sends.  The
      * insert is accepted only while the session still has this exact
@@ -1797,8 +1823,10 @@ export async function createMessage(
     body.role === 'user' &&
     opts !== undefined &&
     Object.prototype.hasOwnProperty.call(opts, 'expectedClearBoundaryMs');
-  if (shouldAwaitMediaRefs) await commitMediaRefs();
-  else void commitMediaRefs();
+  if (!opts?.deferMediaRefs) {
+    if (shouldAwaitMediaRefs) await commitMediaRefs();
+    else void commitMediaRefs();
+  }
   // Broadcast 给所有 renderer window — 用于 main 端创建消息 (e.g. feishu /ctr
   // 接管路径下 persistUserMessage / persistAssistantMessage) 时让 renderer
   // 的 makerChatStore push 到 in-memory state, 让消息流实时刷新。
@@ -2035,8 +2063,9 @@ export async function broadcastMessageAgentMetaUpdate(
 export async function readPriorUserRoundCost(
   sessionId: string,
   assistantClientId: string,
+  client: DbClient = getDbClient(),
 ): Promise<PriorUserRoundCost> {
-  const db = getDbClient().drizzle;
+  const db = client.drizzle;
   const [target] = await db
     .select({ createdAt: messages.createdAt, rowid: messageRowid })
     .from(messages)
@@ -2098,6 +2127,13 @@ export async function readPriorUserRoundCost(
     );
 
   const values: RegionalMoney[] = [];
+  const mediaCosts = parseAgentMetaRecord(boundary.agentMeta)?.mediaCosts;
+  if (Array.isArray(mediaCosts)) {
+    for (const value of mediaCosts) {
+      const cost = normalizeRegionalMoney(value);
+      if (cost?.kind === 'actual-cost' && cost.amount > 0) values.push(cost);
+    }
+  }
   const estimatedCurrencies = new Set<RegionalMoney['currency']>();
   for (const row of assistantRows) {
     const meta = parseAgentMetaRecord(row.agentMeta);

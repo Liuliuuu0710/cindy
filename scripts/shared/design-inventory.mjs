@@ -601,23 +601,27 @@ export function catalogSurfaces() {
       title: 'SkillHub 本地技能',
       productionEntry:
         'hash `/skillhub/local` 及统一详情 `/skillhub/detail`（旧详情链接重定向）',
-      // SkillhubHomeView 直接渲染 PluginManagementLayout（features/plugin 共享布局）、
-      // 统一详情布局与 InstallTargetPicker——只扫列表组件文件
-      // 会漏掉这些子组件的样式事实。
+      // 包含本机、远程页面及跨 feature 共用的电脑入口和布局。
       reachableComponents: [
         'SkillhubLocalLayout',
         'SkillhubHomeView',
+        'RemoteSkillsPage',
+        'SkillCategoryFilterBar',
         'SkillhubDetailView',
         'SkillhubDetailRoute',
         'SkillDetailLayout',
         'SkillhubFeatureLayout',
         'PluginManagementLayout',
+        'PluginDevicePicker',
         'SkillhubMarketDetailView',
         'InstallTargetPicker',
       ],
       styleRoots: [
         'apps/desktop/src/renderer/features/skillhub/SkillhubLocalLayout.tsx',
         'apps/desktop/src/renderer/features/skillhub/SkillhubHomeView.tsx',
+        'apps/desktop/src/renderer/features/skillhub/skillhub-home.css',
+        'apps/desktop/src/renderer/features/skillhub/components/SkillCategoryFilterBar.tsx',
+        'apps/desktop/src/renderer/features/skillhub/RemoteSkillsPage.tsx',
         'apps/desktop/src/renderer/features/skillhub/SkillhubDetailView.tsx',
         'apps/desktop/src/renderer/features/skillhub/SkillhubDetailRoute.tsx',
         'apps/desktop/src/renderer/features/skillhub/components/SkillDetailLayout.tsx',
@@ -625,6 +629,7 @@ export function catalogSurfaces() {
         'apps/desktop/src/renderer/features/skillhub/SkillhubMarketDetailView.tsx',
         'apps/desktop/src/renderer/features/skillhub/components/InstallTargetPicker.tsx',
         'apps/desktop/src/renderer/features/plugin/PluginManagementLayout.tsx',
+        'apps/desktop/src/renderer/features/plugin/PluginDevicePicker.tsx',
       ],
       routerPaths: [
         // The pathless parent renders the retained catalog itself at /skillhub/local.
@@ -681,15 +686,18 @@ export function catalogSurfaces() {
       platform: 'desktop',
       title: '已装插件',
       productionEntry: 'hash `/plugins`（GhostPluginPage）',
-      // GhostPluginPage 直接渲染 PluginManagementLayout、MarketPluginDetailView、
-      // PluginScopePicker、MyPublishesSection、AddMarketplaceDialog、UpdateAllDialog,
-      // 并直接导入 plugin-motion.css——只扫页面与详情两个文件会漏掉这些样式事实。
+      // 覆盖本机、远程管理与页面共用的菜单、详情及动效。
       reachableComponents: [
         'GhostPluginPage',
         'GhostPluginDetailView',
+        'GhostPluginActions',
+        'RemotePluginPage',
+        'RemotePluginConfiguration',
+        'RemotePluginReadOnlyDetail',
+        'PluginDevicePicker',
         'PluginManagementLayout',
         'MarketPluginDetailView',
-        'PluginScopePicker',
+        'PluginProjectMenu',
         'MyPublishesSection',
         'AddMarketplaceDialog',
         'UpdateAllDialog',
@@ -697,6 +705,11 @@ export function catalogSurfaces() {
       styleRoots: [
         'apps/desktop/src/renderer/features/plugin/GhostPluginPage.tsx',
         'apps/desktop/src/renderer/features/plugin/GhostPluginDetailView.tsx',
+        'apps/desktop/src/renderer/features/plugin/GhostPluginActions.tsx',
+        'apps/desktop/src/renderer/features/plugin/RemotePluginPage.tsx',
+        'apps/desktop/src/renderer/features/plugin/RemotePluginConfiguration.tsx',
+        'apps/desktop/src/renderer/features/plugin/RemotePluginReadOnlyDetail.tsx',
+        'apps/desktop/src/renderer/features/plugin/PluginDevicePicker.tsx',
         'apps/desktop/src/renderer/features/plugin/PluginManagementLayout.tsx',
         'apps/desktop/src/renderer/features/plugin/MarketPluginDetailView.tsx',
         'apps/desktop/src/renderer/features/plugin/PluginScopePicker.tsx',
@@ -806,6 +819,8 @@ export function catalogSurfaces() {
         'apps/desktop/src/renderer/components/ui/switch.tsx',
         'apps/desktop/src/renderer/components/ui/confirm-dialog.tsx',
         'apps/desktop/src/renderer/components/ui/select.tsx',
+        'apps/desktop/src/renderer/components/ui/select-parts.tsx',
+        'apps/desktop/src/renderer/components/ui/select.css',
         'apps/desktop/src/renderer/components/ui/button.tsx',
         'apps/desktop/src/renderer/components/ui/form-field.tsx',
         'apps/desktop/src/renderer/features/remote-desktop/viewerWindow.css',
@@ -1122,7 +1137,6 @@ function renderTable(headers, aligns, rows) {
 export function renderGeneratedBlock(
   surfaces,
   {
-    snapshotDate = 'UNSET',
     generateCommand = 'pnpm design:inventory',
     routerCoverage = { mapped: [], missing: [] },
     redirects = [],
@@ -1144,7 +1158,7 @@ export function renderGeneratedBlock(
     '本区块由 `scripts/design-inventory.mjs` 生成，请勿手改。',
     '重新生成：`pnpm design:inventory`；校验：`pnpm check:design-inventory`。',
     '',
-    `计数快照日期：${snapshotDate}。生成命令：\`${generateCommand}\`。裸颜色匹配与 \`scripts/hardcoded-color-audit.mjs\` 共用 \`scripts/shared/hardcoded-color-match.mjs\`（HEX / RGB / HSL / OKLCH 等字面通道），两者在共享 matcher 内统一排除纯语义包装、注释及 PR 编号；数值颜色函数还需位于样式属性、CSS 声明/函数或任意值语境，普通文案字符串里的颜色函数文本不计入；字面 fallback 仍计入——语义 token 消费与注释引用不是迁移债务；裸圆角为粗粒度（\`rounded*\` class、\`border-radius:\` 与 React style 对象的 \`borderRadius:\`）。Token 计数为样式源里 \`var(--token)\` / \`hsl(var(--token)\` 的去重 ID 数；Mobile 的 ThemeColors / typeScale 等 RN 属性不计入此列，不能将 0 解释为未使用 Token。`,
+    `生成命令：\`${generateCommand}\`。裸颜色匹配与 \`scripts/hardcoded-color-audit.mjs\` 共用 \`scripts/shared/hardcoded-color-match.mjs\`（HEX / RGB / HSL / OKLCH 等字面通道），两者在共享 matcher 内统一排除纯语义包装、注释及 PR 编号；数值颜色函数还需位于样式属性、CSS 声明/函数或任意值语境，普通文案字符串里的颜色函数文本不计入；字面 fallback 仍计入——语义 token 消费与注释引用不是迁移债务；裸圆角为粗粒度（\`rounded*\` class、\`border-radius:\` 与 React style 对象的 \`borderRadius:\`）。Token 计数为样式源里 \`var(--token)\` / \`hsl(var(--token)\` 的去重 ID 数；Mobile 的 ThemeColors / typeScale 等 RN 属性不计入此列，不能将 0 解释为未使用 Token。`,
     '',
     `登记 surface 数：${surfaces.length}。平台包含 Desktop 与 Mobile；静态入口发现不表示已迁移或已实机验证。`,
     '',
@@ -1402,14 +1416,16 @@ export function mobileCatalogSurfaces() {
     ['device-management', '设备管理', ['devices/manage.tsx', 'devices/manage/[deviceId].tsx']],
     ['remote-desktop', '远程桌面', ['devices/desktop/[deviceId].tsx']],
     ['resources', '远程资源列表与详情', ['resources/[collectionId].tsx', 'resources/[collectionId]/[resourceId].tsx']],
+    ['mail', '邮件阅读与附件预览', ['mail-preview.tsx']],
     ['plugins', '插件目录、页面与原生交互', ['plugins.tsx']],
     ['companions.direct', '伙伴私聊回看', ['companions/direct/[threadId].tsx']],
     ['companions.groups', '伙伴群聊与分工', ['companions/groups/[groupId].tsx']],
+    ['companions.cloud', '云端伙伴：主力电脑离线时的对话与换电脑', ['companions/cloud/[actorId].tsx']],
     ['chat.session', '任务内容与输入', ['sessions/[sessionId].tsx']],
     ['chat.sharing', '共享任务邀请与成员；供应商分享链接提示', ['shared-session.tsx', 'provider-share.tsx']],
     ['chat.new', '新建任务', ['sessions/new.tsx']],
     ['files', '任务文件与预览', ['files/[sessionId].tsx', 'files/preview/[sessionId].tsx']],
-    ['settings', '设置（含调试与日志上传可见入口）', ['settings.tsx', 'settings/device-name.tsx', 'settings/voice-dictionary.tsx']],
+    ['settings', '设置（含调试与日志上传可见入口）', ['settings.tsx', 'settings/device-name.tsx', 'settings/user-bubble.tsx', 'settings/voice-dictionary.tsx', 'settings/voice-speaker-filter.tsx']],
     ['auth', '登录与添加账号', ['(auth)/login.tsx', 'add-account.tsx']],
     ['account-deletion', '账号注销', ['account-deletion.tsx']],
   ];

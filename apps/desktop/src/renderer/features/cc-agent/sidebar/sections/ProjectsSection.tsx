@@ -29,6 +29,7 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -86,6 +87,7 @@ import {
   splitEntriesByDevice,
   type MainListDeviceSection,
   type MainListEntry,
+  type MainListPriorityContext,
   type ViewedPriorityHoldState,
 } from '../../lib/mainListModel';
 import { useMainListEntries } from '../../hooks/useMainListEntries';
@@ -96,7 +98,7 @@ import { buildSessionSourceLabelMap } from '../../lib/sessionSourceLabel';
 import { aggregateSessionLamps, type SessionLampAggregate } from '../../lib/sessionLampAggregation';
 import { AttentionDot } from '@/components/sidebar/AttentionDot';
 import { SidebarRightStatusIndicator } from '../SidebarRightStatusIndicator';
-import { useSessionAttentionKinds } from '@/lib/sessionAttentionStore';
+import { useSessionAttentionKindsWithOrcaLeads } from '../../lib/orcaLeadWorkerAttention';
 import { useSessionAttentionUrgencySet } from '../../contexts/SessionAttentionUrgencyContext';
 import {
   getRemoteSessionActivity,
@@ -218,6 +220,13 @@ export interface ProjectsSectionProps {
    * 优先级排序用它钉住打开时的档位;只有从完成未读切走才置顶。
    */
   viewedSessionId?: string;
+  /**
+   * 折叠侧栏已经用同一次时钟投影好的优先级上下文。传入后展开列表直接使用，
+   * 不再自己调用 Date.now() 做第二次 held / recently viewed 投影。
+   */
+  priorityContext?: MainListPriorityContext;
+  /** 与 priorityContext 同一次投影的 hold，由展开列表在 layout 提交回模块状态。 */
+  priorityHold?: ViewedPriorityHoldState;
   runningSessionIds: ReadonlySet<string>;
   /** /ctr 接管中的 sessionIds — SessionItem 用来切换左侧 icon */
   attachedSessionIds: ReadonlySet<string>;
@@ -258,7 +267,7 @@ export interface ProjectsSectionProps {
   onArchiveAll: (project: ProjectNodeData) => void;
   /**
    * E 期「按设备分组」:远程设备的展示顺序与名称/在线状态(设备切换栏同源)。
-   * null / 空数组 = 没有远程设备连接 → 设备分组选项隐藏、不切段。
+   * 含断线缓存设备；null / 空 map = 没有可选远程设备 → 设备分组选项隐藏、不切段。
    */
   remoteDeviceIndex?: ReadonlyMap<string, { name: string; online: boolean }> | null;
   /**
@@ -285,6 +294,8 @@ export function ProjectsSection({
   collapsed,
   activeSessionId,
   viewedSessionId,
+  priorityContext: suppliedPriorityContext,
+  priorityHold,
   runningSessionIds,
   attachedSessionIds,
   notifications,
@@ -470,7 +481,8 @@ export function ProjectsSection({
   // 整表订阅仅限本聚合组件(两个 store 头注的性能边界):本组件本就随
   // notifications 整集变化重渲染,不额外放大;远程镜像走整表版本号 + 逐 id 读,
   // 与 CCAgentSidebarUpper.projectAgg 同款先例。
-  const attentionKinds = useSessionAttentionKinds();
+  // Lead 的 kind 已并入其 Worker 的出错 / 等待确认(notifications 由上层同口径合并)。
+  const attentionKinds = useSessionAttentionKindsWithOrcaLeads();
   const urgentSet = useSessionAttentionUrgencySet();
   const remoteActivityRevision = useRemoteSessionActivityRevision();
   const collapsedAttentionToneFor = useCallback(
@@ -516,8 +528,14 @@ export function ProjectsSection({
     bots,
     remoteActivityRevision,
   ]);
-  const hold = useViewedPriorityHold(viewedPriorityHold, viewedIdForSort, naturalPriorityContext);
-  const priorityContext = useMemo(
+  const hasPairedPriority = suppliedPriorityContext != null && priorityHold != null;
+  const hold = useViewedPriorityHold(
+    viewedPriorityHold,
+    viewedIdForSort,
+    naturalPriorityContext,
+    { project: !hasPairedPriority },
+  );
+  const derivedPriorityContext = useMemo(
     () => ({
       ...naturalPriorityContext,
       heldPriorityRanks: hold.heldPriorityRanks,
@@ -525,6 +543,13 @@ export function ProjectsSection({
     }),
     [naturalPriorityContext, hold],
   );
+  const priorityContext = hasPairedPriority ? suppliedPriorityContext : derivedPriorityContext;
+  useLayoutEffect(() => {
+    if (!hasPairedPriority || !priorityHold) return;
+    viewedPriorityHold.prevViewedId = priorityHold.prevViewedId;
+    viewedPriorityHold.heldPriorityRanks = priorityHold.heldPriorityRanks;
+    viewedPriorityHold.recentlyViewedAtMs = priorityHold.recentlyViewedAtMs;
+  }, [hasPairedPriority, priorityHold]);
 
   // 聚合灯(2026-08 用户反馈:未读点只亮在最底层会话行,项目层与设备层没有
   // 灯,多设备下找未读要逐层展开翻找)——项目行 / 对话组行 / 设备段头都从
@@ -568,7 +593,7 @@ export function ProjectsSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- remoteActivityRevision 代表 getRemoteSessionActivity 读到的整表内容
   }, [projects, dialogues, unclassified, bots, remoteActivityRevision]);
 
-  // E 期「按设备分组」:有远程设备连接 + 开关开 → 按设备切段(本机在前,
+  // E 期「按设备分组」:有可选远程设备（含断线缓存）+ 开关开 → 按设备切段(本机在前,
   // 远程按设备切换栏顺序);其余情况单段直渲。切段后按当前排序重排本段。
   // 自定义项目顺序可以和设备分组叠加:每段内项目行按全局序的子集排,段内可拖。
   // 范围收窄到单台机器时照常保留分组与整理菜单选项(2026-10-05 用户定稿,推翻
@@ -1160,7 +1185,7 @@ export function ProjectsSection({
                 // 仅收起时显示运行态与未读点,展开后由下层内容提示。
                 const sectionLamp = lampAgg(section.entries.flatMap(entrySessions));
                 return (
-                  <div key={key} className="flex flex-col gap-1">
+                  <div key={key} className="flex flex-col">
                     {/* 设备分组头:可折叠。在线设备不画状态点;离线设备保留灰点与文字提示。 */}
                     <DeviceSectionHeader deviceId={section.deviceId} name={name}>
                       <button
@@ -1173,15 +1198,10 @@ export function ProjectsSection({
                             : t('ccAgent.sidebar.deviceGroup.collapse')
                         }
                         className={cn(
-                          'flex h-6 min-w-0 flex-1 items-center gap-1.5 rounded-full px-1.5',
+                          'flex h-6 min-w-0 flex-1 items-center gap-1.5 rounded-full px-2',
                           'text-[var(--sidebar-list-muted)] transition-colors hover:text-[var(--sidebar-nav-text)]',
                         )}
                       >
-                        {sectionCollapsed ? (
-                          <ChevronRight size={12} strokeWidth={2} className="shrink-0" />
-                        ) : (
-                          <ChevronDown size={12} strokeWidth={2} className="shrink-0" />
-                        )}
                         {/* 设备段收起时才用图标呼吸提示内部运行态,展开后由下层内容提示。 */}
                         <span
                           className={cn(
@@ -1194,6 +1214,16 @@ export function ProjectsSection({
                           <MonitorSmartphone size={13} strokeWidth={2} aria-hidden />
                         </span>
                         <span className="min-w-0 truncate text-xs font-medium">{name}</span>
+                        {sectionCollapsed ? (
+                          <ChevronRight
+                            size={12}
+                            strokeWidth={2}
+                            className="shrink-0"
+                            aria-hidden
+                          />
+                        ) : (
+                          <ChevronDown size={12} strokeWidth={2} className="shrink-0" aria-hidden />
+                        )}
                         {!online && (
                           <span
                             aria-hidden
@@ -1217,7 +1247,12 @@ export function ProjectsSection({
                       </button>
                     </DeviceSectionHeader>
                     <SectionCollapse collapsed={sectionCollapsed}>
-                      <div className="flex flex-col gap-1 pl-2">
+                      <div
+                        className={cn(
+                          'flex flex-col gap-1 pl-2',
+                          section.entries.length > 0 && 'pt-1',
+                        )}
+                      >
                         {/* 折叠上限每段独立应用(切段在前,见 deviceSections 注释);
                             「显示全部」的作用域同样是段内(expandedDeviceSections)。 */}
                         {(() => {
@@ -1494,13 +1529,13 @@ export function SessionGroupNode({
           </div>
         )}
       </div>
-      {/* 组内会话:与 ProjectNode 的会话区同款容器(gap / pt / pb 呼吸、list 缩进)
+      {/* 组内会话:与 ProjectNode 的会话区同款容器(gap / pt、list 缩进)
           与同一份折叠上限(getProjectSessionCollapseLimit)。 */}
       <SectionCollapse collapsed={collapsed} data-no-drag>
         <div
           className={cn(
-            'flex flex-col gap-0.5 pt-0.5 pb-1.5 pr-0',
-            sessionVariant === 'list' ? 'pl-3' : 'pl-0',
+            'flex flex-col gap-0.5 pt-0.5 pr-0',
+            sessionVariant === 'list' ? 'pl-2' : 'pl-0',
           )}
         >
           <SessionEntryList

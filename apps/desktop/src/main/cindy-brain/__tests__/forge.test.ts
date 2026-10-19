@@ -166,6 +166,18 @@ async function makeSrcDir(files: Record<string, string | Buffer>): Promise<strin
 }
 
 describe('packGhostDir', () => {
+  it.each([null, 'xd'])('rejects author-declared namespace %s before v2 normalization', async (namespace) => {
+    const dir = await makeSrcDir({
+      'ghost.json': JSON.stringify({ ...GOOD_MANIFEST, namespace }),
+      'main.js': 'export default {};',
+    });
+    await expect(packGhostDir(dir)).resolves.toMatchObject({
+      ok: false,
+      errorCode: 'MANIFEST_INVALID',
+      message: expect.stringContaining('ghost.json 不允许作者声明 namespace'),
+    });
+  });
+
   it('rejects a new tokenBroker package without redirectPort but accepts the declared-port shape', async () => {
     const brokerManifest = {
       ...GOOD_MANIFEST,
@@ -435,6 +447,25 @@ describe('packGhostDir', () => {
     } finally {
       await fs.promises.rm(managedRoot, { recursive: true, force: true });
     }
+  });
+
+  it.each([0, 1])('does not write an in-workdir package after live Plan authority expires at check %s', async (remainingChecks) => {
+    const dir = await makeSrcDir({ 'ghost.json': JSON.stringify(GOOD_MANIFEST), 'main.js': 'export default {}' });
+    let remaining = remainingChecks;
+    expect(await packGhostDirRaw(dir, { sessionWorkdir: workDir, isCurrent: () => remaining-- > 0 }))
+      .toMatchObject({ ok: false, errorCode: 'PERMISSION_DENIED' });
+    expect(fs.existsSync(path.join(dir, 'demo-1.0.0.cindy'))).toBe(false);
+  });
+
+  it.each([0, 1])('does not scaffold inside workdir after live Plan authority expires at check %s', async (remainingChecks) => {
+    const dir = path.join(workDir, 'plan-blocked-plugin');
+    const writeScaffold = vi.fn(testScaffoldWriter);
+    let remaining = remainingChecks;
+    expect(await scaffoldGhostDirRaw({ dir, template: 'plain', id: 'plan-blocked-plugin', name: 'Plan test', minCindyVersion: '1.2.3' },
+      { sessionWorkdir: workDir, isCurrent: () => remaining-- > 0, writeScaffold }))
+      .toMatchObject({ ok: false, errorCode: 'PERMISSION_DENIED' });
+    expect(writeScaffold).not.toHaveBeenCalled();
+    expect(fs.existsSync(dir)).toBe(false);
   });
 
   it('does not write a package after the outside grant expires', async () => {
@@ -1674,6 +1705,12 @@ describe('scaffoldGhostDir', () => {
 });
 
 describe('FORGE_GUIDE', () => {
+  it('documents optional Host task card visibility separately from task capabilities', () => {
+    expect(FORGE_GUIDE).toContain('"showTaskPreferences": false');
+    expect(FORGE_GUIDE).toContain('"showTaskPreferences": true');
+    expect(FORGE_GUIDE).toContain('任务 API、已有配置的读取和执行规则、权限检查均保持原样');
+  });
+
   it('账号业务元数据使用插件 KV，不声明 Host 昵称接口', () => {
     expect(FORGE_GUIDE).toContain('昵称等自定义账号元数据由插件通过 `/kv` 保存');
     expect(FORGE_GUIDE).toContain('执行仍传账号 id，不把昵称当作指令或授权');
@@ -1724,9 +1761,7 @@ describe('FORGE_GUIDE', () => {
       '个人身份下的 Forge 安装绝不会仅凭自测标记取得 Broker 或 Connection 权限',
     );
     expect(FORGE_GUIDE).toContain('受组织默认插件自动接管保护');
-    expect(FORGE_GUIDE).toContain(
-      '仅 `ghostId` 精确等于 `mivo-canvas` 且精确 oidc-token host 仅为 `mivo-canvas.dsworks.cn` 的组织成员本地安装可解析 audience',
-    );
+    expect(FORGE_GUIDE).toContain('仅 `ghostId` 精确等于 `mivo-canvas`、namespace 为 null 或尚未确认，且精确 oidc-token host 仅为 `mivo-canvas.dsworks.cn` 的组织成员本地安装可解析 audience');
   });
 
   it('开场白要求读完沙箱红线与打包测试两章', () => {

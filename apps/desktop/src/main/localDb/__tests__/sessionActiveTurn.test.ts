@@ -15,11 +15,18 @@ import type { DbClient } from '../client/DbClient.js';
 import { clearCurrentDbClient, setCurrentDbClient } from '../client/current.js';
 import * as schema from '../schema.js';
 
+const feature = vi.hoisted(() => ({ enabled: false }));
+vi.mock('@cindy/maker-shared/cindy-make-feature', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@cindy/maker-shared/cindy-make-feature')>(),
+  get CINDY_MAKE_ENABLED() { return feature.enabled; },
+}));
+
 describe('sessionActiveTurn', () => {
   let currentClient: DbClient | null = null;
   let rawDb: Database.Database | null = null;
 
   afterEach(async () => {
+    feature.enabled = false;
     const { _resetSessionActiveTurnStateForTests } = await import('../sessionActiveTurn.js');
     _resetSessionActiveTurnStateForTests();
     vi.restoreAllMocks();
@@ -41,6 +48,7 @@ describe('sessionActiveTurn', () => {
         status TEXT NOT NULL DEFAULT 'active',
         source TEXT NOT NULL DEFAULT 'desktop',
         cleared_at INTEGER,
+        hidden_at INTEGER,
         active_turn_started_at INTEGER,
         active_turn_pid INTEGER,
         last_turn_ended_at INTEGER,
@@ -503,6 +511,54 @@ describe('sessionActiveTurn', () => {
     ]);
   });
 
+  it('listInterruptedResumeCandidateRows reads the interrupted turn time and last tool use', async () => {
+    const { listInterruptedResumeCandidateRows } = await import('../interruptedResumeCandidates.js');
+    const client = createTestDbClient();
+    const startedAt = Date.now() - 10_000;
+    await seedSession(client, 's-tools', { startedAt });
+    await seedSession(client, 's-silent', { startedAt });
+    const insert = (id: string, sid: string, role: string, content: unknown, createdAt: number, rewindAt?: number) =>
+      client.exec(
+        'INSERT INTO messages (id, client_id, session_id, role, content, created_at, rewind_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [id, id, sid, role, JSON.stringify(content), createdAt, rewindAt ?? null],
+      );
+    // 上一轮的工具调用不属于被中断的这一轮。
+    await insert('m-old', 's-tools', 'tool_use', { toolName: 'Read', input: { file_path: '/a' } }, startedAt - 1);
+    await insert('m-1', 's-tools', 'tool_use', { toolName: 'Read', input: { file_path: '/b' } }, startedAt + 100);
+    await insert('m-2', 's-tools', 'tool_use', { toolName: 'Bash', input: { command: 'pnpm test' } }, startedAt + 200);
+    await insert('m-3', 's-tools', 'assistant', 'running tests', startedAt + 300);
+    // 被 rewind 的行既不算中断时间,也不算最后一次工具调用。
+    await insert('m-4', 's-tools', 'tool_use', { toolName: 'Write', input: {} }, startedAt + 400, startedAt + 500);
+    await insert('m-5', 's-silent', 'tool_use', { toolName: 'Read', input: {} }, startedAt - 1);
+
+    const rows = await listInterruptedResumeCandidateRows();
+    expect(rows.sort((a, b) => a.sessionId.localeCompare(b.sessionId))).toEqual([
+      { sessionId: 's-silent', interruptedAt: startedAt, lastToolUse: null },
+      {
+        sessionId: 's-tools',
+        interruptedAt: startedAt + 300,
+        lastToolUse: { toolName: 'Bash', input: { command: 'pnpm test' } },
+      },
+    ]);
+  });
+
+  it('excludes plugin background tasks from both red-dot legs', async () => {
+    const { listInterruptedPendingSessionIds, listErrorTailPendingSessionIds } = await import('../sessionActiveTurn.js');
+    const client = createTestDbClient();
+    const now = Date.now();
+    await seedSession(client, 's-visible', { startedAt: now - 1000, source: 'plugin' });
+    await seedSession(client, 's-background', { startedAt: now - 1000, source: 'plugin' });
+    for (const id of ['s-visible', 's-background']) {
+      await client.exec(
+        'INSERT INTO messages (id, client_id, session_id, role, content, created_at, rewind_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [`${id}-err`, `${id}-err`, id, 'error', '{"message":"boom"}', now - 500, null],
+      );
+    }
+    await client.exec('UPDATE sessions SET hidden_at = ? WHERE id = ?', [now, 's-background']);
+    expect(await listInterruptedPendingSessionIds()).toEqual(['s-visible']);
+    expect(await listErrorTailPendingSessionIds()).toEqual(['s-visible']);
+  });
+
   it('hasAssistantProgressAfterMessage detects agent output after the user row', async () => {
     const { hasAssistantProgressAfterMessage } = await import('../sessionActiveTurn.js');
     const client = createTestDbClient();
@@ -573,8 +629,9 @@ describe('sessionActiveTurn', () => {
     expect(await hasAssistantProgressAfterMessage('s-same-ms', 'c-user2')).toBe(true);
   });
 
-  it('restores native Make failures and drops them only when handled or no longer visible', async () => {
+  it('restores native Make failures only while enabled and preserves hidden failure history', async () => {
     const { listErrorTailPendingSessionIds } = await import('../sessionActiveTurn.js');
+    feature.enabled = true;
     const client = createTestDbClient();
     const at = Date.now();
     const insert = async (id: string, completion: unknown, options: {
@@ -601,12 +658,19 @@ describe('sessionActiveTurn', () => {
     await insert('make-cleared', failed, { clearedAt: at });
     await insert('make-archived', failed, { status: 'archived' });
     await insert('ordinary-task', failed, { source: 'desktop' });
+    await insert('make-merge-failed', failed, { source: 'cindy-make-merge' });
     await insert('make-later-user', failed);
     await client.exec('INSERT INTO messages (id, client_id, session_id, role, content, created_at) VALUES (?, ?, ?, ?, ?, ?)',
       ['later', 'later', 'make-later-user', 'user', '{}', at]);
     expect((await listErrorTailPendingSessionIds()).sort()).toEqual([
       'make-failed', 'make-interrupted', 'make-preparation', 'make-test-failed',
     ]);
+    feature.enabled = false;
+    expect(await listErrorTailPendingSessionIds()).toEqual([]);
+    expect(await client.queryOne('SELECT agent_meta FROM messages WHERE id = ?', ['make-failed'])).toEqual({
+      agent_meta: JSON.stringify({ cindyMakeCompletion: failed }),
+    });
+    feature.enabled = true;
     await client.exec('UPDATE messages SET agent_meta = ? WHERE id = ?', [
       JSON.stringify({ cindyMakeCompletion: { ...failed, personal: { status: 'waiting' } } }), 'make-failed',
     ]);
@@ -675,6 +739,11 @@ describe('sessionActiveTurn', () => {
     // 不命中:不在桌面可见来源白名单里,红点无处展示。
     await seedSession(client, 's-hidden-err', { source: 'legacy-hidden' });
     await insert('s-hidden-err', 'e10-err', 'error', '{"message":"boom"}', base + 100);
+
+    for (const source of ['cindy-make', 'cindy-make-merge']) {
+      await seedSession(client, source, { source });
+      await insert(source, source + '-error', 'error', '{"message":"boom"}', base + 100);
+    }
 
     // 不命中:/clear 越过了该 error 行 —— 消息读取路径靠 cleared_at 把它挡在视图外,
     // 横幅根本不显示,红点若还挂着就永远无法处置(PR #879 review P1)。

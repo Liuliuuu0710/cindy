@@ -6,9 +6,11 @@
  * `codex exec-server --listen stdio://`，命令、读写文件、补丁都在本机执行。
  *
  * 每个请求转给 exec-server 之前先过本机权限上限(与 Claude Code / Pi 同一个闸门)：
- * 凭证类路径与高危命令只认本机用户批准过的同一操作；不通过就直接回 JSON-RPC 错误。
+ * 凭证类路径与高危命令只认本机用户批准过的同一操作；不通过就直接回 JSON-RPC 错误。供应商分享的
+ * 受邀者任务里，凭证类操作没有批准时先在本机弹确认卡，等待期间这条连接后面的消息排在它后面。
  */
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -20,6 +22,7 @@ import {
   type RemoteAgentStreamItem,
 } from '@cindy/device-link';
 
+import { readExistingTextSync } from '../executor/files';
 import type { ExecutorAction, ExecutorGateDecision } from '../executor/gate';
 import { resolveExecutorShell } from '../executor/shell';
 import type { ExecutorWorkspace } from '../executor/workspace';
@@ -29,21 +32,42 @@ export const EXEC_SERVER_WS_PATH = '/ws/exec-server';
 const MAX_LINE_CHARS = 48 * 1024 * 1024;
 /** 单帧数据上限，留出 JSON 包装余量。 */
 const FRAME_CHARS = REMOTE_AGENT_MAX_INLINE_PAYLOAD_CHARS - 1024;
+/** 一次回推超过这么久算慢链路(每个 Codex 文件请求都要等一次回推)。 */
+const SLOW_PUSH_MS = 2_000;
 
 export interface ExecServerRelayDeps {
   codexPath: string;
   cwd: string;
   workspace: ExecutorWorkspace;
   authorize(action: ExecutorAction): ExecutorGateDecision;
+  /** 凭证类操作在本机补问(供应商分享的受邀者任务)；允许后再 authorize 一次即放行。 */
+  confirm?(action: ExecutorAction): Promise<boolean>;
   push(frames: RemoteAgentPushFrame[]): Promise<void>;
   env?: NodeJS.ProcessEnv;
   log?: { warn(message: string, meta?: Record<string, unknown>): void };
+  now?: () => number;
+}
+
+/**
+ * 中继的往来统计(只含计数与耗时)。任务结束时有慢回推或闸门拒绝就记一条日志：前者说明链路慢
+ * (托管 Codex 启动要等几十次回推，#5764)，后者说明 Agent 有文件或命令没拿到(如任务在子目录时
+ * 上级目录的 Skill 遍历)。
+ */
+export interface ExecServerRelayStats {
+  requests: number;
+  rejected: number;
+  pushes: number;
+  pushMaxMs: number;
+  pushAvgMs: number;
+  slowPushes: number;
 }
 
 interface Connection {
   child: ChildProcessWithoutNullStreams;
   buffer: string;
   closed: boolean;
+  /** 有消息在等本机确认时，后面的消息按顺序排在它后面。 */
+  queue?: Promise<void>;
 }
 
 /** `["/bin/zsh","-lc","cmd"]` → `cmd`；其它形态按空格拼接。 */
@@ -68,9 +92,16 @@ function fromFileUrl(value: unknown, base: string): string | null {
   return path.isAbsolute(value) ? value : path.resolve(base, value);
 }
 
-const READ_METHODS = new Set(['fs/readFile', 'fs/readDirectory', 'fs/readDir', 'fs/listDirectory']);
-/** 只看元数据、不读内容的操作不过闸门。 */
-const METADATA_METHODS = new Set(['fs/getMetadata', 'fs/exists', 'fs/stat']);
+// exec-server 的只读操作按读取过闸门；不在下面几组里的 `fs/` 方法一律按写入处理(新版 Codex 新增的
+// 方法先从严)。`fs/walk`、`fs/canonicalize`、`fs/open` 曾落进写入：计划模式下工作区里的项目 Skill
+// 加载被拒，工作区外的单文件读取也被当成区外写入拒掉(#5764)。
+
+/** 读单个文件或单层目录；fs/open 的显式写入模式在下方按写入处理。 */
+const READ_METHODS = new Set(['fs/readFile', 'fs/open', 'fs/readDirectory', 'fs/readDir', 'fs/listDirectory']);
+/** 递归遍历：按目录级读取过闸门，根在工作区外与本机任务的搜索一样要本机确认。 */
+const TREE_READ_METHODS = new Set(['fs/walk']);
+/** 只看元数据、不读内容的操作不过闸门(`fs/canonicalize` 只解析真实路径)。 */
+const METADATA_METHODS = new Set(['fs/getMetadata', 'fs/exists', 'fs/stat', 'fs/canonicalize']);
 
 /** 把一个 exec-server 请求换成要过闸门的操作。 */
 export function execServerActions(method: string, params: unknown, cwd: string): ExecutorAction[] {
@@ -84,12 +115,17 @@ export function execServerActions(method: string, params: unknown, cwd: string):
   const paths = ['path', 'sourcePath', 'destinationPath', 'source', 'destination', 'from', 'to', 'target']
     .map((key) => fromFileUrl(record[key], cwd))
     .filter((value): value is string => !!value);
-  const kind = READ_METHODS.has(method) ? 'read' : 'write';
+  if (TREE_READ_METHODS.has(method)) return paths.map((target) => ({ kind: 'read', path: target, scope: 'tree' }));
+  // Pinned Codex 0.159.2 uses a read-only fs/open and writes through fs/writeFile.
+  // Keep explicit non-read modes fail-closed for newer protocols; they are not evidence that
+  // their later handle-based write methods are supported by this relay.
+  const readOnlyOpen = method !== 'fs/open' || record.mode === undefined || record.mode === 'read';
+  const kind = READ_METHODS.has(method) && readOnlyOpen ? 'read' : 'write';
   return paths.map((target) => ({ kind, path: target }) as ExecutorAction);
 }
 
 /** 映射协议路径、命令和可逆的 UTF-8 文件数据；二进制内容保持原样。 */
-export function mapExecServerParams(value: unknown, workspace: ExecutorWorkspace, method?: string): unknown {
+export function mapExecServerParams(value: unknown, workspace: ExecutorWorkspace, method?: string, mapFileData = true): unknown {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
   const result = { ...value as Record<string, unknown> };
   for (const key of ['cwd', 'path', 'sourcePath', 'destinationPath', 'source', 'destination', 'from', 'to', 'target']) {
@@ -103,10 +139,145 @@ export function mapExecServerParams(value: unknown, workspace: ExecutorWorkspace
   }
   if (Array.isArray(result.argv)) result.argv = result.argv.map((part) => typeof part === 'string' ? workspace.mapCommand(part, resolveExecutorShell().dialect) : part);
   if (typeof result.command === 'string') result.command = workspace.mapCommand(result.command, resolveExecutorShell().dialect);
-  if (method?.startsWith('fs/write') && typeof result.dataBase64 === 'string') {
-    result.dataBase64 = workspace.mapInputFromAgent(Buffer.from(result.dataBase64, 'base64')).toString('base64');
+  if (result.sandbox !== undefined) result.sandbox = mapExecServerSandbox(result.sandbox, workspace);
+  return mapFileData ? mapExecServerFileData(result, workspace, method) : result;
+}
+
+type JsonRecord = Record<string, unknown>;
+
+function asJsonRecord(value: unknown): JsonRecord | null {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as JsonRecord : null;
+}
+
+/**
+ * 本机能用的绝对路径：任务电脑是 Windows 时必须带盘符或是 UNC，以 `/` 开头的 POSIX 路径不算；
+ * 是 POSIX 时 `//server/share` 是 Windows 网络路径(本机 exec-server 不认带主机名的 file URI)，也不算。
+ */
+function isLocalAbsolutePath(value: string): boolean {
+  return process.platform === 'win32'
+    ? /^(?:[A-Za-z]:[\\/]|[\\/]{2}[^\\/])/.test(value)
+    : path.posix.isAbsolute(value) && !/^[\\/]{2}/.test(value);
+}
+
+/** 转换沙箱用到的 Agent 一侧信息：它的路径约定按虚拟工作区(Agent 主机上的路径)判断，不按单个 URI 的长相猜。 */
+interface SandboxMapping {
+  workspace: ExecutorWorkspace;
+  windowsAgent: boolean;
+}
+
+/** Agent 发来的 file URI 还原成它那边的路径写法(Windows Agent：`file:///C:/x` → `C:/x`；UNC 带回主机名)。 */
+function agentPathFromUri(value: unknown, windowsAgent: boolean): string | null {
+  if (typeof value !== 'string' || !value.startsWith('file://')) return null;
+  try {
+    const url = new URL(value);
+    const pathname = decodeURIComponent(url.pathname);
+    if (url.host) return `//${url.host}${pathname}`;
+    // POSIX 上 `/C:/secret` 是根目录下的普通路径，只有 Windows Agent 才去掉盘符前的 `/`。
+    return windowsAgent ? pathname.replace(/^\/([A-Za-z]:)/, '$1') : pathname;
+  } catch {
+    return null;
+  }
+}
+
+/** 虚拟工作区内的 file URI 换成本机 file URI；Agent 主机自己的路径返回 null。 */
+function localUriFromAgent(value: unknown, { workspace, windowsAgent }: SandboxMapping): string | null {
+  const agentPath = agentPathFromUri(value, windowsAgent);
+  const local = agentPath === null ? null : workspace.localPathFromAgent(agentPath);
+  return local === null ? null : pathToFileURL(local).href;
+}
+
+/**
+ * 沙箱上下文里解释权限条目用的目录(policyContext 里同名字段同样处理)。用户目录对不上时用本机的：
+ * Codex 缺了它会把 `~/…` 规则当作解析失败、一律拒绝读取。
+ */
+function mapSandboxDirs(record: JsonRecord, mapping: SandboxMapping): JsonRecord {
+  const result = { ...record };
+  if (result.cwd !== undefined) {
+    const local = localUriFromAgent(result.cwd, mapping);
+    if (local === null) delete result.cwd;
+    else result.cwd = local;
+  }
+  if (result.userHomeDir !== undefined) {
+    result.userHomeDir = localUriFromAgent(result.userHomeDir, mapping) ?? pathToFileURL(os.homedir()).href;
+  }
+  for (const key of ['workspaceRoots', 'temporaryDirectories']) {
+    const items = result[key];
+    if (Array.isArray(items)) result[key] = items.flatMap((item) => localUriFromAgent(item, mapping) ?? []);
   }
   return result;
+}
+
+/**
+ * 一条文件权限：虚拟工作区内的路径换成本机路径。Agent 主机自己的路径(如它的 Codex 记忆目录)在本机
+ * 没有对应位置，读写授权直接丢掉，只收不放。禁止规则不因转换失效：路径条目在本机也是合法绝对路径时
+ * 原样保留(不合法的会让本机 exec-server 拒绝整个请求)；没映射上的禁止 glob 一律原样保留——相对的由本机
+ * 按工作目录解释，Agent 主机的绝对路径在本机匹配不到东西，无需判断它是不是绝对路径。特殊路径(`:tmpdir`、
+ * 项目根等)由本机 exec-server 按映射后的目录解释。
+ */
+function mapSandboxEntry(entry: unknown, mapping: SandboxMapping): unknown[] {
+  const record = asJsonRecord(entry);
+  const target = asJsonRecord(record?.path);
+  if (!record || !target) return [entry];
+  const deny = record.access === 'deny' || record.access === 'none';
+  if (target.type === 'path') {
+    const local = localUriFromAgent(target.path, mapping);
+    if (local !== null) return [{ ...record, path: { ...target, path: local } }];
+    const agentPath = agentPathFromUri(target.path, mapping.windowsAgent);
+    return deny && agentPath !== null && isLocalAbsolutePath(agentPath) ? [entry] : [];
+  }
+  if (target.type === 'glob_pattern' && typeof target.pattern === 'string') {
+    const local = mapping.workspace.localGlobFromAgent(target.pattern);
+    if (local !== null) return [{ ...record, path: { ...target, pattern: local } }];
+    // 读写 glob 只有明确是绝对路径(盘符加分隔符、`/` 开头、`\\server`)才是 Agent 主机的路径，丢掉；判断不准只会少放。
+    return deny || !/^(?:[A-Za-z]:[\\/]|\/|\\\\)/.test(target.pattern) ? [entry] : [];
+  }
+  return [entry];
+}
+
+/**
+ * Codex 请求(process/start、fs/*)里的 `sandbox`：权限条目和解释它们用的目录都是 Agent 主机上看到的
+ * file URI。原样转给本机 exec-server，两端系统不同时会因路径不属于本机被拒(`invalid sandbox
+ * permission path URI`)，相同时则放行的是本机不存在的虚拟目录。这里换成本机路径，规则见 mapSandboxEntry。
+ */
+function mapExecServerSandbox(value: unknown, workspace: ExecutorWorkspace): unknown {
+  const record = asJsonRecord(value);
+  const agentPrefixes = workspace.agentPathPrefixes();
+  if (!record || agentPrefixes.length === 0) return value;
+  const mapping: SandboxMapping = { workspace, windowsAgent: /^(?:[A-Za-z]:|[\\/]{2})/.test(agentPrefixes[0]) };
+  const sandbox = mapSandboxDirs(record, mapping);
+  const policyContext = asJsonRecord(sandbox.policyContext);
+  if (policyContext) sandbox.policyContext = mapSandboxDirs(policyContext, mapping);
+  const permissions = asJsonRecord(sandbox.permissions);
+  const fileSystem = asJsonRecord(permissions?.file_system);
+  if (permissions && fileSystem && Array.isArray(fileSystem.entries)) {
+    const entries = fileSystem.entries.flatMap((entry) => mapSandboxEntry(entry, mapping));
+    sandbox.permissions = { ...permissions, file_system: { ...fileSystem, entries } };
+  }
+  return sandbox;
+}
+
+/**
+ * 授权通过后、实际转发前才读写入目标的原内容，排队中的请求也在出队后读取最新内容。
+ * 路径与命令的映射仍在权限检查前完成，确保 gate 检查的是实际执行的操作。
+ */
+function mapExecServerFileData(value: unknown, workspace: ExecutorWorkspace, method?: string): unknown {
+  if (!method?.startsWith('fs/write') || !value || typeof value !== 'object' || Array.isArray(value)) return value;
+  const result = value as Record<string, unknown>;
+  if (typeof result.dataBase64 !== 'string') return value;
+  return { ...result, dataBase64: workspace.mapInputFromAgent(Buffer.from(result.dataBase64, 'base64'),
+    existingTextFor(result.path, workspace)).toString('base64') };
+}
+
+/** 旧内容仅用于还原写入路径的原写法，不回给 Agent；凭证类文件不预读。 */
+function existingTextFor(target: unknown, workspace: ExecutorWorkspace): string | null {
+  if (typeof target !== 'string') return null;
+  let local: string;
+  try {
+    local = target.startsWith('file://') ? fileURLToPath(target) : target;
+  } catch {
+    return null;
+  }
+  return workspace.isSensitive(local) ? null : readExistingTextSync(local);
 }
 
 /** JSON 层逐字符串投影；文件 base64 数据保持原始字节，进程输出单独解码。 */
@@ -151,8 +322,14 @@ export class ExecServerRelay {
   private outbox: RemoteAgentPushFrame[] = [];
   private flushing: Promise<void> | null = null;
   private closed = false;
+  private readonly counts = { requests: 0, rejected: 0, pushes: 0, pushTotalMs: 0, pushMaxMs: 0, slowPushes: 0 };
 
   constructor(private readonly deps: ExecServerRelayDeps) {}
+
+  stats(): ExecServerRelayStats {
+    const { requests, rejected, pushes, pushTotalMs, pushMaxMs, slowPushes } = this.counts;
+    return { requests, rejected, pushes, pushMaxMs, pushAvgMs: pushes ? Math.round(pushTotalMs / pushes) : 0, slowPushes };
+  }
 
   handle(item: Extract<RemoteAgentStreamItem, { t: 'ws' }>): void {
     if (this.closed) return;
@@ -173,6 +350,8 @@ export class ExecServerRelay {
     if (this.closed) return;
     this.closed = true;
     for (const connId of [...this.connections.keys()]) this.dropConnection(connId, false);
+    const stats = this.stats();
+    if (stats.slowPushes > 0 || stats.rejected > 0) this.deps.log?.warn('remote agent: exec-server relay summary', { ...stats });
   }
 
   private open(connId: string, wsPath: string): void {
@@ -226,21 +405,69 @@ export class ExecServerRelay {
     } catch {
       message = null;
     }
+    let actions: ExecutorAction[] = [];
     if (message && typeof message.method === 'string' && message.id !== undefined) {
-      message.params = mapExecServerParams(message.params, this.deps.workspace, message.method);
+      this.counts.requests += 1;
+      message.params = mapExecServerParams(message.params, this.deps.workspace, message.method, false);
       data = JSON.stringify(message);
-      for (const action of execServerActions(message.method, message.params, this.deps.cwd)) {
-        const decision = this.deps.authorize(action);
-        if (!decision.ok) {
-          this.sendMessage(connId, JSON.stringify({
-            id: message.id,
-            error: { code: -32001, message: this.deps.workspace.mapTextForAgent(decision.reason ?? 'Not allowed in this workspace.') },
-          }));
-          return;
-        }
+      actions = execServerActions(message.method, message.params, this.deps.cwd);
+    }
+    const id = message?.id;
+    // 延迟到所有 action 获准之后，不能为了内容保真提前读取被拒绝的目标。
+    const line = () => {
+      if (message && typeof message.method === 'string' && message.id !== undefined) {
+        return JSON.stringify({ ...message, params: mapExecServerFileData(message.params, this.deps.workspace, message.method) }) + '\n';
+      }
+      return data + '\n';
+    };
+    if (connection.queue) {
+      this.enqueue(connection, () => this.deliver(connId, connection, id, line, actions));
+      return;
+    }
+    for (const [index, action] of actions.entries()) {
+      const decision = this.deps.authorize(action);
+      if (decision.ok) continue;
+      if (!this.deps.confirm) {
+        this.reject(connId, id, decision);
+        return;
+      }
+      // 等本机用户确认(凭证类)：这一条与之后的消息都按顺序等它。已放行的操作不再检查(批准只能用一次)。
+      const rest = actions.slice(index);
+      this.enqueue(connection, () => this.deliver(connId, connection, id, line, rest));
+      return;
+    }
+    connection.child.stdin.write(line());
+  }
+
+  private enqueue(connection: Connection, task: () => Promise<void>): void {
+    const next = (connection.queue ?? Promise.resolve()).then(task).catch((error: unknown) => {
+      this.deps.log?.warn('remote agent: exec-server message failed', { error: String(error) });
+    });
+    connection.queue = next;
+    void next.then(() => {
+      if (connection.queue === next) connection.queue = undefined;
+    });
+  }
+
+  private async deliver(connId: string, connection: Connection, id: unknown, line: () => string, actions: ExecutorAction[]): Promise<void> {
+    for (const action of actions) {
+      let decision = this.deps.authorize(action);
+      if (!decision.ok && this.deps.confirm && await this.deps.confirm(action)) decision = this.deps.authorize(action);
+      if (connection.closed) return;
+      if (!decision.ok) {
+        this.reject(connId, id, decision);
+        return;
       }
     }
-    connection.child.stdin.write(`${data}\n`);
+    if (!connection.closed) connection.child.stdin.write(line());
+  }
+
+  private reject(connId: string, id: unknown, decision: ExecutorGateDecision): void {
+    this.counts.rejected += 1;
+    this.sendMessage(connId, JSON.stringify({
+      id,
+      error: { code: -32001, message: this.deps.workspace.mapTextForAgent(decision.reason ?? 'Not allowed in this workspace.') },
+    }));
   }
 
   private projectOutbound(line: string): string {
@@ -301,8 +528,19 @@ export class ExecServerRelay {
         batch.push(this.outbox.shift()!);
         size += length;
       }
+      const now = this.deps.now ?? Date.now;
+      const startedAt = now();
       try {
         await this.deps.push(batch);
+        const elapsed = now() - startedAt;
+        this.counts.pushes += 1;
+        this.counts.pushTotalMs += elapsed;
+        this.counts.pushMaxMs = Math.max(this.counts.pushMaxMs, elapsed);
+        if (elapsed >= SLOW_PUSH_MS) {
+          this.counts.slowPushes += 1;
+          // 第一次慢就记一条(任务可能要很久才结束，汇总那条来得晚)。
+          if (this.counts.slowPushes === 1) this.deps.log?.warn('remote agent: exec-server push slow', { pushMs: elapsed, frames: batch.length });
+        }
       } catch (error) {
         // 批次已从 outbox 取出但交付失败(push 同序号重试耗尽)：不能只记日志就继续发后续帧
         // ——远端 Codex 会永久缺这条 JSON-RPC 回复卡住，丢失的中间分片还会把后续分片拼成

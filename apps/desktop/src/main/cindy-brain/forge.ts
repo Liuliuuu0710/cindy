@@ -22,6 +22,7 @@ import { promisify } from 'node:util';
 import JSZip from 'jszip';
 
 import {
+  authorDeclaredNamespaceReason,
   PLUGIN_MEMBER_UPLOAD_MAX_ARCHIVE_BYTES,
   PLUGIN_MEMBER_UPLOAD_MAX_UNCOMPRESSED_BYTES,
   PLUGIN_MEMBER_UPLOAD_MAX_ZIP_ENTRIES,
@@ -35,6 +36,7 @@ import {
   GHOST_MANIFEST_FILE,
   GHOST_MANIFEST_SUMMARY_MAX_CHARS,
   GHOST_SKILL_MD_MAX_BYTES,
+  isValidNewGhostId,
   validateGhostManifest,
   type GhostManifest,
 } from '../../shared/ghost.js';
@@ -244,10 +246,11 @@ type ForgeOutsideGrantOptions = {
   isCurrent?: () => boolean;
 };
 
-function staleOutsideForgeGrant(
+function staleForgeGrant(
   options?: ForgeOutsideGrantOptions,
 ): { ok: false; errorCode: 'PERMISSION_DENIED'; message: string } | null {
-  if (!options?.allowOutsideWorkdir || !options.authorizedDir) return null;
+  // Live authority also guards in-workdir writes after async preparation.
+  if (!options?.isCurrent && (!options?.allowOutsideWorkdir || !options.authorizedDir)) return null;
   if (options.isCurrent?.() === true) return null;
   return { ok: false, errorCode: 'PERMISSION_DENIED', message: FORGE_OUTSIDE_GRANT_STALE_MESSAGE };
 }
@@ -613,7 +616,7 @@ export async function scaffoldGhostDir(
       message: '会话工作目录不存在,无法确定骨架输出位置',
     };
   }
-  const staleGrant = staleOutsideForgeGrant(options);
+  const staleGrant = staleForgeGrant(options);
   if (staleGrant) return staleGrant;
   let realTarget: string;
   try {
@@ -672,12 +675,37 @@ export async function scaffoldGhostDir(
   if (typeof manifestRaw !== 'string') {
     return { ok: false, errorCode: 'INTERNAL', message: 'scaffold manifest 必须是 JSON 字符串' };
   }
-  const validation = validateGhostManifest(JSON.parse(manifestRaw));
+  let scaffoldManifest: unknown;
+  try {
+    scaffoldManifest = JSON.parse(manifestRaw);
+  } catch {
+    return {
+      ok: false,
+      errorCode: 'INVALID_INPUT',
+      message: '插件信息不合格:ghost.json 不是合法 JSON',
+    };
+  }
+  const reservedScaffoldNamespace = authorDeclaredNamespaceReason(scaffoldManifest);
+  if (reservedScaffoldNamespace) {
+    return {
+      ok: false,
+      errorCode: 'INVALID_INPUT',
+      message: `插件信息不合格:${reservedScaffoldNamespace}`,
+    };
+  }
+  const validation = validateGhostManifest(scaffoldManifest);
   if (!validation.ok) {
     return {
       ok: false,
       errorCode: 'INVALID_INPUT',
       message: `插件信息不合格:${validation.reason}`,
+    };
+  }
+  if (!isValidNewGhostId(validation.manifest.id)) {
+    return {
+      ok: false,
+      errorCode: 'INVALID_INPUT',
+      message: '新建插件 id 必须以小写字母开头，只能包含小写字母、数字和连字符，最长 32 个字符',
     };
   }
   const brokerPortIssue = brokerRedirectPortDeclarationIssue(validation.manifest);
@@ -753,7 +781,7 @@ export async function scaffoldGhostDir(
       message: 'Forge scaffold stable-directory capability is unavailable',
     };
   }
-  const staleBeforeWrite = staleOutsideForgeGrant(options);
+  const staleBeforeWrite = staleForgeGrant(options);
   if (staleBeforeWrite) return staleBeforeWrite;
   const writeResult = await options.writeScaffold({
     parentDir,
@@ -881,6 +909,10 @@ async function buildGhostPackage(
         // 采用紧凑 JSON，避免仅为 overlay 重排空白就把清单推过安装侧上限。
         manifestBytes = Buffer.from(`${JSON.stringify(manifestRaw)}\n`, 'utf-8');
       }
+    }
+    const reservedNamespace = authorDeclaredNamespaceReason(manifestRaw);
+    if (reservedNamespace) {
+      return { ok: false, errorCode: 'MANIFEST_INVALID', message: `清单不合格:${reservedNamespace}` };
     }
     const v = validateGhostManifest(manifestRaw);
     if (!v.ok) {
@@ -1392,7 +1424,7 @@ export async function packGhostDir(
       message: 'The current session workdir does not exist',
     };
   }
-  const staleGrant = staleOutsideForgeGrant(options);
+  const staleGrant = staleForgeGrant(options);
   if (staleGrant) return staleGrant;
   let realSourceDir: string;
   try {
@@ -1449,7 +1481,7 @@ export async function packGhostDir(
     realSourceDir,
     `${built.manifest.id}-${built.manifest.version}.cindy`,
   );
-  const staleBeforeWrite = staleOutsideForgeGrant(options);
+  const staleBeforeWrite = staleForgeGrant(options);
   if (staleBeforeWrite) return staleBeforeWrite;
   try {
     await fs.promises.writeFile(cindyPath, built.buf);
@@ -1711,6 +1743,7 @@ my-ghost/
   // 一级主视图是独立能力，见 §4.20。使用时直接声明：
   // "mainView": { "title": "工作台", "icon": "puzzle", "html": "main-view.html" }
   "settingsHtml": "settings.html",  // 可选:设置页「自定义设置区」自绘界面(见 §4.8;声明了用户填的凭证时仍必填,用于长期管理/替换/清除;调用前缺失时主机也会在统一 Setup 卡内联收单,见 §4.7)
+  "showTaskPreferences": true,     // 可选:是否显示宿主「模型与任务」卡,缺省/true 显示,false 隐藏;见 §4.8
   "settingsHeight": 360             // 可选:固定高度 px(160–800);缺省 = 随内容自适应(矮内容真收矮,高至 800);内容会动态增减时才声明,避免抖动
 }
 \`\`\`
@@ -1819,6 +1852,26 @@ v3 直接用顶层字段声明插件贡献项与自主 Host 能力，不再有 \
 \`agent\`、\`panel\`、\`mainView\`、\`card\`、\`subscribe\`、\`network\`、\`node\`、\`preview\`、
 \`skill\`；布尔能力写成字面量 \`true\`：\`notify\`、\`badge\`、\`confirm\`、\`fs\`、
 \`library\`、\`sessionContext\`、\`pick\`、\`workspace\`。不用的字段直接省略，
+邮件插件声明 \`mail: true\`，调用 Cindy 内置 \`cindyMail.register(adapter)\`
+（version 1），不生成卡片 HTML、不打包公共流程；纯邮件插件不需要 \`card\`。
+阅读邮件可声明 \`mailReader:{tool,hosts}\`，工具接收 \`{url}\` 并返回 MailMessage，默认只读。
+\`mail\` 只能省略或写字面量 \`true\`；声明 \`mailReader\` 时必须同时有 \`mail: true\`，
+且 \`tool\` 必须指向本清单 \`tools\` 中的工具。协议校验与桌面安装校验都会拒绝不完整组合。
+支持打开即已读时增加 \`mailReader.markRead:true\`，读取工具接受可选 \`markRead:true\`；
+声明中的 \`markRead\` 只能省略或为字面量 \`true\`，\`false\`、字符串等其它值不合法。
+仅用户主动打开时传入，AI 读取和邻近预加载不传。成功读取后只标记当前邮件，不标记整个会话或草稿。
+Host 派发器会移除普通工具参数中的此标记，仅可信阅读器打开请求可注入；其它明确授权的已读操作工具不受影响。
+标记失败仍返回正文和 \`markReadFailed:true\`，由 Cindy 显示提示；新增 OAuth scope 不阻断已有授权的操作。
+适配器提供 providerName、draftStorage（server/local）、selectAccount、readDraft、writeDraft。
+通过 present 展示读回草稿，beforeTool 统一 get/send/update/delete，resolveDraft 获取最新位置。
+Host 负责样式、编辑同步、发送和任务续接；同一任务同一封邮件只显示最新卡片，旧快照保留但不重复展示。插件保留凭据、MIME 和服务商请求。
+插件重启后，下一次卡片编辑或工具操作会自动读回原草稿，使用 Host 卡片中上次同步的内容、卡片编辑和邮箱最新内容做三方合并；单边变化、相同变化和不重叠的文字修改自动合并，只有无法合并的修改才保留两边内容并提示具体字段。版本标记或预览地址变化本身不算冲突。适配器返回 execution:not_executed 和 stale 读回快照时可合并后重试一次，未知操作结果不能重试。发送倒计时结束时若发现实际内容变化，展示合并稿并重新倒计时。
+图文适配器的 attachmentItems 可为已有图片 key 添加 contentId，表示将同一附件插入 HTML 正文；必须核验实际图片字节、保留 MIME 引用，不能重复上传或把预览 URL 写入邮件。
+工具说明应要求默认展示草稿卡等用户确认；只有用户已明确确认该邮件，或有效的用户/任务指令明确授权该范围内直接发送，才不再询问。写信/回复请求、编辑及自动审批本身不代表确认。
+UI 和 Agent 发送都先进入 10 秒倒计时，卡片可撤销或立即发送；beforeTool(send) 等待最终回执。
+撤销后保留草稿且不得自动重试。所有发送先创建并展示草稿，再走 beforeTool(send)，不得保留直发旁路。
+缺少 SDK 时只读可用，编辑/发送需更新 Cindy；不要绕开公共流程直接发送已展示草稿。
+
 不能写 \`false\`。\`card: {}\` 与 \`agent: {}\` 分别表示基础聊天卡片能力和用户点击后
 发起 Agent 回合；其它对象型能力必须包含该能力真正需要的详单。
 
@@ -1840,6 +1893,9 @@ Host 能力字段。v2 的 \`slots\` 只用于存量包兼容，新插件不得�
 要请用户新建一条**自动化**(让插件里的内容定期自己刷新),另写
 \`"agent": { "schedule": true }\`(可与前两项并存),见 §4.11.2。它只能打开预填好的
 创建面板,任务由用户选好模型后亲手保存才存在;详情页单列一档。
+用普通任务接口(§4.11.3)写 \`"agent": { "tasks": true }\`;需要把自己创建的任务放到后台
+(不进任务列表、搜索与通知)时再加 \`"hiddenTasks": true\`,它必须与 \`"tasks": true\` 同时
+出现,否则拒装;详情页单列一档。
 
 **node 工作进程详单**(声明 node 时必写,详见 §4.12):
 
@@ -1948,7 +2004,7 @@ node 详单**不接受** \`command\` / \`args\` / \`shell\` / \`env\` 或其它�
       "extraAuthorizeParams": { "access_type": "offline", "prompt": "consent" },  // 可选 ≤8 条:服务商特有授权参数(协议保留参数禁写)
       "identity": { "url": "https://api.example.com/userinfo", "labelPath": "email", "displayTemplate": "{team} · {user}", "avatarPath": "data.avatar_thumb" },  // 可选:授权后拉一次身份端点给账号打标签(设置页"已连接为 xxx";url 域名须命中 hosts)。labelPath 应指向**唯一且稳定**字段(如邮箱 / user_id)——它是重复授权时的同身份合并判定键,选 name 这类可重名可改名字段会误合并。displayTemplate 可选:人类可读展示名模板,\`{点分路径}\` 占位符从同一份身份响应取值(至少一个占位符,≤200 字符),任一占位符取不到值整体降级为空、回落显示 labelPath 的值——labelPath 的稳定字段不可读(如 Slack 的 user_id)时声明它,设置页与账号工具展示的就是渲染后的名字(邮箱这类本身可读的服务商不需要)。avatarPath 可选:头像 URL 在身份响应里的点分路径(如飞书的 "data.avatar_thumb")——主机取 https 地址后**不带凭证**下载小图(仅 png/jpeg/webp/gif、≤256KB)转 data URL 存库,\`/oauth\` 回查里以 account.avatarDataUrl 给你的 settingsHtml 展示(<img> 直接用)。**下载仅对第一方官方意识生效**(头像地址不受 hosts 白名单约束,第三方声明合法但恒降级 null)——所以页面必须能没头像也好看(如回落姓名首字圆片)
       "redirectPort": 53682,                        // 可选:loopback 回调固定端口(1024–65535);声明 tokenBroker 时必填。服务商要求回调 URI 与注册值精确匹配(如 Atlassian)时声明,回调恒为 http://127.0.0.1:<端口>/callback;非 broker 模式缺省 = 随机端口(Google 等允许任意 loopback 端口的服务商不用声明)
-      "tokenBroker": "jira",                        // 可选:三路资格:静态官方前缀照旧放行;当前组织的服务端 organization market 包满足来源/组织/前缀/整包 sha256 绑定;或企业作者用 ghost_forge_install 明确安装且 id 命中本组织已登记前缀。后两路只给 Broker 与 oidc-token,不给宿主原语;手动导入与个人身份不放行。声明时必须同时声明 redirectPort;code/refresh 交换经 Cindy 服务端 broker 完成(client secret 在服务端,不随包分发),与 clientSecret 互斥;设置页不再支持自填 client
+      "tokenBroker": "jira",                        // 可选:三路资格:随包官方种子或受信任公开市场的官方插件(名称本身不构成资格);当前组织的服务端 organization market 包满足来源/组织/namespace/整包 sha256 绑定;或企业作者用 ghost_forge_install 明确安装到当前组织 namespace。后两路只给 Broker 与 oidc-token,不给宿主原语;手动导入与个人身份不放行。声明时必须同时声明 redirectPort;code/refresh 交换经 Cindy 服务端 broker 完成(client secret 在服务端,不随包分发),与 clientSecret 互斥;设置页不再支持自填 client
       "brokerBounce": { "path": "/example/bounce", "callbackPath": "/example/callback" }  // 可选:双地址弹跳回调(服务商后台只收 https redirect、不收 http loopback 时用)。必须与 tokenBroker、redirectPort 同时声明;报给服务商的 redirect_uri = broker 服务基地址 + path(主机运行时拼,清单不落域名),浏览器授权后由弹跳路由 302 回 http://127.0.0.1:<redirectPort><callbackPath>
     }
   }],
@@ -2385,11 +2441,13 @@ const r = await cindy.send({
   标题同一条),不拉起 Agent、没有工具、碰不到用户文件、不进任何会话——
   要"干活"(读文件、查资料、多步操作)请用派活(§4.11.1);
 - 选型仍不在你手里(没有 tier/model 参数),但有两级偏好:**用户可在插件
-  详情页把这项能力钉到他供应商列表里的任意文本模型**(钉死,失败不回落);
-  你也可以在身份卡 \`cindy\` 里声明 \`"oneshotModel": "<目录模型 id>"\` 表达
-  偏好——主机目录解析得到(且用户没停用)就用它,解析不到按未声明处理。
-  优先级:用户钉档 > 你的声明 > 系统默认链。声明只表达意图,别拿它当可用性
-  保证;**更老的宿主会整份拒装含此字段的身份卡**(cindy 详单未知类目硬拒),
+  详情页「模型与任务」里给这个插件选一个模型**(插件只有这一个模型字段,快问
+  快答与你新建的任务共用;选了就钉死,失败不回落);你也可以在身份卡
+  \`cindy\` 里声明 \`"oneshotModel": "<目录模型 id>"\` 表达偏好——主机目录解析
+  得到(且用户没停用)就用它,解析不到按未声明处理。优先级:用户选的模型 >
+  你的声明 > 系统辅助模型链。出图/视频/向量没有逐插件选模,按 tier 与系统默认走。
+  声明只表达意图,别拿它当可用性保证;**更老的宿主会整份拒装含此字段的身份卡**
+  (cindy 详单未知类目硬拒),
   声明前确认目标用户群的主机版本;
 - \`errorCode:'NO_CANDIDATE'\` = 用户当前没有可用的快速通道(未配置或凭证
   不可用)。**这是正常失败面**:如实提示用户,不要重试轰炸;
@@ -2735,7 +2793,20 @@ cindy.onHostMessage(async function (msg) {
 - **需要用户输入文字的动作**(如"按提示词改写这张图"):按钮上再加
   \`data-ghost-prompt="占位文案"\`(≤128 字,可空串)。用户点击时主机弹标准输入框
   收集文字(textarea,回车发送/Esc 取消),card-action 事件多带 \`prompt\` 字段
-  (≤2000 字)——你不用也画不了卡内输入框,输入交互由主机代管;
+  (≤2000 字)——输入交互由主机代管;
+- **可编辑文本表单**:一张卡至多声明一个 div，其 \`data-ghost-form\` 属性为经 HTML 属性转义的
+  JSON 字段数组，每项 \`{name,label,value,multiline?,row?,collapsed?,kind?}\`；1–16 项、字段名唯一、label ≤128 字、value ≤16000 字。
+  div 内保留纯文本预览供旧客户端使用。宿主在卡片顶部用标准控件渲染；卡内仍零脚本，禁止用它收集凭证。
+  按钮加 \`data-ghost-submit="true"\`，真实点击后事件带 \`formValues: Record<string,string>\`；
+  不与 prompt 混用。插件必须校验字段和业务对象，缺少 formValues 不得执行提交（旧客户端不会发送）。
+  桌面和手机共用字段合同，手机继续校验卡片 revision；原卡收到更新后结束提交状态。
+  row 为同一行的分组名，collapsed 默认折叠字段。kind:"recipients" 将地址显示成姓名，
+  同一 row 按实际宽度折叠溢出人数，展开直接替换摘要；原字符串仍是编辑和提交的值。旧端忽略 kind。
+  div 可声明 \`data-ghost-change="change-action-id"\`：编辑即时回传 card-action + formChange:true + formValues；
+  此事件没有 userActionToken，不触发 Agent 或活动呼吸。动作 ID 标识当前编辑版本，自动保存回执保持同一 ID，
+  替换草稿/重置编辑时必须换 ID。插件合并频繁编辑，自行保存到业务系统；模型的读取和提交也必须先同步同一份编辑。
+  模型工具更新本任务旧卡时，card-update 可带 sourceCallId（当前尚未结束的工具调用 ID）；Host 核对同插件、同任务后重开旧卡。
+  表单动作活动归原 callId，完成后原地更新；不用额外画空的 spawnCallId 卡片。
 - **可放外部链接**(外链 v3,经宿主确认):写 \`<a href="https://…">官网</a>\`,或在
   任意可用标签上挂 \`data-ghost-link="https://…"\`(整块可点)。仅收**整串**
   http/https URL(≤2048 字,不合法只丢属性——文字保留、点不动)。用户点击时主机
@@ -2745,7 +2816,7 @@ cindy.onHostMessage(async function (msg) {
   一个元素只有一种点击行为;别拿链接文案冒充按钮语义,去向和文案不符只会让
   用户在确认框里看穿;
 - 不带 \`data-ghost-action\` 的图片仍是"点开看大图":用户点卡内图片主机自动弹 lightbox
-  (大图/标注/另存),零代码;复杂交互(多字段表单等)仍去你的面板做;
+  (大图/标注/另存),零代码;超出上述文本字段的复杂交互仍去你的面板做;
 - **3D 预览图**:img 再加 \`data-ghost-model="cindy-media://blobs/<指纹>.glb"\`(你名下
   已落库的 GLB 地址,整串精确匹配才生效),用户点击该图 = 应用内 3D 查看器直接加载
   这个模型(可旋转/缩放),不再是普通看大图。适合"3D 生成完成卡":预览 + 模型一次
@@ -3145,13 +3216,12 @@ PAT。支持宿主管理连接入口时还返回可选的 \`hostManagedSetup:tru
 **Cindy 企业身份断言(source:"oidc-token",可选)**:适用于接入 Cindy Connection
 Auth 的企业服务。主机只在当前登录账号属于组织 Membership，且满足以下任一安装基座时
 按需向 auth-server 换取短时 Connection JWT：①当前组织的 Plugin Market organization
-安装记录(source 必须是服务端 \`market\`)，且安装 manifest digest 与记录一致；②企业作者
-显式调用 \`ghost_forge_install\` 安装，插件 id 命中当前组织已登记前缀，且批准 receipt
+安装记录(source 必须是服务端 \`market\`)，且 namespace 属于当前组织、已批准整包 sha256 与记录一致；②企业作者
+显式调用 \`ghost_forge_install\` 安装到当前组织 namespace，且批准 receipt
 保有本次包的完整 sha256。两路都要求清单声明目标服务域名。
 audience 与组织身份由主机推导,插件清单和运行时代码都不能选择、读取或保存
 audience/token；audience 固定为 \`\${orgSlug}:\${ghostId}\`,总长不得超过 64 字符。
-个人身份与手动导入默认不签发。点名例外：\`ghostId\` 精确等于 \`mivo-canvas\` 的组织成员本地安装，
-在已装清单声明的精确 oidc-token host 仅为 \`mivo-canvas.dsworks.cn\` 时可解析 audience；其它本地插件、其它精确 host 仍不签发。已有市场
+个人身份与手动导入不签发。临时例外，只对 root 实例生效：\`ghostId\` 精确等于 \`mivo-canvas\`、namespace 为 null 或尚未确认的旧 root 安装，且已装清单声明的精确 oidc-token host 仅为 \`mivo-canvas.dsworks.cn\` 时可解析 audience；企业 namespace 下的同名插件、其它本地插件、其它精确 host 仍不签发。已有市场
 organization 记录（含 installed:false）时必须仍走 digest，不得借例外跳过。市场账本损坏、schema 不认或该 ghostId 记录校验失败时 fail-closed，不得当成无记录。企业身份的 Forge 安装前会展示插件名、id 与精确域名，并要求手输相同 id
 确认。市场与 Forge 两条组织基座都只给 Broker 与 oidc-token、不给宿主原语。
 该凭证必须固定声明
@@ -3240,12 +3310,13 @@ identity.displayTemplate 时,\`/oauth\` 回查与连接结果里 account.label �
   即可;第一方官方内置意识会先自动结束占用进程并重试,第三方意识不享受此回收
   ——请选一个不易撞车的端口)。声明 \`tokenBroker\` 时必须提供；非 broker 模式下，
   Google 这类允许任意 loopback 端口的服务商不用声明。
-- \`tokenBroker\`:资格有三路:①静态官方前缀命中,照旧放行；②当前组织的服务端
+- \`tokenBroker\`:资格有三路:①随包官方种子或受信任公开市场的官方插件,名称本身不构成资格；②当前组织的服务端
   organization market 包已安装、source 为 \`market\`、organizationId 与当前组织一致,
-  id 命中本组织已登记前缀,且 release sha256 与批准 receipt 的 packageSha256 相等。
-  ③企业作者通过 \`ghost_forge_install\` 明确安装，且 id 命中当前组织已登记前缀；是否已有
-  同 id 市场记录不影响这条自测路径。后两路不接受个人身份或别的组织前缀，且只给 Broker
-  与 oidc-token，不给宿主原语；手动导入不属于 Forge 路径。
+  namespace 与当前组织的可信身份一致，且 release sha256 与批准 receipt 的 packageSha256 相等。
+  ③企业作者通过 \`ghost_forge_install\` 明确安装，Host 绑定当前组织 namespace；只有真实
+  存量待迁移安装仍使用本组织已登记前缀核对。是否已有同 id 市场记录不影响这条自测路径。
+  后两路不接受个人身份或别的组织身份；Forge 只给 Broker 与 oidc-token，不给宿主原语，
+  可信 XD 企业市场安装的宿主能力另按可信组织身份核验，不依赖名称前缀。手动导入不属于 Forge 路径。
   code/refresh 交换改经 Cindy 服务端 broker 完成,client secret 由服务端持有、不随包
   分发,且要求用户已登录 Cindy。声明它时必须同时声明 redirectPort,并与 clientSecret
   互斥;PKCE 缺省开(verifier
@@ -3400,6 +3471,12 @@ tool-call 内轮询时记得定期发 tool-progress 心跳续命(见 §4"长任�
 "settingsHtml": "settings.html",   // 安装目录内相对路径;打包期校验文件必须在场
 "settingsHeight": 360              // 可选:固定高度 px(160–800);缺省 = 随内容自适应(矮内容真收矮),超 800 内部滚动
 \`\`\`
+
+**宿主默认配置卡（可选）**：顶层 \`showTaskPreferences\` 只接受布尔值。
+省略或设为 \`true\` 时，符合能力条件的插件继续显示宿主「模型与任务」卡。
+声明 \`"showTaskPreferences": false\` 可隐藏 Desktop 和手机上的该卡，供插件在自己的设置界面提供配置。
+这只是显示声明：任务 API、已有配置的读取和执行规则、权限检查均保持原样；也不会为没有相应能力的插件新增卡片。
+旧客户端不识别此字段时仍显示原卡片；依赖隐藏效果的插件应使用支持此字段的客户端版本。
 
 **渲染环境**:与面板同款沙箱页(零桥、无通用网络直连,与同插件面板/逻辑页共用浏览器存储和
 \`BroadcastChannel\`,脚本/样式/字体/媒体/数据请求仍只认同源)。所有插件 HTML 页面
@@ -3837,7 +3914,8 @@ const q = await cindy.agent.queryErrand({ jobId: r.jobId });
 主机强制的边界(都不是建议):
 
 - **任务只进普通 user 消息**,绝不进 system prompt;
-- errand 会话在**侧边栏可见**,用户可随时旁观、叫停——没有隐身会话;
+- errand 会话在**侧边栏可见**,用户可随时旁观、叫停——errand 不支持隐藏;普通任务的
+  后台隐藏只能经 §4.11.3 的 \`hiddenTasks\` 声明,且用户始终能在插件详情页查看与接手;
 - 这是旧版任务接口，不是插件全部 AI 能力。普通任务管理用 §4.11.3，继续用户任务用 §4.11，
   快问快答用 §4.0.2；不要把这些能力统一称为代办。
 - 新建任务共用插件详情「任务设置」中的模型组合（Agent、供应商、模型、推理强度、Fast）。
@@ -3952,13 +4030,13 @@ const r = await cindy.agent.requestSchedule({
 插件身份／业务关联在调用方保存，不把普通任务做成另一种产品对象。伙伴的完成回叫只属于伙伴自己的流程。
 
 声明 \`"agent": { "tasks": true }\` 后，逻辑页可使用 \`cindy.tasks\`。它是独立权限，
-旧 \`errand\` 声明不自动取得该权限；用户仍可在侧边栏查看和接手这些任务。
+旧 \`errand\` 声明不自动取得该权限。任务默认可见：出现在任务列表，用户可查看和接手。
 安装时已明确展示并确认的任务能力不重复询问；否则首次使用时通过现有宿主权限界面确认并记录独立批准。旧版保存的未知字段不会自动授权。
 用户拒绝或确认界面不可用时返回 \`PERMISSION_DENIED\`，不影响插件其它功能；不得自动循环重试确认。
 面板通过既有逻辑页通道调用，不获得新的 preload 或内部 IPC 权限。
 
 先调用 \`capabilities()\` 获取实际支持操作。当前仅支持本插件创建的本机普通任务：
-\`models\`、\`create\`、\`get\`、\`setModel\`、\`list\`、\`send\`、\`getRun\`、\`listRuns\`、\`readMessages\`、\`cancel\`。
+\`models\`、\`create\`、\`get\`、\`setModel\`、\`list\`、\`send\`、\`getRun\`、\`listRuns\`、\`readMessages\`、\`cancel\`、\`setHidden\`。
 可对自有任务调用 \`startTeam({taskId})\` 启用 Orca 主任务，并用 \`getTeam({taskId})\` 读取实际协同状态。协调主任务需经用户授权 Auto，Worker 自动沿用 Auto。
 这些任务及其 Worker 不提供 \`cindy_helper\` 的账号级历史或跨任务控制能力，\`cindy_memory.session_search\` 也拒绝历史检索；协调使用独立 Orca 工具，结果由插件通过 \`readMessages/getTeam\` 读取。旧 errand/workspace 不因来源标记受到限制；明确卸载撤销归属后，调用方已无正在执行的输入或已接受新真人输入时，保留的用户任务恢复普通 helper 与历史检索能力；仍执行旧插件输入时继续受限，自动回报和插件输入重试不构成真人接管。这不恢复插件控制权，也不保证停止已接受执行，不构成通用执行沙箱。
 在首次派发前调用 \`setTeamPlan({taskId,plan:{concurrency,task,items}})\`，每项包含
@@ -3974,8 +4052,34 @@ const r = await cindy.agent.requestSchedule({
 这描述准入检查，不是持续的 OS 目录隔离保证。首版用于可信本地工作区；同权限进程在检查后恶意置换目录对象仍可能改变实际 cwd，不提供此类对抗性沙箱。
 
 \`models()\` 返回统一目录可选项的完整 route、efforts 和 supportsFastMode。用户明确选择后将 route 原样传给 create，或用 \`setModel({taskId, expectedRevision, route})\` 修改已有自有任务。运行中按普通任务的安全边界切换，不修改应用默认。两方法使用前检查 capabilities.operations。
+当 \`capabilities().pluginDefaultModel === true\` 时，持续复用任务的插件可在每次新输入前调用
+\`setModel({taskId, expectedRevision, route:'plugin-default'})\`。Host 当次读取本插件的任务模型设置，
+复用 create 的模型解析规则（未指定时采用当前新任务选择），只同步模型、来源、引擎、强度和 Fast，
+不改权限、目录或其它任务。返回 \`{status,task}\`；配置相同返回 unchanged，不反复切换。
+后续 send 使用返回 task.revision。须先处理已接受/结果不确定的旧请求，再同步下一次输入，
+不得修改旧请求的回执或为模型变化重发。旧 Host 未声明此能力时保留原任务行为，不传入该 route。
 暂不支持接管任意现有任务、远程/伙伴任务、其它配置修改、归档、队列暂停或事件订阅。
 旧 \`agent.errand\` 接口不变。
+
+**后台任务（可选，需声明 \`hiddenTasks\`）**。任务默认可见。只有身份卡写了
+\`"agent": { "tasks": true, "hiddenTasks": true }\`（详情页与安装/更新确认中单列一项权限），
+插件才能把**自己创建的**任务放到后台：不进任务列表、会话搜索、未结束提示、新任务通知与灵动岛，
+手机任务列表同样不显示。它不改变任务权限、模型或执行方式，也不授予其它任务的访问权。
+未声明时 \`create({hidden:true})\` 与 \`setHidden\` 返回 \`PERMISSION_DENIED\`；
+\`capabilities().hiddenTasks\` 表示当前插件是否已声明。用户始终可以在插件详情页「后台任务」
+看到这些任务、打开查看，或「显示到任务列表」接手；插件被卸载时它们会自动恢复显示。
+请把后台任务用于用户不需要逐条关注的批量/辅助工作，并在插件界面说明它们在哪里能找到。
+
+\`\`\`js
+const caps = await cindy.tasks.capabilities();
+const bg = await cindy.tasks.create({ requestKey: 'grade-42-create', title: '批改第 42 份作答',
+  hidden: caps.hiddenTasks === true });   // 未声明时退回默认的可见任务
+// bg.hidden === true；get/list 快照都带 hidden 布尔值。hidden 参与 requestKey 的幂等摘要。
+await cindy.tasks.send({ taskId: bg.taskId, expectedRevision: bg.revision,
+  requestKey: 'grade-42-send', text: '按评分标准批改并给出分数。' });
+// 出现需要用户处理的问题时，把它显示到任务列表（与用户在详情页点击效果相同）：
+await cindy.tasks.setHidden({ taskId: bg.taskId, hidden: false });
+\`\`\`
 
 \`\`\`js
 // requestWriteAccess({taskId, mode: 'auto'}) 请求宿主原生确认，不能替用户确认。
@@ -4247,6 +4351,9 @@ MCP server 的 sampling / elicitation / roots 等 server→client 反向请求�
 - **最重要的安全事实**：Node 进程不是浏览器沙箱，它拥有当前登录系统账号能拿到的
   本机权限，能读写文件、联网、起别的进程。Cindy 会在插件详情中显著展示这项能力，
   但安装不会追加确认弹窗；不需要本机能力的插件不要声明 node，用户也只应安装可信来源。
+- macOS 的 Node 工作进程及宿主代启的 Node 子进程保留 Cindy 的系统权限责任归属，
+  可在系统允许范围内使用 Cindy 已获得的系统授权。尚未取得的权限仍由系统决定是否需要
+  授权；原生子进程的签名与用途声明也会影响结果。这不额外开放 Cindy IPC 或托管凭证。
 
 ### 4.12.4 宿主代启子进程(childSpawn)
 
@@ -4446,6 +4553,8 @@ if (!opened.ok) console.warn(opened.errorCode, opened.message);
 以下只解释存量包的兼容形态,用于维护与迁移,**不要照抄到新插件**。存量插件装入且
 启用后,主机把每个技能目录投影到 Cindy 的账号隔离目录,分别接入 Claude Code、
 Codex、Pi,不写入用户的全局技能目录;停用/卸载即撤销这些入口。
+已知企业 namespace 的实例用 \`_ns__<namespace>__<插件id>--<技能name>\`，
+root 和存量未标记 namespace 的实例继续沿用旧链接名。
 
 目录形态(每条 item 一个目录,内必须有 SKILL.md):
 
@@ -4773,13 +4882,14 @@ Cindy 统一归类、随机选择与排序，同批每个场景和每个插件�
    产生的确切包：首次安装、以及权限比已装版本变多的更新，会先在任务里弹确认卡列出权限，
    用户允许后才落位；用户拒绝返回 \`MUTATION_CANCELLED\`，不要重试，除非用户再次要求。
    首次安装会启用，同 id 已安装时原位更新并保留启用状态、配置、
-   数据与面板位置，同版本也可覆盖。不要因为 scaffold 或 pack 成功就自动调用本工具。
+   数据与面板位置，同版本也可覆盖。同来源更新延续旧数据；从市场等不同来源切换到 Forge
+   时旧账号、密钥及数据隔离保留，新来源需要重新连接。不要因为 scaffold 或 pack 成功就自动调用本工具。
    企业身份下若清单声明 \`source:"oidc-token"\`，提交安装前会展示插件名、id 与精确请求
    域名，并要求用户手输相同 id；取消不会安装。个人与企业身份下的明确 Forge 安装都会标记为
    作者本地自测并受组织默认插件自动接管保护；但 Connection JWT 资格仍只来自当前企业身份、
    组织前缀与 OIDC 窄确认，个人身份下的 Forge 安装绝不会仅凭自测标记取得 Broker 或 Connection 权限，
    普通手动导入也不取得这项资格。
-   本地安装另有一条点名例外，见 §4.7：仅 \`ghostId\` 精确等于 \`mivo-canvas\` 且精确 oidc-token host 仅为 \`mivo-canvas.dsworks.cn\` 的组织成员本地安装可解析 audience；
+   本地安装另有一条临时例外，只对 root 实例生效，见 §4.7：仅 \`ghostId\` 精确等于 \`mivo-canvas\`、namespace 为 null 或尚未确认，且精确 oidc-token host 仅为 \`mivo-canvas.dsworks.cn\` 的组织成员本地安装可解析 audience；
 4. 安装后再让用户 \`$<command> <内容>\` 试一单，看聊天图卡/面板是否符合预期。
 
 企业组织成员需要发布时，调用 \`ghost_forge_pack({ dir: '<绝对路径>', intent: 'publish' })\`。
@@ -4853,9 +4963,12 @@ Cindy 统一归类、随机选择与排序，同批每个场景和每个插件�
 - keywords(已废弃字段,旧包兼容保留,新意识别写)有单字词 · kind 写了但不是 "chip"(可省略) · schemaVersion 不是 3 · 缺 minCindyVersion
 - cindy 详单格式错(已知类目的动作不是合法标识、空数组或重复动作)
 - agent 详单格式错(background / errand / schedule 存在但不是 true；基础点击触发请写 \`agent: {}\`)
+  · \`hiddenTasks\` 不是布尔值,或写了 \`hiddenTasks: true\` 却没有 \`tasks: true\`
 - node 详单格式错(entry 不是包内 CommonJS .js/.cjs、protocol 不在 json-rpc-stdio / mcp-stdio、
   resident 又写 idleTimeoutSeconds)；未知 command/args/shell/env 只保留，不传给进程启动器
-- id 用了 \`cindy-\` / \`filo-\` / \`xd-\` 前缀(官方保留,正式版用户通道拒装;给自己的意识换个前缀)
+- id 用了 \`cindy-\` 前缀(平台保留,正式版用户通道拒装)。\`filo-\` / \`xd-\` 只是普通名称，不授予官方资格
+- ghost.json 声明了 namespace(包括 null)。namespace 由可信交付及 Host 安装事实决定，作者不能自报
+- 企业发布遵循当前服务端准入。S1 或 S2 尚未开启时仍保留旧认领和前缀命名流程，不能把收到 namespace 当作自由命名已开放
 - network 详单格式错(hosts 缺失/裸 TLD/IP/带端口/通配不在最左、secret 缺 inject、
   inject.format 没有 {value} 占位、inject.header 用了 Host/Cookie 等协议关键头、
   inject.hosts 不是 hosts 声明条目的子集、
