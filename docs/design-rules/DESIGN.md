@@ -506,6 +506,9 @@ do not reserve space for hidden actions. Expand Steer and Queue only for
 sendable content or active voice input. On the narrowest toolbar, give the
 expanded actions their own row instead of clipping labels. Queue-row steering remains
 available as a correction after sending.
+Long-press voice release sends only after a deliberate drag (at least 8px from
+the press point) into the send target. Expanding actions underneath a stationary
+pointer must only stop recording and retain the draft, never send it.
 
 ```
 input/text

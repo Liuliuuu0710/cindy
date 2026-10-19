@@ -434,6 +434,7 @@ const perfLog = createLogger('perf/session-switch');
 const composerPerfLog = createLogger('perf/composer-input');
 
 const VOICE_INPUT_LONG_PRESS_MS = 450;
+const VOICE_INPUT_SEND_DRAG_MIN_PX = 8;
 const VOICE_INPUT_SHORTCUT_DEDUPE_MS = 250;
 const ComposerHardBreak = HardBreak.extend({
   addKeyboardShortcuts() {
@@ -9912,6 +9913,7 @@ function VoiceInputButton({
   const [longPressActive, setLongPressActive] = useState(false);
   const timerRef = useRef<number | null>(null);
   const pointerIdRef = useRef<number | null>(null);
+  const pointerOriginRef = useRef<{ clientX: number; clientY: number } | null>(null);
   const lastPointerPointRef = useRef<{ clientX: number; clientY: number } | null>(null);
   const longPressStartedRef = useRef(false);
   const pointerStartedRecordingRef = useRef(false);
@@ -10017,16 +10019,27 @@ function VoiceInputButton({
     [onReleaseToSendChange],
   );
 
+  const isReleaseToSendPoint = useCallback(
+    (point: { clientX: number; clientY: number }) => {
+      const origin = pointerOriginRef.current;
+      // Expanding the running actions can move Queue under the original press.
+      // Layout changes and small hand jitter must not count as dragging to send.
+      return Boolean(
+        origin && longPressStartedRef.current && canReleaseToSend &&
+        Math.hypot(point.clientX - origin.clientX, point.clientY - origin.clientY) >= VOICE_INPUT_SEND_DRAG_MIN_PX &&
+        isPointInsideElement(sendTargetRef.current, point.clientX, point.clientY, 10),
+      );
+    },
+    [canReleaseToSend, sendTargetRef],
+  );
+
   const updateReleaseToSendTarget = useCallback(
     (event: ReactPointerEvent<HTMLButtonElement>) => {
       lastPointerPointRef.current = { clientX: event.clientX, clientY: event.clientY };
       if (!longPressStartedRef.current) return;
-      setReleaseToSendActive(
-        canReleaseToSend &&
-          isPointInsideElement(sendTargetRef.current, event.clientX, event.clientY, 10),
-      );
+      setReleaseToSendActive(isReleaseToSendPoint(event));
     },
-    [canReleaseToSend, sendTargetRef, setReleaseToSendActive],
+    [isReleaseToSendPoint, setReleaseToSendActive],
   );
 
   useEffect(() => {
@@ -10036,16 +10049,14 @@ function VoiceInputButton({
     }
     const point = lastPointerPointRef.current;
     if (!point) return;
-    setReleaseToSendActive(
-      canReleaseToSend &&
-        isPointInsideElement(sendTargetRef.current, point.clientX, point.clientY, 10),
-    );
-  }, [canReleaseToSend, longPressActive, sendTargetRef, setReleaseToSendActive]);
+    setReleaseToSendActive(isReleaseToSendPoint(point));
+  }, [isReleaseToSendPoint, longPressActive, setReleaseToSendActive]);
 
   const finishLongPress = useCallback(
     (send: boolean, cancelStartedRecording = false) => {
       clearLongPressTimer();
       pointerIdRef.current = null;
+      pointerOriginRef.current = null;
       const longPressStarted = longPressStartedRef.current;
       longPressStartedRef.current = false;
       const pointerStartedRecording = pointerStartedRecordingRef.current;
@@ -10107,6 +10118,7 @@ function VoiceInputButton({
           event.currentTarget.blur();
           if (disabledOrBusy || listening) return;
           pointerIdRef.current = event.pointerId;
+          pointerOriginRef.current = { clientX: event.clientX, clientY: event.clientY };
           lastPointerPointRef.current = { clientX: event.clientX, clientY: event.clientY };
           event.currentTarget.setPointerCapture(event.pointerId);
           clearLongPressTimer();
@@ -10124,9 +10136,7 @@ function VoiceInputButton({
         onPointerUp={(event) => {
           if (pointerIdRef.current !== event.pointerId) return;
           updateReleaseToSendTarget(event);
-          const shouldSend =
-            canReleaseToSend &&
-            isPointInsideElement(sendTargetRef.current, event.clientX, event.clientY, 10);
+          const shouldSend = isReleaseToSendPoint(event);
           if (event.currentTarget.hasPointerCapture(event.pointerId)) {
             event.currentTarget.releasePointerCapture(event.pointerId);
           }

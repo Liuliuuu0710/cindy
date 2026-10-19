@@ -607,3 +607,43 @@ it('finishes active voice input before dispatching an explicit steer', async () 
   expect(h.stop.mock.invocationCallOrder[0]).toBeLessThan(onSend.mock.invocationCallOrder[0]);
   expect(onSend.mock.calls[0][6]).toEqual(expect.objectContaining({ deliveryMode: 'steer' }));
 });
+
+it.each([
+  { movement: 0, sends: false },
+  { movement: 2, sends: false },
+  { movement: 30, sends: true },
+])('requires a deliberate voice drag when the expanded queue button covers the press point ($movement px)', async ({ movement, sends }) => {
+  // jsdom has no pointer capture/layout. Model the wide toolbar's expanded
+  // queue rectangle while exercising the real microphone event handlers.
+  vi.stubGlobal('PointerEvent', MouseEvent);
+  const onSend = vi.fn().mockResolvedValue(true);
+  const inputProps = { ...props, sessionId: `voice-drag-${movement}`, isAgentBusy: true,
+    initialModel: 'gpt-6-astra', initialProviderId: 'openai', onSend };
+  const view = render(<ChatInput {...inputProps} />);
+  await waitFor(() => expect(h.editor).not.toBeNull());
+  const mic = screen.getByRole('button', { name: 'newChat.chatInput.voiceInput.start' });
+  Object.assign(mic, { setPointerCapture: vi.fn(), hasPointerCapture: () => true, releasePointerCapture: vi.fn() });
+  vi.useFakeTimers();
+  try {
+    fireEvent.pointerDown(mic, { button: 0, clientX: 100, clientY: 20 });
+    h.listening = true;
+    view.rerender(<ChatInput {...inputProps} />);
+    const queue = screen.getByRole('button', { name: 'newChat.sendButton.queue' });
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      return this.contains(queue)
+        ? { x: 80, y: 0, left: 80, top: 0, right: 160, bottom: 40, width: 80, height: 40, toJSON: () => ({}) }
+        : { x: 0, y: 0, left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0, toJSON: () => ({}) };
+    });
+    await act(async () => { vi.advanceTimersByTime(450); });
+    // ASR text arrives during the hold; releasing must only dispatch if dragged.
+    await act(async () => { h.editor!.commands.setContent('<p>Voice draft</p>'); });
+    fireEvent.pointerMove(mic, { clientX: 100 + movement, clientY: 20 });
+    await act(async () => { fireEvent.pointerUp(mic, { clientX: 100 + movement, clientY: 20 }); });
+    expect(h.stop).toHaveBeenCalledTimes(1);
+    expect(onSend).toHaveBeenCalledTimes(sends ? 1 : 0);
+    if (sends) expect(onSend.mock.calls[0][6]).toEqual(expect.objectContaining({ deliveryMode: 'queue' }));
+    else expect(h.editor!.getText()).toBe('Voice draft');
+  } finally {
+    vi.useRealTimers();
+  }
+});
