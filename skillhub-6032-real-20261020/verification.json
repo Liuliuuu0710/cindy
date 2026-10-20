@@ -1,0 +1,1948 @@
+{
+  "kind": "REAL_LIVE_DATA",
+  "pr": 6032,
+  "commit": "ba3ae6dd606f9ba7f2a4c9ad3cdac0801dcce7ed",
+  "startedAt": "2026-10-20T06:29:47.950Z",
+  "source": "PR Desktop -> electronAPI.skillhub.listMarket -> skillhub:list-market -> SkillHub /api/skills-hub/skills",
+  "filter": {
+    "scope": "market",
+    "category": "all",
+    "sort": "downloads",
+    "search": "",
+    "limit": 24
+  },
+  "pages": [
+    {
+      "page": 1,
+      "requestCursor": null,
+      "nextCursor": "2",
+      "received": 24,
+      "uiCount": 24,
+      "prefixMatches": true,
+      "uiHasMore": true,
+      "items": [
+        {
+          "name": "deep-agents-memory",
+          "displayName": "智能体长期记忆",
+          "downloads": 310
+        },
+        {
+          "name": "design-taste-frontend",
+          "displayName": "前端设计质感优化",
+          "downloads": 237
+        },
+        {
+          "name": "ai-image-generation",
+          "displayName": "AI 图像生成",
+          "downloads": 190
+        },
+        {
+          "name": "proactive-self-improving-agent",
+          "displayName": "持续学习智能体",
+          "downloads": 182
+        },
+        {
+          "name": "frontend-design",
+          "displayName": "前端设计",
+          "downloads": 159
+        },
+        {
+          "name": "browser-automation",
+          "displayName": "浏览器自动化",
+          "downloads": 144
+        },
+        {
+          "name": "code-review",
+          "displayName": "代码审查",
+          "downloads": 137
+        },
+        {
+          "name": "writing-plans",
+          "displayName": "实施计划编写",
+          "downloads": 103
+        },
+        {
+          "name": "skill-creator",
+          "displayName": "Skill 创建助手",
+          "downloads": 100
+        },
+        {
+          "name": "orchestrate",
+          "displayName": "智能体协同执行",
+          "downloads": 100
+        },
+        {
+          "name": "knowledge-base",
+          "displayName": "知识库",
+          "downloads": 99
+        },
+        {
+          "name": "proactive-intelligence",
+          "displayName": "主动发现与行动",
+          "downloads": 89
+        },
+        {
+          "name": "design-catalogue",
+          "displayName": "设计 Skill 导航",
+          "downloads": 82
+        },
+        {
+          "name": "systematic-debugging",
+          "displayName": "系统化问题排查",
+          "downloads": 73
+        },
+        {
+          "name": "agent-self-evaluation",
+          "displayName": "智能体质量自检",
+          "downloads": 69
+        },
+        {
+          "name": "multi-agent-orchestration",
+          "displayName": "多智能体协作",
+          "downloads": 66
+        },
+        {
+          "name": "mcp-builder",
+          "displayName": "MCP 服务开发",
+          "downloads": 65
+        },
+        {
+          "name": "deep-research",
+          "displayName": "深度研究",
+          "downloads": 65
+        },
+        {
+          "name": "api-and-interface-design",
+          "displayName": "API 与接口设计",
+          "downloads": 63
+        },
+        {
+          "name": "automation-workflows",
+          "displayName": "自动化工作流",
+          "downloads": 61
+        },
+        {
+          "name": "database-schema-designer",
+          "displayName": "数据库结构设计",
+          "downloads": 49
+        },
+        {
+          "name": "agent-workflow-automation",
+          "displayName": "智能体工作流自动化",
+          "downloads": 45
+        },
+        {
+          "name": "parallel-deep-research",
+          "displayName": "并行深度研究",
+          "downloads": 32
+        },
+        {
+          "name": "observability-logs-search",
+          "displayName": "运维日志检索",
+          "downloads": 30
+        }
+      ]
+    },
+    {
+      "page": 2,
+      "requestCursor": "2",
+      "nextCursor": "3",
+      "received": 24,
+      "uiCount": 48,
+      "prefixMatches": true,
+      "uiHasMore": true,
+      "items": [
+        {
+          "name": "data-analysis",
+          "displayName": "数据分析",
+          "downloads": 27
+        },
+        {
+          "name": "web-research",
+          "displayName": "网络资料调研",
+          "downloads": 26
+        },
+        {
+          "name": "cook",
+          "displayName": "开发任务实施",
+          "downloads": 26
+        },
+        {
+          "name": "remotion-video-creation",
+          "displayName": "Remotion 视频创作",
+          "downloads": 25
+        },
+        {
+          "name": "semgrep-rule-creator",
+          "displayName": "Semgrep 规则开发",
+          "downloads": 20
+        },
+        {
+          "name": "llm-evaluation",
+          "displayName": "大模型效果评估",
+          "downloads": 19
+        },
+        {
+          "name": "lark-wiki",
+          "displayName": "飞书知识库",
+          "downloads": 17
+        },
+        {
+          "name": "receiving-code-review",
+          "displayName": "处理代码审查反馈",
+          "downloads": 17
+        },
+        {
+          "name": "typescript-best-practices",
+          "displayName": "TypeScript 最佳实践",
+          "downloads": 17
+        },
+        {
+          "name": "lark-doc",
+          "displayName": "飞书云文档",
+          "downloads": 16
+        },
+        {
+          "name": "ai-vibe-slides",
+          "displayName": "AI 演示文稿设计",
+          "downloads": 16
+        },
+        {
+          "name": "lark-shared",
+          "displayName": "飞书 CLI 连接与授权",
+          "downloads": 15
+        },
+        {
+          "name": "security-auditor",
+          "displayName": "安全审计助手",
+          "downloads": 14
+        },
+        {
+          "name": "i-have-adhd",
+          "displayName": "I Have ADHD",
+          "downloads": 13
+        },
+        {
+          "name": "task-management",
+          "displayName": "任务管理",
+          "downloads": 13
+        },
+        {
+          "name": "knowledge-base-rag",
+          "displayName": "RAG 知识库问答",
+          "downloads": 12
+        },
+        {
+          "name": "firecrawl-deep-research",
+          "displayName": "Firecrawl 深度研究",
+          "downloads": 12
+        },
+        {
+          "name": "discernment-nudge",
+          "displayName": "AI 答案复核提示",
+          "downloads": 11
+        },
+        {
+          "name": "lark-base",
+          "displayName": "飞书多维表格",
+          "downloads": 11
+        },
+        {
+          "name": "threat-model",
+          "displayName": "安全威胁分析",
+          "downloads": 11
+        },
+        {
+          "name": "longbridge-fundamentals",
+          "displayName": "Longbridge 基本面分析",
+          "downloads": 11
+        },
+        {
+          "name": "notion-knowledge-capture",
+          "displayName": "Notion 知识沉淀",
+          "downloads": 10
+        },
+        {
+          "name": "competitor-analysis",
+          "displayName": "竞品分析",
+          "downloads": 10
+        },
+        {
+          "name": "travel-planner",
+          "displayName": "旅行规划",
+          "downloads": 10
+        }
+      ]
+    },
+    {
+      "page": 3,
+      "requestCursor": "3",
+      "nextCursor": "4",
+      "received": 24,
+      "uiCount": 72,
+      "prefixMatches": true,
+      "uiHasMore": true,
+      "items": [
+        {
+          "name": "test-driven-development",
+          "displayName": "测试驱动开发",
+          "downloads": 10
+        },
+        {
+          "name": "lark-sheets",
+          "displayName": "飞书电子表格",
+          "downloads": 9
+        },
+        {
+          "name": "lark-markdown",
+          "displayName": "飞书 Markdown",
+          "downloads": 9
+        },
+        {
+          "name": "alpaca-trading-paper-trading-mcp",
+          "displayName": "Alpaca MCP 模拟交易",
+          "downloads": 9
+        },
+        {
+          "name": "vercel-react-best-practices",
+          "displayName": "Vercel React 最佳实践",
+          "downloads": 9
+        },
+        {
+          "name": "professional-communication",
+          "displayName": "专业沟通",
+          "downloads": 9
+        },
+        {
+          "name": "citation-skills",
+          "displayName": "引用管理",
+          "downloads": 8
+        },
+        {
+          "name": "financial-statements",
+          "displayName": "财务报表",
+          "downloads": 8
+        },
+        {
+          "name": "humanizer",
+          "displayName": "自然语言润色",
+          "downloads": 7
+        },
+        {
+          "name": "web-artifacts-builder",
+          "displayName": "交互网页构建",
+          "downloads": 7
+        },
+        {
+          "name": "android-adb-control",
+          "displayName": "安卓手机控制（ADB）",
+          "downloads": 7
+        },
+        {
+          "name": "security-audit",
+          "displayName": "安全审计",
+          "downloads": 7
+        },
+        {
+          "name": "lark-task",
+          "displayName": "飞书任务",
+          "downloads": 7
+        },
+        {
+          "name": "observability-and-instrumentation",
+          "displayName": "日志指标与链路监控",
+          "downloads": 7
+        },
+        {
+          "name": "regulatory-reporting",
+          "displayName": "金融监管报表",
+          "downloads": 7
+        },
+        {
+          "name": "summarize-meeting",
+          "displayName": "会议总结",
+          "downloads": 7
+        },
+        {
+          "name": "loop-library",
+          "displayName": "循环工作流设计",
+          "downloads": 6
+        },
+        {
+          "name": "claudeception",
+          "displayName": "会话经验提炼",
+          "downloads": 6
+        },
+        {
+          "name": "academy-guide",
+          "displayName": "Claude 学习资源导航",
+          "downloads": 6
+        },
+        {
+          "name": "webapp-testing",
+          "displayName": "网页应用测试",
+          "downloads": 6
+        },
+        {
+          "name": "lark-workflow-standup-report",
+          "displayName": "飞书日程待办摘要",
+          "downloads": 6
+        },
+        {
+          "name": "lark-approval",
+          "displayName": "飞书审批",
+          "downloads": 6
+        },
+        {
+          "name": "secrets-scan",
+          "displayName": "敏感凭证扫描",
+          "downloads": 6
+        },
+        {
+          "name": "dependency-supply-chain-security",
+          "displayName": "软件供应链安全检查",
+          "downloads": 6
+        }
+      ]
+    },
+    {
+      "page": 4,
+      "requestCursor": "4",
+      "nextCursor": "5",
+      "received": 24,
+      "uiCount": 96,
+      "prefixMatches": true,
+      "uiHasMore": true,
+      "items": [
+        {
+          "name": "time-management",
+          "displayName": "时间管理",
+          "downloads": 6
+        },
+        {
+          "name": "theme-factory",
+          "displayName": "视觉主题设计",
+          "downloads": 5
+        },
+        {
+          "name": "lark-im",
+          "displayName": "飞书消息与群聊",
+          "downloads": 5
+        },
+        {
+          "name": "gws-gmail",
+          "displayName": "Gmail 邮件管理",
+          "downloads": 5
+        },
+        {
+          "name": "meeting-notes",
+          "displayName": "会议笔记",
+          "downloads": 5
+        },
+        {
+          "name": "workout-tracker",
+          "displayName": "健身追踪",
+          "downloads": 5
+        },
+        {
+          "name": "firecrawl-knowledge-base",
+          "displayName": "Firecrawl 知识库",
+          "downloads": 5
+        },
+        {
+          "name": "longbridge",
+          "displayName": "Longbridge",
+          "downloads": 5
+        },
+        {
+          "name": "workflow-automation",
+          "displayName": "HubSpot 工作流自动化",
+          "downloads": 5
+        },
+        {
+          "name": "lark-workflow-meeting-summary",
+          "displayName": "飞书会议纪要汇总",
+          "downloads": 4
+        },
+        {
+          "name": "lark-slides",
+          "displayName": "飞书幻灯片",
+          "downloads": 4
+        },
+        {
+          "name": "dependency-scan",
+          "displayName": "依赖风险扫描",
+          "downloads": 4
+        },
+        {
+          "name": "container-audit",
+          "displayName": "容器安全检查",
+          "downloads": 4
+        },
+        {
+          "name": "terraform-infrastructure",
+          "displayName": "Terraform 基础设施管理",
+          "downloads": 4
+        },
+        {
+          "name": "incident-response",
+          "displayName": "生产故障响应",
+          "downloads": 4
+        },
+        {
+          "name": "docker-patterns",
+          "displayName": "Docker 最佳实践",
+          "downloads": 4
+        },
+        {
+          "name": "app-observability",
+          "displayName": "应用运行监控",
+          "downloads": 4
+        },
+        {
+          "name": "owasp-security-audit",
+          "displayName": "OWASP 安全审计",
+          "downloads": 4
+        },
+        {
+          "name": "dcf-valuation",
+          "displayName": "DCF 估值",
+          "downloads": 4
+        },
+        {
+          "name": "slack-gif-creator",
+          "displayName": "Slack GIF 制作器",
+          "downloads": 4
+        },
+        {
+          "name": "notion-automation",
+          "displayName": "Notion 自动化",
+          "downloads": 4
+        },
+        {
+          "name": "book-to-skill",
+          "displayName": "书籍知识提炼",
+          "downloads": 3
+        },
+        {
+          "name": "drawio-reconstruction",
+          "displayName": "图片转可编辑 Draw.io",
+          "downloads": 3
+        },
+        {
+          "name": "brand-guidelines",
+          "displayName": "Anthropic 品牌设计规范",
+          "downloads": 3
+        }
+      ]
+    },
+    {
+      "page": 5,
+      "requestCursor": "5",
+      "nextCursor": "6",
+      "received": 24,
+      "uiCount": 120,
+      "prefixMatches": true,
+      "uiHasMore": true,
+      "items": [
+        {
+          "name": "algorithmic-art",
+          "displayName": "算法艺术",
+          "downloads": 3
+        },
+        {
+          "name": "lark-vc-agent",
+          "displayName": "飞书会中能力兼容入口",
+          "downloads": 3
+        },
+        {
+          "name": "lark-event",
+          "displayName": "飞书事件订阅",
+          "downloads": 3
+        },
+        {
+          "name": "lark-calendar",
+          "displayName": "飞书日历",
+          "downloads": 3
+        },
+        {
+          "name": "lark-apps",
+          "displayName": "飞书妙搭应用开发",
+          "downloads": 3
+        },
+        {
+          "name": "incident-commander",
+          "displayName": "故障应急指挥",
+          "downloads": 3
+        },
+        {
+          "name": "codeprobe-security",
+          "displayName": "CodeProbe 安全分析",
+          "downloads": 3
+        },
+        {
+          "name": "kontour-travel-planner",
+          "displayName": "Kontour 旅行规划",
+          "downloads": 3
+        },
+        {
+          "name": "healthkit-cli",
+          "displayName": "HealthKit CLI",
+          "downloads": 3
+        },
+        {
+          "name": "supabase-mcp-integration",
+          "displayName": "Supabase MCP 集成",
+          "downloads": 3
+        },
+        {
+          "name": "minimax-docx",
+          "displayName": "MiniMax Word 文档工具集",
+          "downloads": 2
+        },
+        {
+          "name": "simplify-codebase",
+          "displayName": "代码简化证据审计",
+          "downloads": 2
+        },
+        {
+          "name": "security-ownership-map",
+          "displayName": "代码安全责任图",
+          "downloads": 2
+        },
+        {
+          "name": "jupyter-notebook",
+          "displayName": "Jupyter 笔记本创建",
+          "downloads": 2
+        },
+        {
+          "name": "internal-comms",
+          "displayName": "企业内部沟通",
+          "downloads": 2
+        },
+        {
+          "name": "canvas-design",
+          "displayName": "画布视觉设计",
+          "downloads": 2
+        },
+        {
+          "name": "lark-whiteboard",
+          "displayName": "飞书画板",
+          "downloads": 2
+        },
+        {
+          "name": "lark-skill-maker",
+          "displayName": "飞书 Skill 开发",
+          "downloads": 2
+        },
+        {
+          "name": "lark-openapi-explorer",
+          "displayName": "飞书 OpenAPI 探索",
+          "downloads": 2
+        },
+        {
+          "name": "lark-okr",
+          "displayName": "飞书 OKR",
+          "downloads": 2
+        },
+        {
+          "name": "lark-mail",
+          "displayName": "飞书邮箱",
+          "downloads": 2
+        },
+        {
+          "name": "lark-drive",
+          "displayName": "飞书云空间",
+          "downloads": 2
+        },
+        {
+          "name": "lark-contact",
+          "displayName": "飞书通讯录",
+          "downloads": 2
+        },
+        {
+          "name": "show-me",
+          "displayName": "show-me",
+          "downloads": 2
+        }
+      ]
+    },
+    {
+      "page": 6,
+      "requestCursor": "6",
+      "nextCursor": "7",
+      "received": 24,
+      "uiCount": 144,
+      "prefixMatches": true,
+      "uiHasMore": true,
+      "items": [
+        {
+          "name": "gws-tasks",
+          "displayName": "Google 任务",
+          "downloads": 2
+        },
+        {
+          "name": "kubernetes-specialist",
+          "displayName": "Kubernetes 运维助手",
+          "downloads": 2
+        },
+        {
+          "name": "mcp-hass",
+          "displayName": "Home Assistant MCP 控制",
+          "downloads": 2
+        },
+        {
+          "name": "gws-sheets",
+          "displayName": "Google 表格",
+          "downloads": 2
+        },
+        {
+          "name": "gws-calendar",
+          "displayName": "Google 日历",
+          "downloads": 2
+        },
+        {
+          "name": "n8n-workflow-automation",
+          "displayName": "n8n 工作流自动化",
+          "downloads": 2
+        },
+        {
+          "name": "android-emulator-qa",
+          "displayName": "Android 模拟器测试与 UI 检查",
+          "downloads": 1
+        },
+        {
+          "name": "sentry",
+          "displayName": "Sentry 只读问题排查",
+          "downloads": 1
+        },
+        {
+          "name": "pdf",
+          "displayName": "PDF 创建与版面检查",
+          "downloads": 1
+        },
+        {
+          "name": "winui-app",
+          "displayName": "WinUI 3 桌面应用开发参考",
+          "downloads": 1
+        },
+        {
+          "name": "claude-api",
+          "displayName": "Claude API 开发与评测参考",
+          "downloads": 1
+        },
+        {
+          "name": "hindsight-coding-agent",
+          "displayName": "hindsight-coding-agent",
+          "downloads": 1
+        },
+        {
+          "name": "transcribe",
+          "displayName": "音频转写与说话人标注",
+          "downloads": 1
+        },
+        {
+          "name": "security-best-practices",
+          "displayName": "代码安全最佳实践",
+          "downloads": 1
+        },
+        {
+          "name": "reddit-user-research",
+          "displayName": "Reddit 用户调研",
+          "downloads": 1
+        },
+        {
+          "name": "test-value",
+          "displayName": "测试价值与反馈成本评估",
+          "downloads": 1
+        },
+        {
+          "name": "notebooklm",
+          "displayName": "NotebookLM 文档研究助手",
+          "downloads": 1
+        },
+        {
+          "name": "speech",
+          "displayName": "文本转语音与配音",
+          "downloads": 1
+        },
+        {
+          "name": "hivemind",
+          "displayName": "Hivemind 多智能体协作",
+          "downloads": 1
+        },
+        {
+          "name": "google-play",
+          "displayName": "google-play",
+          "downloads": 1
+        },
+        {
+          "name": "lark-meeting",
+          "displayName": "飞书视频会议",
+          "downloads": 1
+        },
+        {
+          "name": "lark-attendance",
+          "displayName": "飞书考勤",
+          "downloads": 1
+        },
+        {
+          "name": "notion-meeting-intelligence",
+          "displayName": "Notion 会议准备",
+          "downloads": 1
+        },
+        {
+          "name": "devops-engineer",
+          "displayName": "DevOps 运维助手",
+          "downloads": 1
+        }
+      ]
+    },
+    {
+      "page": 7,
+      "requestCursor": "7",
+      "nextCursor": null,
+      "received": 22,
+      "uiCount": 166,
+      "prefixMatches": true,
+      "uiHasMore": false,
+      "items": [
+        {
+          "name": "gws-drive",
+          "displayName": "Google 云端硬盘",
+          "downloads": 1
+        },
+        {
+          "name": "gws-gmail-send",
+          "displayName": "Gmail 邮件发送",
+          "downloads": 1
+        },
+        {
+          "name": "cold-email",
+          "displayName": "客户开发邮件",
+          "downloads": 1
+        },
+        {
+          "name": "agent-email-inbox",
+          "displayName": "智能体邮件处理",
+          "downloads": 1
+        },
+        {
+          "name": "gws-workflow-email-to-task",
+          "displayName": "Gmail 邮件转任务",
+          "downloads": 1
+        },
+        {
+          "name": "home-assistant",
+          "displayName": "Home Assistant",
+          "downloads": 1
+        },
+        {
+          "name": "notion-api",
+          "displayName": "Notion API",
+          "downloads": 1
+        },
+        {
+          "name": "sonarqube-mcp",
+          "displayName": "SonarQube MCP",
+          "downloads": 1
+        },
+        {
+          "name": "notion-research-documentation",
+          "displayName": "Notion 资料研究与文档整理",
+          "downloads": 0
+        },
+        {
+          "name": "wrangler",
+          "displayName": "Cloudflare Wrangler 命令参考",
+          "downloads": 0
+        },
+        {
+          "name": "aspnet-core",
+          "displayName": "ASP.NET Core 开发参考",
+          "downloads": 0
+        },
+        {
+          "name": "expo-animation",
+          "displayName": "Expo 与 React Native 动画",
+          "downloads": 0
+        },
+        {
+          "name": "appinsights-instrumentation",
+          "displayName": "Azure Application Insights 接入参考",
+          "downloads": 0
+        },
+        {
+          "name": "gh-fix-ci",
+          "displayName": "GitHub Actions CI 排错",
+          "downloads": 0
+        },
+        {
+          "name": "lark-vc",
+          "displayName": "飞书会议记录兼容入口",
+          "downloads": 0
+        },
+        {
+          "name": "lark-note",
+          "displayName": "飞书纪要兼容入口",
+          "downloads": 0
+        },
+        {
+          "name": "lark-minutes",
+          "displayName": "飞书妙记兼容入口",
+          "downloads": 0
+        },
+        {
+          "name": "gws-calendar-agenda",
+          "displayName": "日历日程汇总",
+          "downloads": 0
+        },
+        {
+          "name": "recipe-create-presentation",
+          "displayName": "Google 幻灯片快速创建",
+          "downloads": 0
+        },
+        {
+          "name": "meal-plan",
+          "displayName": "餐食计划",
+          "downloads": 0
+        },
+        {
+          "name": "tg-responder",
+          "displayName": "Telegram 回复助手",
+          "downloads": 0
+        },
+        {
+          "name": "email-best-practices",
+          "displayName": "邮件最佳实践",
+          "downloads": 0
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "file": "real-list-01.png",
+      "scrollTop": 0,
+      "fullyVisible": [
+        {
+          "index": 0,
+          "title": "智能体长期记忆"
+        },
+        {
+          "index": 1,
+          "title": "前端设计质感优化"
+        },
+        {
+          "index": 2,
+          "title": "AI 图像生成"
+        },
+        {
+          "index": 3,
+          "title": "持续学习智能体"
+        },
+        {
+          "index": 4,
+          "title": "前端设计"
+        },
+        {
+          "index": 5,
+          "title": "浏览器自动化"
+        },
+        {
+          "index": 6,
+          "title": "代码审查"
+        },
+        {
+          "index": 7,
+          "title": "实施计划编写"
+        }
+      ]
+    },
+    {
+      "file": "real-list-02.png",
+      "scrollTop": 576,
+      "fullyVisible": [
+        {
+          "index": 8,
+          "title": "Skill 创建助手"
+        },
+        {
+          "index": 9,
+          "title": "智能体协同执行"
+        },
+        {
+          "index": 10,
+          "title": "知识库"
+        },
+        {
+          "index": 11,
+          "title": "主动发现与行动"
+        },
+        {
+          "index": 12,
+          "title": "设计 Skill 导航"
+        },
+        {
+          "index": 13,
+          "title": "系统化问题排查"
+        },
+        {
+          "index": 14,
+          "title": "智能体质量自检"
+        },
+        {
+          "index": 15,
+          "title": "多智能体协作"
+        },
+        {
+          "index": 16,
+          "title": "MCP 服务开发"
+        },
+        {
+          "index": 17,
+          "title": "深度研究"
+        }
+      ]
+    },
+    {
+      "file": "real-list-03.png",
+      "scrollTop": 1152,
+      "fullyVisible": [
+        {
+          "index": 18,
+          "title": "API 与接口设计"
+        },
+        {
+          "index": 19,
+          "title": "自动化工作流"
+        },
+        {
+          "index": 20,
+          "title": "数据库结构设计"
+        },
+        {
+          "index": 21,
+          "title": "智能体工作流自动化"
+        },
+        {
+          "index": 22,
+          "title": "并行深度研究"
+        },
+        {
+          "index": 23,
+          "title": "运维日志检索"
+        },
+        {
+          "index": 24,
+          "title": "数据分析"
+        },
+        {
+          "index": 25,
+          "title": "网络资料调研"
+        },
+        {
+          "index": 26,
+          "title": "开发任务实施"
+        },
+        {
+          "index": 27,
+          "title": "Remotion 视频创作"
+        }
+      ]
+    },
+    {
+      "file": "real-list-04.png",
+      "scrollTop": 1728,
+      "fullyVisible": [
+        {
+          "index": 26,
+          "title": "开发任务实施"
+        },
+        {
+          "index": 27,
+          "title": "Remotion 视频创作"
+        },
+        {
+          "index": 28,
+          "title": "Semgrep 规则开发"
+        },
+        {
+          "index": 29,
+          "title": "大模型效果评估"
+        },
+        {
+          "index": 30,
+          "title": "飞书知识库"
+        },
+        {
+          "index": 31,
+          "title": "处理代码审查反馈"
+        },
+        {
+          "index": 32,
+          "title": "TypeScript 最佳实践"
+        },
+        {
+          "index": 33,
+          "title": "飞书云文档"
+        },
+        {
+          "index": 34,
+          "title": "AI 演示文稿设计"
+        },
+        {
+          "index": 35,
+          "title": "飞书 CLI 连接与授权"
+        }
+      ]
+    },
+    {
+      "file": "real-list-05.png",
+      "scrollTop": 2304,
+      "fullyVisible": [
+        {
+          "index": 36,
+          "title": "安全审计助手"
+        },
+        {
+          "index": 37,
+          "title": "I Have ADHD"
+        },
+        {
+          "index": 38,
+          "title": "任务管理"
+        },
+        {
+          "index": 39,
+          "title": "RAG 知识库问答"
+        },
+        {
+          "index": 40,
+          "title": "Firecrawl 深度研究"
+        },
+        {
+          "index": 41,
+          "title": "AI 答案复核提示"
+        },
+        {
+          "index": 42,
+          "title": "飞书多维表格"
+        },
+        {
+          "index": 43,
+          "title": "安全威胁分析"
+        }
+      ]
+    },
+    {
+      "file": "real-list-06.png",
+      "scrollTop": 2880,
+      "fullyVisible": [
+        {
+          "index": 44,
+          "title": "Longbridge 基本面分析"
+        },
+        {
+          "index": 45,
+          "title": "Notion 知识沉淀"
+        },
+        {
+          "index": 46,
+          "title": "竞品分析"
+        },
+        {
+          "index": 47,
+          "title": "旅行规划"
+        },
+        {
+          "index": 48,
+          "title": "测试驱动开发"
+        },
+        {
+          "index": 49,
+          "title": "飞书电子表格"
+        },
+        {
+          "index": 50,
+          "title": "飞书 Markdown"
+        },
+        {
+          "index": 51,
+          "title": "Alpaca MCP 模拟交易"
+        },
+        {
+          "index": 52,
+          "title": "Vercel React 最佳实践"
+        },
+        {
+          "index": 53,
+          "title": "专业沟通"
+        }
+      ]
+    },
+    {
+      "file": "real-list-07.png",
+      "scrollTop": 3456,
+      "fullyVisible": [
+        {
+          "index": 52,
+          "title": "Vercel React 最佳实践"
+        },
+        {
+          "index": 53,
+          "title": "专业沟通"
+        },
+        {
+          "index": 54,
+          "title": "引用管理"
+        },
+        {
+          "index": 55,
+          "title": "财务报表"
+        },
+        {
+          "index": 56,
+          "title": "自然语言润色"
+        },
+        {
+          "index": 57,
+          "title": "交互网页构建"
+        },
+        {
+          "index": 58,
+          "title": "安卓手机控制（ADB）"
+        },
+        {
+          "index": 59,
+          "title": "安全审计"
+        },
+        {
+          "index": 60,
+          "title": "飞书任务"
+        },
+        {
+          "index": 61,
+          "title": "日志指标与链路监控"
+        }
+      ]
+    },
+    {
+      "file": "real-list-08.png",
+      "scrollTop": 4032,
+      "fullyVisible": [
+        {
+          "index": 60,
+          "title": "飞书任务"
+        },
+        {
+          "index": 61,
+          "title": "日志指标与链路监控"
+        },
+        {
+          "index": 62,
+          "title": "金融监管报表"
+        },
+        {
+          "index": 63,
+          "title": "会议总结"
+        },
+        {
+          "index": 64,
+          "title": "循环工作流设计"
+        },
+        {
+          "index": 65,
+          "title": "会话经验提炼"
+        },
+        {
+          "index": 66,
+          "title": "Claude 学习资源导航"
+        },
+        {
+          "index": 67,
+          "title": "网页应用测试"
+        },
+        {
+          "index": 68,
+          "title": "飞书日程待办摘要"
+        },
+        {
+          "index": 69,
+          "title": "飞书审批"
+        }
+      ]
+    },
+    {
+      "file": "real-list-09.png",
+      "scrollTop": 4608,
+      "fullyVisible": [
+        {
+          "index": 70,
+          "title": "敏感凭证扫描"
+        },
+        {
+          "index": 71,
+          "title": "软件供应链安全检查"
+        },
+        {
+          "index": 72,
+          "title": "时间管理"
+        },
+        {
+          "index": 73,
+          "title": "视觉主题设计"
+        },
+        {
+          "index": 74,
+          "title": "飞书消息与群聊"
+        },
+        {
+          "index": 75,
+          "title": "Gmail 邮件管理"
+        },
+        {
+          "index": 76,
+          "title": "会议笔记"
+        },
+        {
+          "index": 77,
+          "title": "健身追踪"
+        }
+      ]
+    },
+    {
+      "file": "real-list-10.png",
+      "scrollTop": 5184,
+      "fullyVisible": [
+        {
+          "index": 78,
+          "title": "Firecrawl 知识库"
+        },
+        {
+          "index": 79,
+          "title": "Longbridge"
+        },
+        {
+          "index": 80,
+          "title": "HubSpot 工作流自动化"
+        },
+        {
+          "index": 81,
+          "title": "飞书会议纪要汇总"
+        },
+        {
+          "index": 82,
+          "title": "飞书幻灯片"
+        },
+        {
+          "index": 83,
+          "title": "依赖风险扫描"
+        },
+        {
+          "index": 84,
+          "title": "容器安全检查"
+        },
+        {
+          "index": 85,
+          "title": "Terraform 基础设施管理"
+        }
+      ]
+    },
+    {
+      "file": "real-list-11.png",
+      "scrollTop": 5760,
+      "fullyVisible": [
+        {
+          "index": 86,
+          "title": "生产故障响应"
+        },
+        {
+          "index": 87,
+          "title": "Docker 最佳实践"
+        },
+        {
+          "index": 88,
+          "title": "应用运行监控"
+        },
+        {
+          "index": 89,
+          "title": "OWASP 安全审计"
+        },
+        {
+          "index": 90,
+          "title": "DCF 估值"
+        },
+        {
+          "index": 91,
+          "title": "Slack GIF 制作器"
+        },
+        {
+          "index": 92,
+          "title": "Notion 自动化"
+        },
+        {
+          "index": 93,
+          "title": "书籍知识提炼"
+        },
+        {
+          "index": 94,
+          "title": "图片转可编辑 Draw.io"
+        },
+        {
+          "index": 95,
+          "title": "Anthropic 品牌设计规范"
+        }
+      ]
+    },
+    {
+      "file": "real-list-12.png",
+      "scrollTop": 6336,
+      "fullyVisible": [
+        {
+          "index": 96,
+          "title": "算法艺术"
+        },
+        {
+          "index": 97,
+          "title": "飞书会中能力兼容入口"
+        },
+        {
+          "index": 98,
+          "title": "飞书事件订阅"
+        },
+        {
+          "index": 99,
+          "title": "飞书日历"
+        },
+        {
+          "index": 100,
+          "title": "飞书妙搭应用开发"
+        },
+        {
+          "index": 101,
+          "title": "故障应急指挥"
+        },
+        {
+          "index": 102,
+          "title": "CodeProbe 安全分析"
+        },
+        {
+          "index": 103,
+          "title": "Kontour 旅行规划"
+        }
+      ]
+    },
+    {
+      "file": "real-list-13.png",
+      "scrollTop": 6912,
+      "fullyVisible": [
+        {
+          "index": 104,
+          "title": "HealthKit CLI"
+        },
+        {
+          "index": 105,
+          "title": "Supabase MCP 集成"
+        },
+        {
+          "index": 106,
+          "title": "MiniMax Word 文档工具集"
+        },
+        {
+          "index": 107,
+          "title": "代码简化证据审计"
+        },
+        {
+          "index": 108,
+          "title": "代码安全责任图"
+        },
+        {
+          "index": 109,
+          "title": "Jupyter 笔记本创建"
+        },
+        {
+          "index": 110,
+          "title": "企业内部沟通"
+        },
+        {
+          "index": 111,
+          "title": "画布视觉设计"
+        }
+      ]
+    },
+    {
+      "file": "real-list-14.png",
+      "scrollTop": 7488,
+      "fullyVisible": [
+        {
+          "index": 112,
+          "title": "飞书画板"
+        },
+        {
+          "index": 113,
+          "title": "飞书 Skill 开发"
+        },
+        {
+          "index": 114,
+          "title": "飞书 OpenAPI 探索"
+        },
+        {
+          "index": 115,
+          "title": "飞书 OKR"
+        },
+        {
+          "index": 116,
+          "title": "飞书邮箱"
+        },
+        {
+          "index": 117,
+          "title": "飞书云空间"
+        },
+        {
+          "index": 118,
+          "title": "飞书通讯录"
+        },
+        {
+          "index": 119,
+          "title": "show-me"
+        }
+      ]
+    },
+    {
+      "file": "real-list-15.png",
+      "scrollTop": 8064,
+      "fullyVisible": [
+        {
+          "index": 120,
+          "title": "Google 任务"
+        },
+        {
+          "index": 121,
+          "title": "Kubernetes 运维助手"
+        },
+        {
+          "index": 122,
+          "title": "Home Assistant MCP 控制"
+        },
+        {
+          "index": 123,
+          "title": "Google 表格"
+        },
+        {
+          "index": 124,
+          "title": "Google 日历"
+        },
+        {
+          "index": 125,
+          "title": "n8n 工作流自动化"
+        },
+        {
+          "index": 126,
+          "title": "Android 模拟器测试与 UI 检查"
+        },
+        {
+          "index": 127,
+          "title": "Sentry 只读问题排查"
+        },
+        {
+          "index": 128,
+          "title": "PDF 创建与版面检查"
+        },
+        {
+          "index": 129,
+          "title": "WinUI 3 桌面应用开发参考"
+        }
+      ]
+    },
+    {
+      "file": "real-list-16.png",
+      "scrollTop": 8640,
+      "fullyVisible": [
+        {
+          "index": 130,
+          "title": "Claude API 开发与评测参考"
+        },
+        {
+          "index": 131,
+          "title": "hindsight-coding-agent"
+        },
+        {
+          "index": 132,
+          "title": "音频转写与说话人标注"
+        },
+        {
+          "index": 133,
+          "title": "代码安全最佳实践"
+        },
+        {
+          "index": 134,
+          "title": "Reddit 用户调研"
+        },
+        {
+          "index": 135,
+          "title": "测试价值与反馈成本评估"
+        },
+        {
+          "index": 136,
+          "title": "NotebookLM 文档研究助手"
+        },
+        {
+          "index": 137,
+          "title": "文本转语音与配音"
+        }
+      ]
+    },
+    {
+      "file": "real-list-17.png",
+      "scrollTop": 9216,
+      "fullyVisible": [
+        {
+          "index": 138,
+          "title": "Hivemind 多智能体协作"
+        },
+        {
+          "index": 139,
+          "title": "google-play"
+        },
+        {
+          "index": 140,
+          "title": "飞书视频会议"
+        },
+        {
+          "index": 141,
+          "title": "飞书考勤"
+        },
+        {
+          "index": 142,
+          "title": "Notion 会议准备"
+        },
+        {
+          "index": 143,
+          "title": "DevOps 运维助手"
+        },
+        {
+          "index": 144,
+          "title": "Google 云端硬盘"
+        },
+        {
+          "index": 145,
+          "title": "Gmail 邮件发送"
+        }
+      ]
+    },
+    {
+      "file": "real-list-18.png",
+      "scrollTop": 9792,
+      "fullyVisible": [
+        {
+          "index": 146,
+          "title": "客户开发邮件"
+        },
+        {
+          "index": 147,
+          "title": "智能体邮件处理"
+        },
+        {
+          "index": 148,
+          "title": "Gmail 邮件转任务"
+        },
+        {
+          "index": 149,
+          "title": "Home Assistant"
+        },
+        {
+          "index": 150,
+          "title": "Notion API"
+        },
+        {
+          "index": 151,
+          "title": "SonarQube MCP"
+        },
+        {
+          "index": 152,
+          "title": "Notion 资料研究与文档整理"
+        },
+        {
+          "index": 153,
+          "title": "Cloudflare Wrangler 命令参考"
+        }
+      ]
+    },
+    {
+      "file": "real-list-19.png",
+      "scrollTop": 10368,
+      "fullyVisible": [
+        {
+          "index": 154,
+          "title": "ASP.NET Core 开发参考"
+        },
+        {
+          "index": 155,
+          "title": "Expo 与 React Native 动画"
+        },
+        {
+          "index": 156,
+          "title": "Azure Application Insights 接入参考"
+        },
+        {
+          "index": 157,
+          "title": "GitHub Actions CI 排错"
+        },
+        {
+          "index": 158,
+          "title": "飞书会议记录兼容入口"
+        },
+        {
+          "index": 159,
+          "title": "飞书纪要兼容入口"
+        },
+        {
+          "index": 160,
+          "title": "飞书妙记兼容入口"
+        },
+        {
+          "index": 161,
+          "title": "日历日程汇总"
+        },
+        {
+          "index": 162,
+          "title": "Google 幻灯片快速创建"
+        },
+        {
+          "index": 163,
+          "title": "餐食计划"
+        }
+      ]
+    },
+    {
+      "file": "real-list-20.png",
+      "scrollTop": 10551,
+      "fullyVisible": [
+        {
+          "index": 156,
+          "title": "Azure Application Insights 接入参考"
+        },
+        {
+          "index": 157,
+          "title": "GitHub Actions CI 排错"
+        },
+        {
+          "index": 158,
+          "title": "飞书会议记录兼容入口"
+        },
+        {
+          "index": 159,
+          "title": "飞书纪要兼容入口"
+        },
+        {
+          "index": 160,
+          "title": "飞书妙记兼容入口"
+        },
+        {
+          "index": 161,
+          "title": "日历日程汇总"
+        },
+        {
+          "index": 162,
+          "title": "Google 幻灯片快速创建"
+        },
+        {
+          "index": 163,
+          "title": "餐食计划"
+        },
+        {
+          "index": 164,
+          "title": "Telegram 回复助手"
+        },
+        {
+          "index": 165,
+          "title": "邮件最佳实践"
+        }
+      ]
+    }
+  ],
+  "total": 166,
+  "uniqueNames": 166,
+  "duplicates": [],
+  "fullyCapturedCount": 166,
+  "allCardsFullyCaptured": true,
+  "finishedAt": "2026-10-20T06:29:58.653Z",
+  "finalState": {
+    "titles": [
+      "智能体长期记忆",
+      "前端设计质感优化",
+      "AI 图像生成",
+      "持续学习智能体",
+      "前端设计",
+      "浏览器自动化",
+      "代码审查",
+      "实施计划编写",
+      "Skill 创建助手",
+      "智能体协同执行",
+      "知识库",
+      "主动发现与行动",
+      "设计 Skill 导航",
+      "系统化问题排查",
+      "智能体质量自检",
+      "多智能体协作",
+      "MCP 服务开发",
+      "深度研究",
+      "API 与接口设计",
+      "自动化工作流",
+      "数据库结构设计",
+      "智能体工作流自动化",
+      "并行深度研究",
+      "运维日志检索",
+      "数据分析",
+      "网络资料调研",
+      "开发任务实施",
+      "Remotion 视频创作",
+      "Semgrep 规则开发",
+      "大模型效果评估",
+      "飞书知识库",
+      "处理代码审查反馈",
+      "TypeScript 最佳实践",
+      "飞书云文档",
+      "AI 演示文稿设计",
+      "飞书 CLI 连接与授权",
+      "安全审计助手",
+      "I Have ADHD",
+      "任务管理",
+      "RAG 知识库问答",
+      "Firecrawl 深度研究",
+      "AI 答案复核提示",
+      "飞书多维表格",
+      "安全威胁分析",
+      "Longbridge 基本面分析",
+      "Notion 知识沉淀",
+      "竞品分析",
+      "旅行规划",
+      "测试驱动开发",
+      "飞书电子表格",
+      "飞书 Markdown",
+      "Alpaca MCP 模拟交易",
+      "Vercel React 最佳实践",
+      "专业沟通",
+      "引用管理",
+      "财务报表",
+      "自然语言润色",
+      "交互网页构建",
+      "安卓手机控制（ADB）",
+      "安全审计",
+      "飞书任务",
+      "日志指标与链路监控",
+      "金融监管报表",
+      "会议总结",
+      "循环工作流设计",
+      "会话经验提炼",
+      "Claude 学习资源导航",
+      "网页应用测试",
+      "飞书日程待办摘要",
+      "飞书审批",
+      "敏感凭证扫描",
+      "软件供应链安全检查",
+      "时间管理",
+      "视觉主题设计",
+      "飞书消息与群聊",
+      "Gmail 邮件管理",
+      "会议笔记",
+      "健身追踪",
+      "Firecrawl 知识库",
+      "Longbridge",
+      "HubSpot 工作流自动化",
+      "飞书会议纪要汇总",
+      "飞书幻灯片",
+      "依赖风险扫描",
+      "容器安全检查",
+      "Terraform 基础设施管理",
+      "生产故障响应",
+      "Docker 最佳实践",
+      "应用运行监控",
+      "OWASP 安全审计",
+      "DCF 估值",
+      "Slack GIF 制作器",
+      "Notion 自动化",
+      "书籍知识提炼",
+      "图片转可编辑 Draw.io",
+      "Anthropic 品牌设计规范",
+      "算法艺术",
+      "飞书会中能力兼容入口",
+      "飞书事件订阅",
+      "飞书日历",
+      "飞书妙搭应用开发",
+      "故障应急指挥",
+      "CodeProbe 安全分析",
+      "Kontour 旅行规划",
+      "HealthKit CLI",
+      "Supabase MCP 集成",
+      "MiniMax Word 文档工具集",
+      "代码简化证据审计",
+      "代码安全责任图",
+      "Jupyter 笔记本创建",
+      "企业内部沟通",
+      "画布视觉设计",
+      "飞书画板",
+      "飞书 Skill 开发",
+      "飞书 OpenAPI 探索",
+      "飞书 OKR",
+      "飞书邮箱",
+      "飞书云空间",
+      "飞书通讯录",
+      "show-me",
+      "Google 任务",
+      "Kubernetes 运维助手",
+      "Home Assistant MCP 控制",
+      "Google 表格",
+      "Google 日历",
+      "n8n 工作流自动化",
+      "Android 模拟器测试与 UI 检查",
+      "Sentry 只读问题排查",
+      "PDF 创建与版面检查",
+      "WinUI 3 桌面应用开发参考",
+      "Claude API 开发与评测参考",
+      "hindsight-coding-agent",
+      "音频转写与说话人标注",
+      "代码安全最佳实践",
+      "Reddit 用户调研",
+      "测试价值与反馈成本评估",
+      "NotebookLM 文档研究助手",
+      "文本转语音与配音",
+      "Hivemind 多智能体协作",
+      "google-play",
+      "飞书视频会议",
+      "飞书考勤",
+      "Notion 会议准备",
+      "DevOps 运维助手",
+      "Google 云端硬盘",
+      "Gmail 邮件发送",
+      "客户开发邮件",
+      "智能体邮件处理",
+      "Gmail 邮件转任务",
+      "Home Assistant",
+      "Notion API",
+      "SonarQube MCP",
+      "Notion 资料研究与文档整理",
+      "Cloudflare Wrangler 命令参考",
+      "ASP.NET Core 开发参考",
+      "Expo 与 React Native 动画",
+      "Azure Application Insights 接入参考",
+      "GitHub Actions CI 排错",
+      "飞书会议记录兼容入口",
+      "飞书纪要兼容入口",
+      "飞书妙记兼容入口",
+      "日历日程汇总",
+      "Google 幻灯片快速创建",
+      "餐食计划",
+      "Telegram 回复助手",
+      "邮件最佳实践"
+    ],
+    "hasMore": false,
+    "disabled": false,
+    "error": null,
+    "scrollTop": 10551,
+    "scrollHeight": 11287,
+    "clientHeight": 736,
+    "theme": ""
+  }
+}
