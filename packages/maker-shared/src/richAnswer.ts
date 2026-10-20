@@ -819,25 +819,41 @@ export function richRange(
 
 /** Readable copy/export for channels without a component renderer. */
 export function richAnswerText(source: string, options: { escapeMarkdown?: boolean } = {}): string {
-  const literal = (text: string) => options.escapeMarkdown
-    ? text.replace(/[!-/:-?[-`{-~]/g, character => `&#${character.charCodeAt(0)};`)
-    : text;
-  return splitRichAnswer(source)
+  return richAnswerTextProjection(source, options).text;
+}
+
+export function richAnswerTextProjection(source: string, options: { escapeMarkdown?: boolean } = {}): { text: string; hasReadableContent: boolean } {
+  let hasReadableContent = false;
+  const recordContent = (text: string) => {
+    if (text.trim()) hasReadableContent = true;
+  };
+  const literal = (text: string) => {
+    recordContent(text);
+    if (!options.escapeMarkdown) return text;
+    return text.replace(/[!-/:-?[-`{-~]/g, character => `&#${character.charCodeAt(0)};`)
+      .replace(/^[ \t]+/gm, indent => [...indent].map(character => `&#${character.charCodeAt(0)};`).join(''));
+  };
+  const text = splitRichAnswer(source)
     .map((part) => {
-      if (part.kind === "markdown") return part.source;
+      if (part.kind === "markdown") {
+        recordContent(part.source);
+        return part.source;
+      }
       const doc = new RichAnswerStream().update(part.source, true);
       const values = richResolvedValues(doc);
       const visit = (id: string): string => {
         const node = doc.nodes.get(id);
         if (!node) return "";
         const md = richMarkdown(node);
-        if (md !== null)
+        if (md !== null) {
+          recordContent(['image', 'video', 'audio'].includes(node.kind) ? md : richString(node, 'text'));
           return (
             md +
             (richString(node, "caption")
               ? `\n${literal(richString(node, "caption"))}`
               : "")
           );
+        }
         if (node.children.length)
           return [literal(richString(node, "label")), ...node.children.map(visit)]
             .filter(Boolean)
@@ -857,7 +873,7 @@ export function richAnswerText(source: string, options: { escapeMarkdown?: boole
           return [
             literal(richString(node, "label")),
             ...richChart(node, values).map(
-              (item) => `${literal(item.label)}: ${item.value}`,
+              (item) => `${literal(item.label)}: ${literal(String(item.value))}`,
             ),
           ].join("\n");
         const current = values[richString(node, "bind", node.id)];
@@ -871,6 +887,7 @@ export function richAnswerText(source: string, options: { escapeMarkdown?: boole
       return doc.roots.map(visit).filter(Boolean).join("\n\n");
     })
     .join("\n\n");
+  return { text, hasReadableContent };
 }
 /** Collapse redundant operations into a complete replayable tree for bounded history frames. */
 export function compactRichAnswer(source: string): string {

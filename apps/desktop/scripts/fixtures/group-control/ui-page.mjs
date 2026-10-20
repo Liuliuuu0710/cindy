@@ -8,9 +8,12 @@ const base = { name: 'Design review', members, messages: 0, sidebar: true };
 const LONG_DEVICE = 'Mac Studio · A very long device name for layout verification';
 const fence = String.fromCharCode(96).repeat(3);
 const literal = '<name> *literal* &lt; [label](https://example.com)';
+const emptyAnswer = [fence + 'cindy-ui',
+  JSON.stringify({ version: 1, seq: 1, op: 'create', id: 'empty', kind: 'heading', props: { text: '' } }), fence].join('\n');
 const literalAnswer = [fence + 'cindy-ui',
   JSON.stringify({ version: 1, seq: 1, op: 'create', id: 'plain', kind: 'text', props: { text: literal } }),
-  JSON.stringify({ seq: 2, op: 'create', id: 'markdown', kind: 'markdown', props: { text: '**Formatted**' } }), fence].join('\n');
+  JSON.stringify({ seq: 2, op: 'create', id: 'markdown', kind: 'markdown', props: { text: '**Formatted**' } }),
+  JSON.stringify({ seq: 3, op: 'create', id: 'indented', kind: 'text', props: { text: 'Paragraph\n\n    *indented* <name>\n\n\t[label](url)' } }), fence].join('\n');
 const richAnswer = [
   'Here is the review summary.',
   fence + 'cindy-ui',
@@ -30,6 +33,10 @@ export default {
   notCovered:
     'Sending, round control, real device-link control and revocation, pending interactions, plans and attachments; the sidebar is an empty frame',
   cases: {
+    'rich-empty': {
+      about: 'An empty component answer preserves the original block instead of silently disappearing',
+      data: { ...base, answer: emptyAnswer, sidebar: false },
+    },
     'rich-literal': {
       about: 'Literal component text survives Markdown rendering; Markdown components keep formatting',
       data: { ...base, answer: literalAnswer, sidebar: false },
@@ -57,11 +64,22 @@ export default {
   },
   async check(page, ui) {
     const definition = this.cases[ui.case];
+    if (ui.case === 'rich-empty') {
+      const message = page.locator('[data-bot-group-message-id="rich-answer"]');
+      await message.waitFor();
+      assert.ok((await message.textContent()).includes('"kind":"heading"'));
+      assert.equal(await message.locator('h3').count(), 0);
+      await ui.capture('empty-answer');
+      return;
+    }
     if (ui.case === 'rich-literal') {
       const message = page.locator('[data-bot-group-message-id="rich-answer"]');
       await message.waitFor();
       assert.ok((await message.textContent()).includes(literal));
       assert.equal(await message.locator('strong').innerText(), 'Formatted');
+      assert.equal(await message.locator('pre').count(), 0);
+      assert.ok((await message.textContent()).includes('*indented* <name>'));
+      assert.ok((await message.textContent()).includes('[label](url)'));
       await ui.capture('literal-answer');
       return;
     }

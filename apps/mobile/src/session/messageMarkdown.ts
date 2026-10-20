@@ -1151,11 +1151,6 @@ function findNextInlineToken(
   startsInsideHtmlComment: boolean,
 ): { index: number; end: number; inline: MobileMarkdownInline } | null {
   const candidates = [
-    matchRegex(input, from, /&#(\d{1,7});/g, (match) => {
-      const codePoint = Number(match[1]);
-      return { type: 'text' as const, text: codePoint > 0 && codePoint <= 0x10ffff && !(codePoint >= 0xd800 && codePoint <= 0xdfff)
-        ? String.fromCodePoint(codePoint) : '\uFFFD' };
-    }),
     // 图片要放在 link / 裸 URL 之前:![alt](url) 的 "[alt](url)" 子串会被 link 规则命中,
     // 靠 image 的起点(`!`)更靠前在排序里胜出,这里的顺序只是可读性上的强调。
     matchMarkdownImage(input, from, startsInsideHtmlComment),
@@ -1703,6 +1698,11 @@ function decodeHtmlAttribute(value: string): string {
 
 function pushText(out: MobileMarkdownInline[], text: string): void {
   if (!text) return;
+  text = text.replace(/&#(\d{1,7});/g, (_entity, digits: string) => {
+    const codePoint = Number(digits);
+    return codePoint > 0 && codePoint <= 0x10ffff && !(codePoint >= 0xd800 && codePoint <= 0xdfff)
+      ? String.fromCodePoint(codePoint) : '\uFFFD';
+  });
   const last = out[out.length - 1];
   if (last?.type === 'text') {
     last.text += text;

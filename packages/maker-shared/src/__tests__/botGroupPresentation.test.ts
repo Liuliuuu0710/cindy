@@ -17,6 +17,44 @@ import { BOT_GROUP_RUNTIME_FAILURE_CODES, readBotGroupExecutionFailure, type Bot
 describe('group answer display text', () => {
   const fence = String.fromCharCode(96).repeat(3);
   const outerFence = String.fromCharCode(96).repeat(4);
+  it.each(['heading', 'stat', 'input', 'text', 'code', 'math', 'diagram', 'divider'])('preserves semantically empty %s blocks', kind => {
+    for (const props of [{}, { text: '', default: '' }, { text: ' \n\t ', label: ' ', default: ' ' }]) {
+      const content = [fence + 'cindy-ui',
+        JSON.stringify({ version: 1, seq: 1, op: 'create', id: 'root', kind: 'stack' }),
+        JSON.stringify({ seq: 2, op: 'create', id: 'empty', parent: 'root', kind, props }), fence].join('\n');
+      for (const format of ['markdown', 'text'] as const) {
+        expect(botGroupDisplayText(content, 'bot', format)).toBe(content);
+        expect(botGroupDisplayText('Before\n' + content + '\nAfter', 'bot', format)).toContain(content);
+        const valid = [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1, op: 'create', id: 'other', kind: 'text', props: { text: 'Readable' } }), fence].join('\n');
+        const mixed = botGroupDisplayText(valid + '\n' + content, 'bot', format);
+        expect(mixed).toContain('Readable');
+        expect(mixed).toContain(content);
+      }
+    }
+  });
+
+  it.each([
+    { kind: 'stat', props: { value: 0 } },
+    { kind: 'text', props: { value: false } },
+    { kind: 'input', props: { default: 0 } },
+    { kind: 'heading', props: { text: '###' } },
+    { kind: 'code', props: { text: '*' } },
+    { kind: 'image', props: { src: 'https://example.com/image.png' } },
+    { kind: 'chart', props: { data: [{ label: '', value: 0 }] } },
+  ])('keeps meaningful $kind values instead of treating their syntax as empty', ({ kind, props }) => {
+    const content = [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1, op: 'create', id: 'value', kind, props }), fence].join('\n');
+    expect(botGroupDisplayText(content, 'bot')).not.toContain('"op":"create"');
+  });
+
+  it('protects indentation without changing plain copy or legacy export', () => {
+    const text = 'Paragraph\n\n    *literal* <name>\n\n\t[label](url)';
+    const content = [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1, op: 'create', id: 'value', kind: 'text', props: { text } }), fence].join('\n');
+    expect(botGroupDisplayText(content, 'bot')).toContain('&#32;&#32;&#32;&#32;&#42;literal&#42;');
+    expect(botGroupDisplayText(content, 'bot')).toContain('&#9;&#91;label&#93;');
+    expect(botGroupDisplayText(content, 'bot', 'text')).toContain(text);
+    expect(richAnswerText(content)).toBe(text);
+  });
+
   it.each(['text', 'heading', 'stat', 'icon', 'svg', 'input', 'chart', 'check', 'stack', 'markdown'])('escapes literal fields of %s without changing Markdown or legacy export', kind => {
     const literal = '<name> *literal* &lt; @小满';
     const content = [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1, op: 'create', id: 'body', kind,

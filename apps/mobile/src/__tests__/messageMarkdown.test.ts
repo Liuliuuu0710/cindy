@@ -1,4 +1,24 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+import { botGroupDisplayText } from '@cindy/maker-shared/botGroupPresentation';
+
+it.each([128, 60 * 1024])('decodes %i characters of component text into one text inline', length => {
+  const text = 'a*/.'.repeat(length / 4);
+  const fence = String.fromCharCode(96).repeat(3);
+  const source = [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1, op: 'create', id: 'body', kind: 'text', props: { text } }), fence].join('\n');
+  const displayed = botGroupDisplayText(source, 'bot').trim();
+  expect(parseMobileMarkdownInlines(displayed)).toEqual([{ type: 'text', text }]);
+});
+
+it('decodes entities once in plain spans while preserving adjacent formatting and code', () => {
+  const tick = String.fromCharCode(96);
+  expect(parseMobileMarkdownInlines('prefix &#38;#42; **bold &#42;** ' + tick + '&#42;' + tick + ' suffix &#42;')).toEqual([
+    { type: 'text', text: 'prefix &#42; ' },
+    { type: 'strong', text: 'bold *' },
+    { type: 'text', text: ' ' },
+    { type: 'code', text: '&#42;' },
+    { type: 'text', text: ' suffix *' },
+  ]);
+});
 
 it('decodes numeric entities as literal text, never as markup or math', () => {
   const inlines = parseMobileMarkdownInlines('&#60;name&#62; &#42;text&#42; &#91;label&#93;&#40;url&#41; &#38;lt;');

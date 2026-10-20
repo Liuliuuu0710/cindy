@@ -16,7 +16,7 @@ import {
   type BotGroupPlanView,
   type BotGroupSummary,
 } from './botGroupChat.js';
-import { richAnswerText, splitRichAnswer } from './richAnswer.js';
+import { richAnswerTextProjection, splitRichAnswer } from './richAnswer.js';
 
 export function botGroupDisplayText(content: string, authorKind?: BotGroupAuthorKind, format: 'markdown' | 'text' = 'markdown'): string {
   if (authorKind !== 'bot') return content;
@@ -25,8 +25,8 @@ export function botGroupDisplayText(content: string, authorKind?: BotGroupAuthor
   return parts.map((part, partIndex) => {
     const source = content.slice(part.key, parts[partIndex + 1]?.key ?? content.length);
     if (part.kind !== 'rich') return source;
-    const text = richAnswerText(source, { escapeMarkdown: format === 'markdown' });
-    return text.trim() ? text + '\n\n' : source;
+    const { text, hasReadableContent } = richAnswerTextProjection(source, { escapeMarkdown: format === 'markdown' });
+    return hasReadableContent ? text + '\n\n' : source;
   }).join('');
 }
 
