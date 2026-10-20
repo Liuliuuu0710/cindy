@@ -281,6 +281,7 @@ afterEach(() => {
   vi.clearAllTimers();
   vi.useRealTimers();
   vi.clearAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe('TodaySpendChip Claude subscription popover', () => {
@@ -1275,6 +1276,45 @@ describe('Teammate composer model and usage', () => {
     mocks.codexAuthInjection = 'oauth-bearer';
   });
 
+  it('opens a morph panel and reverses it on trigger toggle', () => {
+    render(chip());
+    fireEvent.click(trigger());
+    const panel = screen.getByRole('group', { name: '用量明细' });
+    expect(panel.dataset.morphSide).toBe('top');
+    expect(trigger().getAttribute('aria-expanded')).toBe('true');
+    act(() => vi.advanceTimersByTime(400));
+    expect(panel.dataset.state).toBe('open');
+    fireEvent.click(trigger());
+    expect(trigger().getAttribute('aria-expanded')).toBe('false');
+    act(() => vi.advanceTimersByTime(400));
+    expect(screen.queryByTestId('quota-hover-card')).toBeNull();
+  });
+
+  it.each([false, true])('closes on outside interaction without stealing focus (reduced motion=%s)', (reduced) => {
+    vi.stubGlobal('matchMedia', () => ({ matches: reduced }));
+    render(<>{chip()}<button>Outside</button></>);
+    fireEvent.click(trigger());
+    act(() => vi.advanceTimersByTime(400));
+    expect(screen.getByTestId('quota-hover-card')).toBeTruthy();
+    const outside = screen.getByRole('button', { name: 'Outside' });
+    fireEvent.pointerDown(outside);
+    act(() => outside.focus());
+    act(() => vi.advanceTimersByTime(400));
+    expect(screen.queryByTestId('quota-hover-card')).toBeNull();
+    expect(document.activeElement).toBe(outside);
+  });
+
+  it('does not celebrate or consume the status-bar full-quota observation', () => {
+    mocks.codexSnapshot = { primary: { usedPercent: 0 } };
+    const view = render(chip());
+    expect(screen.queryByTestId('quota-reset-confetti')).toBeNull();
+    expect(quotaFullCelebrations.observe).not.toHaveBeenCalled();
+    view.rerender(<TodaySpendChip vendorKey="codex" providerId="openai" modelId="gpt-6-astra" sessionId="bot" />);
+    expect(screen.queryByTestId('quota-reset-confetti')).not.toBeNull();
+    view.rerender(chip());
+    expect(screen.queryByTestId('quota-reset-confetti')).toBeNull();
+  });
+
   it('opens details on click instead of the subscription dashboard, keeps selection distinct from reply evidence', () => {
     render(chip());
     fireEvent.click(trigger());
@@ -1285,6 +1325,7 @@ describe('Teammate composer model and usage', () => {
     expect(mocks.openExternal).not.toHaveBeenCalled();
     fireEvent.click(within(card).getByRole('button', { name: '模型设置' }));
     expect(settings).toHaveBeenCalledOnce();
+    act(() => vi.advanceTimersByTime(400));
     expect(screen.queryByTestId('quota-hover-card')).toBeNull();
   });
 
@@ -1361,8 +1402,13 @@ describe('Teammate composer model and usage', () => {
   it('supports keyboard entry and Escape without opening an external page', () => {
     render(chip());
     act(() => trigger().focus());
+    expect(screen.queryByTestId('quota-hover-card')).toBeNull();
+    // Native buttons emit a detail=0 click for keyboard activation.
+    fireEvent.click(trigger(), { detail: 0 });
+    act(() => vi.advanceTimersByTime(400));
     expect(screen.getByTestId('quota-hover-card')).toBeTruthy();
     fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    act(() => vi.advanceTimersByTime(400));
     expect(screen.queryByTestId('quota-hover-card')).toBeNull();
     expect(document.activeElement).toBe(trigger());
     expect(mocks.openExternal).not.toHaveBeenCalled();
