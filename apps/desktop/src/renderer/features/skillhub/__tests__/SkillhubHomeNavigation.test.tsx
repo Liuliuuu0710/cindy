@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -174,12 +174,20 @@ describe('Skill home navigation', () => {
     expectTab('public');
   });
 
-  it.each(['/skillhub/local', '/settings?tab=ghosts#catalog'])('isolates public and team categories across local, detail and history navigation: %s', (entry) => {
+  it.each(['/skillhub/local', '/settings?tab=ghosts#catalog'])('isolates categories and restores sorting across local, detail and history navigation: %s', async (entry) => {
     mocks.user = { membershipKind: 'org' };
     renderCatalog(entry);
+    await userEvent.click(screen.getByRole('button', { name: 'skillhub.home.sortDownloads' }));
+    await userEvent.click(screen.getByRole('menuitemradio', { name: 'skillhub.home.sortUpdated' }));
     const currentCategory = () => JSON.parse(screen.getByTestId('navigation-state').textContent!).skillhubHome.category;
     fireEvent.click(screen.getByRole('radio', { name: 'Public category' }));
     expect(currentCategory()).toBe('public-only');
+    expect(screen.getByTestId('location').textContent).toBe(entry);
+    fireEvent.click(screen.getByRole('button', { name: 'Browser Back' }));
+    expect(screen.getByTestId('location').textContent).toBe('/before');
+    fireEvent.click(screen.getByRole('button', { name: 'Browser Forward' }));
+    expect(currentCategory()).toBe('public-only');
+    expect(screen.getByRole('button', { name: 'skillhub.home.sortUpdated' })).toBeTruthy();
     fireEvent.click(screen.getByRole('radio', { name: 'skillhub.home.catalogFilter.organization' }));
     expect(currentCategory()).toBe('all');
     expect(mocks.market.setCategoryFilter).toHaveBeenLastCalledWith('all');
@@ -192,11 +200,27 @@ describe('Skill home navigation', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'skillhub.home.catalogFilter.public' }));
     expect(currentCategory()).toBe('public-only');
     expect(mocks.market.setCategoryFilter).toHaveBeenLastCalledWith('public-only');
+    expect(screen.getByRole('button', { name: 'skillhub.home.sortUpdated' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Leave catalog' }));
     fireEvent.click(screen.getByRole('button', { name: 'Browser Back' }));
     fireEvent.click(screen.getByRole('radio', { name: 'skillhub.home.catalogFilter.organization' }));
     expect(currentCategory()).toBe('team-only');
     expect(mocks.market.setCategoryFilter).toHaveBeenLastCalledWith('team-only');
+  });
+
+  // Review #4314523471: retain this distinct input-precedence case in the existing
+  // jsdom unit suite; a retained catalog URL must win over the active detail URL.
+  it('reads sorting and category from the retained catalog location while a detail is open', () => {
+    const retained = { pathname: '/skillhub/local', search: '?sort=updated_at&category=public-only', hash: '', key: 'catalog', state: null };
+    const { result } = renderHook(() => useSkillhubHomeNavigation(retained), {
+      wrapper: ({ children }) => (
+        <MemoryRouter initialEntries={['/skillhub/local/skill/global/calendar-tools?sort=downloads&category=all']}>
+          {children}
+        </MemoryRouter>
+      ),
+    });
+    expect(result.current.sort).toBe('updated_at');
+    expect(result.current.category).toBe('public-only');
   });
 
   it.each([
