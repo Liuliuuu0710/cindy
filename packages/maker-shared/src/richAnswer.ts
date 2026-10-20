@@ -820,7 +820,7 @@ export function richRange(
 /** Readable copy/export for channels without a component renderer. */
 export function richAnswerText(source: string, options: { escapeMarkdown?: boolean } = {}): string {
   const literal = (text: string) => options.escapeMarkdown
-    ? text.replace(/[!-/:-@[-`{-~]/g, character => `&#${character.charCodeAt(0)};`)
+    ? text.replace(/[!-/:-?[-`{-~]/g, character => `&#${character.charCodeAt(0)};`)
     : text;
   return splitRichAnswer(source)
     .map((part) => {

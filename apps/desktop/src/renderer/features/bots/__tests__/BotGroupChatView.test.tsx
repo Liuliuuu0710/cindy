@@ -3006,6 +3006,22 @@ describe('Telegram / Slack-grade timeline', () => {
     await waitFor(() => expect(registry.get('bot-group-mention')?.ranges.map((range) => range.toString()).sort()).toEqual(['@咪咪', '@小满']));
   });
 
+  it.each(['@', '\\u0040'])('highlights plain component mentions encoded as %s', async mentionPrefix => {
+    const registry = new Map<string, { ranges: Range[] }>();
+    vi.stubGlobal('Highlight', class { ranges: Range[]; constructor(...ranges: Range[]) { this.ranges = ranges; } });
+    const originalCss = globalThis.CSS;
+    vi.stubGlobal('CSS', { ...(originalCss ?? {}), highlights: registry });
+    const fence = String.fromCharCode(96).repeat(3);
+    const content = [fence + 'cindy-ui',
+      JSON.stringify({ version: 1, seq: 1, op: 'create', id: 'mention', kind: 'text', props: { text: '@咪咪 帮忙看看 <name>' } }).replace('@', mentionPrefix),
+      fence].join('\n');
+    mocks.getBotGroup.mockResolvedValue({ ok: true, group: detail({ messages: [
+      msg({ id: 'b1', sequence: 1, authorKind: 'bot', authorBotId: 'xiaoman', content }),
+    ] }) });
+    renderView();
+    await waitFor(() => expect(registry.get('bot-group-mention')?.ranges.map(range => range.toString())).toEqual(['@咪咪']));
+  });
+
   it('shows a 话题 reply at once and keeps one copy when the server’s reply arrives', async () => {
     vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
     const sent = deferred<{ ok: true; messageId: string }>();
