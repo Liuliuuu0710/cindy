@@ -6,6 +6,16 @@ const members = [
 ];
 const base = { name: 'Design review', members, messages: 0, sidebar: true };
 const LONG_DEVICE = 'Mac Studio · A very long device name for layout verification';
+const fence = String.fromCharCode(96).repeat(3);
+const richAnswer = [
+  'Here is the review summary.',
+  fence + 'cindy-ui',
+  JSON.stringify({ version: 1, seq: 1, op: 'create', id: 'root', kind: 'stack' }),
+  JSON.stringify({ seq: 2, op: 'create', id: 'heading', parent: 'root', kind: 'heading', props: { text: 'Next steps' } }),
+  JSON.stringify({ seq: 3, op: 'create', id: 'body', parent: 'root', kind: 'markdown', props: { text: '- Check the group reply.\n- Keep the original message.' } }),
+  fence,
+  'No new controls are needed.',
+].join('\n');
 
 /** Migrated from check-group-control-layout.mjs (remote-control notice above the composer). */
 export default {
@@ -17,6 +27,10 @@ export default {
     'Sending, round control, real device-link control and revocation, pending interactions, plans and attachments; the sidebar is an empty frame',
   cases: {
     default: { about: 'Empty group, short controller name, expanded sidebar', data: base },
+    'rich-answer': {
+      about: 'A persisted component answer becomes readable Markdown in the real group timeline',
+      data: { ...base, answer: richAnswer, sidebar: false },
+    },
     'long-thread': {
       about: '40 messages: bottom pin and history position survive notice changes',
       viewport: { width: 800, height: 600 },
@@ -35,6 +49,18 @@ export default {
   },
   async check(page, ui) {
     const definition = this.cases[ui.case];
+    if (ui.case === 'rich-answer') {
+      const message = page.locator('[data-bot-group-message-id="rich-answer"]');
+      await message.waitFor();
+      await ui.capture('group-answer');
+      assert.equal(await message.getByRole('heading', { name: 'Next steps' }).count(), 1);
+      assert.equal(await message.locator('li').count(), 2);
+      const text = await message.innerText();
+      assert.ok(text.includes('Here is the review summary.'));
+      assert.ok(text.includes('No new controls are needed.'));
+      assert.ok(!text.includes('"op":"create"'));
+      return;
+    }
     const input = page.locator('textarea');
     const chip = page.locator('[data-controlled-banner-chip]');
     const collapsedDot = page.locator('[data-controlled-banner="collapsed"]');

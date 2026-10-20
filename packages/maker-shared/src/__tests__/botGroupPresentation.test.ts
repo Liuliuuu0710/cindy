@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   botGroupComposerPlanState,
+  botGroupDisplayText,
   botGroupErrorVariant,
   botGroupNoticeVariant,
   botGroupPlanFollowUp,
@@ -11,6 +12,62 @@ import {
   chatGroupMembership,
 } from '../botGroupPresentation.js';
 import { BOT_GROUP_RUNTIME_FAILURE_CODES, readBotGroupExecutionFailure, type BotGroupErrorCode, type BotGroupExecutionFailureView, type BotGroupMemberView, type BotGroupMessageView, type BotGroupNoticeCode, type BotGroupPlanView } from '../botGroupChat.js';
+
+describe('group answer display text', () => {
+  const fence = String.fromCharCode(96).repeat(3);
+  const outerFence = String.fromCharCode(96).repeat(4);
+  const answer = [
+    fence + 'cindy-ui',
+    JSON.stringify({ version: 1, seq: 1, op: 'create', id: 'root', kind: 'stack' }),
+    JSON.stringify({ seq: 2, op: 'create', id: 'title', parent: 'root', kind: 'heading', props: { text: 'Draft' } }),
+    JSON.stringify({ seq: 3, op: 'patch', id: 'title', props: { text: 'Final answer' } }),
+    JSON.stringify({ seq: 4, op: 'create', id: 'body', parent: 'root', kind: 'markdown', props: { text: '- First\n- Second' } }),
+    fence,
+  ].join('\n');
+
+  it('replays operations and retains text outside each component block', () => {
+    const content = ['Before', answer, 'Between', answer, 'After'].join('\n');
+    const displayed = botGroupDisplayText(content, 'bot');
+    expect(displayed).toContain('Before');
+    expect(displayed).toContain('Between');
+    expect(displayed).toContain('After');
+    expect(displayed.match(/### Final answer/g)).toHaveLength(2);
+    expect(displayed).toContain('- First\n- Second');
+    expect(displayed).not.toContain('Draft');
+    expect(displayed).not.toContain('"op":');
+  });
+
+  it.each(['user', 'system', undefined] as const)('keeps %s content unchanged', authorKind => {
+    expect(botGroupDisplayText(answer, authorKind)).toBe(answer);
+  });
+
+  it.each([
+    '',
+    '# Normal Markdown\n\n- Item',
+    [fence + 'json', '{"example":true}', fence].join('\n'),
+    [outerFence + 'markdown', answer, outerFence].join('\n'),
+  ])('preserves ordinary Markdown and nested protocol examples: %s', content => {
+    expect(botGroupDisplayText(content, 'bot')).toBe(content);
+  });
+
+  it.each([
+    [fence + 'cindy-ui', '{not valid json}', fence].join('\n'),
+    [fence + 'cindy-ui', '{"version":1'].join('\n'),
+    [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1, op: 'create', id: 'root', kind: 'stack' }), fence].join('\n'),
+  ])('does not silently erase an unreadable block, even beside a valid answer: %s', invalid => {
+    expect(botGroupDisplayText(invalid, 'bot')).toBe(invalid);
+    const displayed = botGroupDisplayText(['Before', answer, invalid, 'After'].join('\n'), 'bot');
+    expect(displayed).toContain('### Final answer');
+    expect(displayed).toContain(invalid);
+    expect(displayed).toContain('After');
+  });
+
+  it('shows committed text from a partial answer without exposing its trailing operation', () => {
+    const partial = answer.slice(0, -fence.length) + '{"seq":5';
+    expect(botGroupDisplayText(partial, 'bot')).toContain('### Final answer');
+    expect(botGroupDisplayText(partial, 'bot')).not.toContain('"seq":5');
+  });
+});
 
 describe('server group membership affordances', () => {
   const self = { actorId: 'self', isSelf: true, isOwned: true, role: 'member' } as BotGroupMemberView;

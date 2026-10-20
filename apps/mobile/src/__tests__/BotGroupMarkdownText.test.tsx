@@ -24,7 +24,18 @@ vi.mock('@/theme', () => ({
   useThemedStyles: (make: (colors: any) => any) => make(new Proxy({}, { get: () => '#000' })),
 }));
 
-import { BotGroupMarkdownText } from '@/session/BotGroupMessageText';
+import { BotGroupMarkdownText, BotGroupUserText } from '@/session/BotGroupMessageText';
+
+const fence = String.fromCharCode(96).repeat(3);
+const answer = [
+  'Before the answer',
+  fence + 'cindy-ui',
+  JSON.stringify({ version: 1, seq: 1, op: 'create', id: 'root', kind: 'stack' }),
+  JSON.stringify({ seq: 2, op: 'create', id: 'title', kind: 'heading', parent: 'root', props: { text: 'Readable group answer' } }),
+  JSON.stringify({ seq: 3, op: 'create', id: 'body', kind: 'markdown', parent: 'root', props: { text: '- First step\n- Second step' } }),
+  fence,
+  'After the answer',
+].join('\n');
 
 let root: Root;
 let node: HTMLDivElement;
@@ -45,6 +56,27 @@ const styleOf = (text: string): Record<string, unknown> => {
   expect(span, `未找到文本 ${text}`).toBeDefined();
   return JSON.parse(span!.getAttribute('data-style')!);
 };
+
+it('renders a group bot answer as headings and lists, including after reopening', async () => {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await act(async () => root.render(createElement(BotGroupMarkdownText, { content: answer, authorKind: 'bot' })));
+    expect(node.textContent).toContain('Readable group answer');
+    expect(node.textContent).toContain('First step');
+    expect(node.textContent).toContain('Before the answer');
+    expect(node.textContent).toContain('After the answer');
+    expect(node.textContent).not.toContain('"op":"create"');
+    const heading = [...node.querySelectorAll('span')].find(element => element.textContent === 'Readable group answer');
+    expect(JSON.parse(heading!.getAttribute('data-style')!)).toMatchObject({ fontWeight: '600' });
+    await act(async () => root.render(null));
+  }
+});
+
+it('keeps user messages and the cloud private-chat caller unchanged', async () => {
+  await act(async () => root.render(createElement(BotGroupUserText, { content: answer, mentionLabels: [] })));
+  expect(node.textContent).toBe(answer);
+  await act(async () => root.render(createElement(BotGroupMarkdownText, { content: answer })));
+  expect(node.textContent).toContain('"op":"create"');
+});
 
 it('群聊不打开链接:强调里的链接只保留强调样式,不加下划线', async () => {
   await act(async () => root.render(createElement(BotGroupMarkdownText, {

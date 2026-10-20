@@ -3030,6 +3030,77 @@ describe('Telegram / Slack-grade timeline', () => {
   });
 });
 
+describe('readable component answers in groups', () => {
+  const fence = String.fromCharCode(96).repeat(3);
+  const answer = [
+    'Before the answer',
+    fence + 'cindy-ui',
+    JSON.stringify({ version: 1, seq: 1, op: 'create', id: 'root', kind: 'stack' }),
+    JSON.stringify({ seq: 2, op: 'create', id: 'title', kind: 'heading', parent: 'root', props: { text: 'Readable group answer' } }),
+    JSON.stringify({ seq: 3, op: 'create', id: 'body', kind: 'markdown', parent: 'root', props: { text: '- First step\n- Second step' } }),
+    fence,
+    'After the answer',
+  ].join('\n');
+
+  it('converts persisted bot messages without changing user messages or stored content', async () => {
+    const group = detail({ messages: [
+      msg({ id: 'u1', content: answer }),
+      msg({ id: 'b1', sequence: 2, authorKind: 'bot', authorBotId: 'xiaoman', content: answer }),
+    ] });
+    mocks.getBotGroup.mockResolvedValue({ ok: true, group });
+    const view = renderView();
+    await waitFor(() => {
+      const body = document.querySelector('[data-bot-group-message-id="b1"] [data-markdown]');
+      expect(body?.textContent).toContain('### Readable group answer');
+      expect(body?.textContent).toContain('- First step\n- Second step');
+      expect(body?.textContent).toContain('Before the answer');
+      expect(body?.textContent).toContain('After the answer');
+      expect(body?.textContent).not.toContain('"op":"create"');
+    });
+    expect(document.querySelector('[data-bot-group-message-id="u1"] [data-markdown]')?.textContent).toBe(answer);
+    expect(group.messages.map(message => message.content)).toEqual([answer, answer]);
+    view.unmount();
+    renderView();
+    await waitFor(() => expect(document.querySelector('[data-bot-group-message-id="b1"] [data-markdown]')?.textContent)
+      .toContain('### Readable group answer'));
+  });
+
+  it('converts replies inside the thread panel', async () => {
+    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+    mocks.getBotGroup.mockResolvedValue({ ok: true, group: detail({ serverBacked: true }) });
+    mocks.thread.mockResolvedValue({ ok: true, root: msg({ id: 'u1', content: 'Thread root' }), replies: [
+      msg({ id: 'rich-reply', authorKind: 'bot', authorBotId: 'xiaoman', content: answer }),
+    ], hasMore: false });
+    renderView();
+    await userEvent.setup().click((await screen.findAllByRole('button', { name: 'bots.groupChat.server.startTopic' }))[0]!);
+    await waitFor(() => {
+      const panel = screen.getByRole('complementary');
+      expect(panel.textContent).toContain('### Readable group answer');
+      expect(panel.textContent).not.toContain('"op":"create"');
+    });
+  });
+
+  it.each(['bot', 'user'] as const)('uses the quoted author for a %s thread share', async authorKind => {
+    mocks.getBotGroup.mockResolvedValue({ ok: true, group: detail({ serverBacked: true, messages: [
+      msg({ id: 'share', content: 'Stored share envelope', threadShare: {
+        messageId: 'source', threadRootId: 'root', status: 'available', authorKind,
+        authorBotId: authorKind === 'bot' ? 'xiaoman' : null, authorName: 'Original author',
+        sharedByAuthor: false, content: answer, attachments: [], createdAt: 1_700_000_000_000, edited: false,
+      } }),
+    ] }) });
+    renderView();
+    await waitFor(() => {
+      const body = document.querySelector('blockquote [data-markdown]');
+      if (authorKind === 'bot') {
+        expect(body?.textContent).toContain('### Readable group answer');
+        expect(body?.textContent).not.toContain('"op":"create"');
+      } else {
+        expect(body?.textContent).toBe(answer);
+      }
+    });
+  });
+});
+
 describe('thread previews and posting to the main chat', () => {
   const t = (name: string) => `bots.groupChat.server.thread.${name}`;
   const preview = (id: string, authorName: string, text: string, extra: Record<string, unknown> = {}) => ({

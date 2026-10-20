@@ -13,7 +13,7 @@
  * 行用 `memo` 包住：父组件只在这条消息（或它的引用、安排快照、高亮状态）真的变了时才会
  * 让它重绘；回调一律是父组件的稳定引用，按消息 id 调用。
  */
-import { memo, useEffect, useState, useLayoutEffect, useRef, type ReactNode } from 'react';
+import { memo, useEffect, useState, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CircleAlert, CornerDownRight, RefreshCcw } from 'lucide-react';
 import { BotGroupThreadPreview, BotGroupThreadShareQuote, botGroupThreadShareLabel } from './BotGroupThreadViews';
@@ -21,6 +21,7 @@ import { toast } from '@/lib/toast';
 import { editBotGroupSend, retryBotGroupSend, type BotGroupOutboxEntry } from './botGroupOutbox';
 
 import { formatBotTimelineClock, formatBotTimelineDate } from '@cindy/maker-shared/botTimeline';
+import { botGroupDisplayText } from '@cindy/maker-shared/botGroupPresentation';
 import { MarkdownRenderer } from '@/components/chat/MarkdownRenderer';
 import { ShareMessageCheckbox } from '@/components/chat/ShareMessageCheckbox';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,7 @@ import { SHARE_MESSAGE_ATTR, SHARE_SESSION_ATTR } from '@/lib/shareConversationI
 import { cn } from '@/lib/utils';
 import type {
   BotGroupMemberView,
+  BotGroupAuthorKind,
   BotGroupPlanStepView,
   BotGroupPlanView,
   BotGroupQuoteDisplay,
@@ -111,12 +113,13 @@ function collectMentionRanges(root: HTMLElement, labels: readonly string[]): Ran
 }
 
 /** Message text as Markdown, with `@名字` of known members highlighted like a chip. */
-function BotGroupMessageText({ content, mentionLabels }: { content: string; mentionLabels: readonly string[] }) {
+function BotGroupMessageText({ content, authorKind, mentionLabels }: { content: string; authorKind: BotGroupAuthorKind; mentionLabels: readonly string[] }) {
   const ref = useRef<HTMLDivElement>(null);
+  const displayContent = useMemo(() => botGroupDisplayText(content, authorKind), [content, authorKind]);
   const labelsKey = mentionLabels.join('\u0000');
   useLayoutEffect(() => {
     const root = ref.current;
-    if (!root || !content.includes('@') || !highlightApi()) return;
+    if (!root || !displayContent.includes('@') || !highlightApi()) return;
     installHighlightStyle();
     const owner = {};
     const refresh = () => {
@@ -133,10 +136,10 @@ function BotGroupMessageText({ content, mentionLabels }: { content: string; ment
       syncMentionHighlight();
     };
     // labelsKey stands in for the label array.
-  }, [content, labelsKey]);
+  }, [displayContent, labelsKey]);
   return (
     <div ref={ref} className="min-w-0 break-words">
-      <MarkdownRenderer workingDir="" content={content} allowPrivilegedLinks={false} />
+      <MarkdownRenderer workingDir="" content={displayContent} allowPrivilegedLinks={false} />
     </div>
   );
 }
@@ -355,7 +358,7 @@ function BotGroupTimelineItemImpl(props: BotGroupTimelineItemProps) {
                 data-testid="bot-group-self-bubble"
                 className={`max-w-full rounded-xl border border-[var(--msg-user-border)] bg-[var(--msg-user-bg)] px-3 py-1.5 text-[var(--msg-user-text)] ${BOT_GROUP_BODY_CLASS}`}
               >
-                <BotGroupMessageText content={message.content} mentionLabels={mentionLabels} />
+                <BotGroupMessageText content={message.content} authorKind={message.authorKind} mentionLabels={mentionLabels} />
               </div>
             ) : null}
             {threadPreview}
@@ -440,7 +443,7 @@ function BotGroupTimelineItemImpl(props: BotGroupTimelineItemProps) {
               ) : null}
               {!share && hasText ? (
                 <div className={`min-w-0 text-[var(--msg-assistant-text)] ${BOT_GROUP_BODY_CLASS}`}>
-                  <BotGroupMessageText content={message.content} mentionLabels={mentionLabels} />
+                  <BotGroupMessageText content={message.content} authorKind={message.authorKind} mentionLabels={mentionLabels} />
                 </div>
               ) : null}
               {!share && <BotGroupMessageAttachments attachments={message.attachments ?? []} align="start" />}

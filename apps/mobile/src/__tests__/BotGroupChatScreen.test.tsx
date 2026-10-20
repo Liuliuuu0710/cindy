@@ -457,6 +457,25 @@ describe('group timeline', () => {
     expect(text).not.toContain('groupChat.notice.memberFailed');
   });
 
+  it('converts group bot answers at the screen entry but preserves both human authors', async () => {
+    const fence = String.fromCharCode(96).repeat(3);
+    const content = [fence + 'cindy-ui', JSON.stringify({
+      version: 1, seq: 1, op: 'create', id: 'body', kind: 'markdown', props: { text: '**Readable group reply**' },
+    }), fence].join('\n');
+    const data = group({ messages: [
+      message('bot-answer', 1, { authorBotId: 'mimi', authorName: '咪咪', content }),
+      message('own-example', 2, { authorKind: 'user', isSelf: true, content }),
+      message('other-example', 3, { authorKind: 'user', isSelf: false, authorName: 'Other member', content }),
+    ], plans: [], openPlan: null });
+    await render(data);
+    const incoming = all('botGroup.message.bot');
+    expect(incoming[0]?.textContent).toContain('Readable group reply');
+    expect(incoming[0]?.textContent).not.toContain('"op":"create"');
+    expect(byId('botGroup.message.user')?.textContent).toBe(content);
+    expect(incoming[1]?.textContent).toContain('"op":"create"');
+    expect(data.messages.map(entry => entry.content)).toEqual([content, content, content]);
+  });
+
   it('renders messages, notices, round ends and plan ends like the desktop timeline', async () => {
     await render();
     expect(byId('botGroup.message.user')?.textContent).toBe('@咪咪 帮我做官网');

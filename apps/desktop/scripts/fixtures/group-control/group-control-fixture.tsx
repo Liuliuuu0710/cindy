@@ -8,6 +8,7 @@ interface GroupData {
   members: Array<{ botId: string; name: string }>;
   messages: number;
   sidebar: boolean;
+  answer?: string;
 }
 
 function groupFrom(data: GroupData) {
@@ -31,7 +32,7 @@ function groupFrom(data: GroupData) {
     createdAt: 1,
     updatedAt: 1,
     plans: [],
-    messages: Array.from({ length: data.messages }, (_, i) => ({
+    messages: [...Array.from({ length: data.messages }, (_, i) => ({
       id: `m${i}`,
       sequence: i + 1,
       kind: 'message',
@@ -44,7 +45,12 @@ function groupFrom(data: GroupData) {
       planId: null,
       attachments: [],
       createdAt: 1700000000000 + i,
-    })),
+    })), ...(data.answer ? [{
+      id: 'rich-answer', sequence: data.messages + 1, kind: 'message', authorKind: 'bot',
+      authorBotId: data.members[0].botId, authorName: data.members[0].name, content: data.answer,
+      mentions: { all: false, botIds: [] }, noticeCode: null, planId: null, files: [], attachments: [],
+      createdAt: 1700000001000,
+    }] : [])],
     hasMoreBefore: false,
     round: { status: 'idle', speakers: [], canContinue: false },
   };

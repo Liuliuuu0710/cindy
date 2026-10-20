@@ -6,6 +6,8 @@
 import { useMemo, type ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { splitBotGroupMentionSegments } from '@cindy/maker-shared/botGroupMentions';
+import { botGroupDisplayText } from '@cindy/maker-shared/botGroupPresentation';
+import type { BotGroupAuthorKind } from '@cindy/maker-shared/botGroupChat';
 import { Text } from '@/components/AppText';
 import { fontWeight, monoFont, useThemedStyles, type ThemeColors } from '@/theme';
 import { lineHeight, radius, spacing, typeScale } from '@/theme/tokens';
@@ -72,9 +74,9 @@ function renderBlock(block: MobileMarkdownBlock, styles: Styles): ReactNode {
   }
 }
 
-export function BotGroupMarkdownText({ content }: { content: string }) {
+export function BotGroupMarkdownText({ content, authorKind }: { content: string; authorKind?: BotGroupAuthorKind }) {
   const styles = useThemedStyles(makeStyles);
-  const blocks = useMemo(() => parseMobileMarkdown(content), [content]);
+  const blocks = useMemo(() => parseMobileMarkdown(botGroupDisplayText(content, authorKind)), [content, authorKind]);
   return <View style={styles.body}>{blocks.map((block) => renderBlock(block, styles))}</View>;
 }
 

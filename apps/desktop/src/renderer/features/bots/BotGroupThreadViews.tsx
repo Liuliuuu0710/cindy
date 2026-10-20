@@ -3,7 +3,8 @@
  * a root shows its newest replies, and a share shows the original reply in its author's
  * name with the sharer kept separate. Both open the thread; neither copies text locally.
  */
-import { useId, useState, type ReactNode } from 'react';
+import { useId, useMemo, useState, type ReactNode } from 'react';
+import { botGroupDisplayText } from '@cindy/maker-shared/botGroupPresentation';
 import { ChevronRight, CornerDownRight, MessageSquare } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { MarkdownRenderer } from '@/components/chat/MarkdownRenderer';
@@ -113,6 +114,7 @@ export function BotGroupThreadShareQuote({ share, members, attachments, onOpenTh
   const relative = useRelativeTime(createdAt, { hovered: false });
   const member = memberFor(members, share.authorBotId);
   const available = share.status === 'available';
+  const displayContent = useMemo(() => botGroupDisplayText(share.content, share.authorKind), [share.content, share.authorKind]);
   return (
     <figure className="flex w-full min-w-0 max-w-[560px] flex-col gap-1.5 rounded-xl border border-[var(--border-default)] px-3 py-2.5">
       {available ? (
@@ -128,7 +130,7 @@ export function BotGroupThreadShareQuote({ share, members, attachments, onOpenTh
           </figcaption>
           {share.content.trim() ? (
             <blockquote className={`min-w-0 break-words text-[var(--msg-assistant-text)] ${CHAT_BODY_CLASS}`}>
-              <MarkdownRenderer workingDir="" content={share.content} allowPrivilegedLinks={false} />
+              <MarkdownRenderer workingDir="" content={displayContent} allowPrivilegedLinks={false} />
             </blockquote>
           ) : null}
           {attachments}
