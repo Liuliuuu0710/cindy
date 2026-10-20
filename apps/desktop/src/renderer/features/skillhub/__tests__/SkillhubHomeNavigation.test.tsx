@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from '@t
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MarketSkill } from '../hooks/useMarketList';
 
 const mocks = vi.hoisted(() => ({
   user: null as { membershipKind: 'org' } | null,
@@ -16,7 +17,7 @@ const mocks = vi.hoisted(() => ({
     syncResults: new Map(),
   },
   market: {
-    items: [], loading: false, loadingMore: false, hasMore: false,
+    items: [] as MarketSkill[], loading: false, loadingMore: false, hasMore: false,
     resolvedScope: 'market', resolvedMine: false, categoryFilter: 'all', sortBy: 'downloads',
     setSearchQuery: vi.fn(), setSortBy: vi.fn(), setCatalogScope: vi.fn(),
     setCategoryFilter: vi.fn(), setVisibility: vi.fn(), loadMore: vi.fn(), reload: vi.fn(),
@@ -128,6 +129,7 @@ beforeAll(() => {
   HTMLElement.prototype.scrollIntoView = vi.fn();
 });
 beforeEach(() => {
+  mocks.market.items = [];
   mocks.user = null;
   mocks.dataOwnerId = 'owner-a';
   mocks.store.skills = ['calendar-tools', 'design-tools'].map((name) => ({
@@ -140,6 +142,26 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('Skill home navigation', () => {
+  // Review 4321140102: the real card entry must pass both catalog selections,
+  // not just the active filter encoded in returnTo (unit/jsdom).
+  it('passes the complete catalog snapshot when opening a market skill', () => {
+    mocks.user = { membershipKind: 'org' };
+    mocks.market.items = [{ name: 'market-demo', displayName: 'Market demo', description: '', authorName: 'Author',
+      authorId: 'author', authorAvatarUrl: null, avatarInitial: 'A', isMine: false, canManage: false,
+      latestVersion: '1.0.0', visibility: 'PUBLIC', visibleDeptIds: [], githubUrl: null,
+      publishedAt: '2026-10-20T00:00:00Z', relativeTime: '', installedLocally: false,
+      installedVersion: null, installedAbsolutePath: null, hasAnyInstall: false, latestPublishedFromDeviceId: null,
+      tags: [], categories: [], downloads: 0, cardState: 'not-installed', catalogScope: 'market' }];
+    renderCatalog();
+    fireEvent.click(screen.getByRole('radio', { name: 'Public category' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'skillhub.home.catalogFilter.organization' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Team category' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'skillhub.home.catalogFilter.public' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Market demo' }));
+    expect(screen.getByTestId('location').textContent).toContain('view=market');
+    expect(JSON.parse(screen.getByTestId('navigation-state').textContent!).skillhubHome.categoriesByCatalog)
+      .toEqual({ public: 'public-only', organization: 'team-only' });
+  });
   it('offers download/update sorting and does not reset it when switching catalogs', async () => {
     mocks.user = { membershipKind: 'org' };
     mocks.market.setSortBy.mockClear();

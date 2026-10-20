@@ -10,18 +10,6 @@
   row-gap: var(--space-2);
 }
 
-@container plugin-management (max-width: 720px) {
-  .skillhub-compact-layout .plugin-management-header {
-    height: 6rem;
-  }
-
-  .skillhub-compact-layout .plugin-motion-tabs {
-    width: max-content;
-    max-width: 100%;
-    justify-self: start;
-  }
-}
-
 .skill-catalog-source-tabs.cindy-segmented {
   flex-shrink: 1;
   gap: var(--space-6);

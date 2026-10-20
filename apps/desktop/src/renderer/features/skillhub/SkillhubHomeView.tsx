@@ -264,7 +264,7 @@ export function SkillhubHomeContent({
     navigate(route, { state: { from: '/skillhub/local', resetHistory: true, skillhubHome: homeState } });
   };
   const openMarket = () => target ? target.openMarketList() : navigate('/skillhub/market');
-  const openCatalogSkill = (skill: MarketSkill) => target ? target.openMarket(skill) : navigate(buildMarketSkillRoute(skill, returnTo));
+  const openCatalogSkill = (skill: MarketSkill) => target ? target.openMarket(skill) : navigate(buildMarketSkillRoute(skill, returnTo), { state: { skillhubHome: homeState } });
   const homeCatalogTabs = visibleHomeCatalogTabs(showOrganization);
 
   const handleImportSkill = useCallback(async () => {

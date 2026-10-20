@@ -27,9 +27,9 @@ export default {
     },
   },
   cases: {
-    default: { about: 'B compact header and category rail with real production layout' },
+    default: { about: 'PR 6102 navigation with the SkillHub card redesign' },
     narrow: {
-      about: 'Narrow content keeps the short top switcher and category controls visible',
+      about: 'Narrow content keeps navigation and category controls visible',
       viewport: { width: 800, height: 800 },
     },
   },
@@ -38,18 +38,11 @@ export default {
     await page.getByTestId('skill-category-filter-scroller').waitFor();
   },
   async check(page, ui) {
-    // Group review: check production geometry, not source strings. The narrow
-    // pane must leave room beside its primary switch and inside the category rail.
-    if (ui.case === 'narrow') {
-      const frame = await page.locator('.plugin-management-header-frame').boundingBox();
-      const tabs = await page.locator('.plugin-motion-tabs').boundingBox();
-      assert.ok(tabs.width < frame.width - 40, 'primary switch stays content-sized');
-    }
     const scroller = page.getByTestId('skill-category-filter-scroller');
-    const padding = await scroller.evaluate((el) =>
-      parseFloat(getComputedStyle(el.parentElement).paddingLeft),
-    );
-    assert.ok(padding >= 12, 'capsule has safe side padding');
+    const bar = await scroller.boundingBox();
+    const selected = await scroller.locator('[aria-checked="true"]').boundingBox();
+    assert.ok(selected.x >= bar.x - 1 && selected.x + selected.width <= bar.x + bar.width + 1,
+      'selected category stays visible in the 6102 navigation layout');
     await page
       .getByRole('button', { name: await ui.t('skillhub.home.sortDownloads'), exact: true })
       .click();

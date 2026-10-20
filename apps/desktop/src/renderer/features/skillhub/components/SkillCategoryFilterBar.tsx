@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { cn } from '@/lib/utils';
@@ -15,8 +15,8 @@ interface SkillCategoryFilterBarProps {
 }
 
 /**
- * Single-line category filters for the SkillHub catalog. The outer capsule is
- * stable while its contents remain horizontally scrollable.
+ * Single-line category filters using the shared catalog navigation styling.
+ * Overflow stays horizontally scrollable with the selected category visible.
  */
 export function SkillCategoryFilterBar({
   categories,
@@ -27,12 +27,6 @@ export function SkillCategoryFilterBar({
   className,
 }: SkillCategoryFilterBarProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const [edges, setEdges] = useState({ left: false, right: false });
-  const updateEdges = useCallback((element: HTMLDivElement) => {
-    const left = element.scrollLeft > 1;
-    const right = element.scrollLeft < element.scrollWidth - element.clientWidth - 1;
-    setEdges(previous => previous.left === left && previous.right === right ? previous : { left, right });
-  }, []);
   const drag = useRef({ pointerId: -1, startX: 0, startScroll: 0, moved: false });
   useEffect(() => {
     const element = scrollRef.current;
@@ -69,7 +63,6 @@ export function SkillCategoryFilterBar({
       const target = selected.offsetLeft - (element.clientWidth - selected.offsetWidth) / 2;
       const max = Math.max(0, element.scrollWidth - element.clientWidth);
       element.scrollTo({ left: Math.max(0, Math.min(target, max)), behavior: 'auto' });
-      updateEdges(element);
     };
     centerSelected();
     if (typeof ResizeObserver === 'undefined') return;
@@ -89,20 +82,18 @@ export function SkillCategoryFilterBar({
       active = false;
       observer.disconnect();
     };
-  }, [categories, selectedCategory, updateEdges]);
+  }, [categories, selectedCategory]);
 
   return (
-    <div className={cn('flex min-w-0 items-center gap-1.5', className)}>
-      <div className="min-w-0 max-w-full overflow-hidden rounded-full bg-[var(--segmented-track)] px-3">
+    <div className={cn('flex min-w-0 items-center', className)}>
+      <div className="min-w-0 max-w-full overflow-hidden">
         <div
           ref={scrollRef}
           data-testid="skill-category-filter-scroller"
-          onScroll={(event) => updateEdges(event.currentTarget)}
-          style={{ maskImage: 'linear-gradient(to right, ' + (edges.left ? 'transparent' : 'var(--text-primary)') + ', var(--text-primary) 8px, var(--text-primary) calc(100% - 8px), ' + (edges.right ? 'transparent' : 'var(--text-primary)') + ')' }}
           onFocusCapture={(event) => {
             event.target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
           }}
-          className="min-w-0 w-max max-w-full flex-initial rounded-full overflow-x-auto overscroll-x-contain select-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="min-w-0 w-max max-w-full flex-initial overflow-x-auto overscroll-x-contain select-none [scroll-padding-inline:20%] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           onPointerDown={(event) => {
             if (event.pointerType !== 'mouse' || event.button !== 0) return;
             drag.current = { pointerId: event.pointerId, startX: event.clientX, startScroll: event.currentTarget.scrollLeft, moved: false };
@@ -133,11 +124,11 @@ export function SkillCategoryFilterBar({
           }}
         >
           <SegmentedControl
-            className="shrink-0 !max-w-none !bg-transparent"
+            className="skill-category-tags shrink-0 !max-w-none"
             role="radiogroup"
             aria-label={ariaLabel}
             height={32}
-            optionHeight={28}
+            optionHeight={32}
             optionClassName="max-w-40 px-3 text-12"
             value={selectedCategory}
             onValueChange={(value) => {
