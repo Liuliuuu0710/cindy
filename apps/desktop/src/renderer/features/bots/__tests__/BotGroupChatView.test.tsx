@@ -3042,6 +3042,31 @@ describe('readable component answers in groups', () => {
     'After the answer',
   ].join('\n');
 
+  it.each([
+    { authorKind: 'bot' as const, shared: false }, { authorKind: 'user' as const, shared: false },
+    { authorKind: 'bot' as const, shared: true }, { authorKind: 'user' as const, shared: true },
+  ])('copies readable content for $authorKind (thread share: $shared)', async ({ authorKind, shared }) => {
+    const user = userEvent.setup();
+    const write = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue();
+    mocks.getBotGroup.mockResolvedValue({ ok: true, group: detail({ serverBacked: true, messages: [
+      msg({ id: 'copy-answer', authorKind: shared ? 'user' : authorKind, content: shared ? 'Share envelope' : answer,
+        ...(shared ? { threadShare: {
+          messageId: 'source', threadRootId: 'root', status: 'available' as const, authorKind,
+          authorBotId: authorKind === 'bot' ? 'xiaoman' : null, authorName: 'Original author',
+          sharedByAuthor: false, content: answer, attachments: [], createdAt: 1_700_000_000_000, edited: false,
+        } } : {}),
+      }),
+    ] }) });
+    renderView();
+    await user.click(await screen.findByRole('button', { name: 'chat.messageActionBar.copy' }));
+    await waitFor(() => expect(write).toHaveBeenCalled());
+    const copied = write.mock.calls.at(-1)![0];
+    if (authorKind === 'bot') {
+      expect(copied).toContain('### Readable group answer');
+      expect(copied).not.toContain('"op":"create"');
+    } else expect(copied).toBe(answer);
+  });
+
   it('converts persisted bot messages without changing user messages or stored content', async () => {
     const group = detail({ messages: [
       msg({ id: 'u1', content: answer }),

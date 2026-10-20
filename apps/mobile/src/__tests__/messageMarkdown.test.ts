@@ -1,4 +1,16 @@
 import { beforeAll, describe, expect, it } from 'vitest';
+
+it('decodes numeric entities as literal text, never as markup or math', () => {
+  const inlines = parseMobileMarkdownInlines('&#60;name&#62; &#42;text&#42; &#91;label&#93;&#40;url&#41; &#38;lt;');
+  expect(inlines.every(inline => inline.type === 'text')).toBe(true);
+  expect(inlines.map(inline => 'text' in inline ? inline.text : '').join('')).toBe('<name> *text* [label](url) &lt;');
+  const tick = String.fromCharCode(96);
+  expect(parseMobileMarkdownInlines(tick + '&#60;' + tick)).toEqual([{ type: 'code', text: '&#60;' }]);
+});
+
+it.each(['&#0;', '&#55296;', '&#1114112;'])('replaces invalid numeric character %s without throwing', source => {
+  expect(parseMobileMarkdownInlines(source)).toEqual([{ type: 'text', text: '\uFFFD' }]);
+});
 import { i18n } from '@/i18n';
 import { PR_WATCH_EXPANDED_BLANK_FIXTURE } from '@/__tests__/fixtures/prWatchExpandedBlank';
 import {

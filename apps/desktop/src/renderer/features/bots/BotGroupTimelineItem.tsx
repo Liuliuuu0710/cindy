@@ -332,7 +332,9 @@ function BotGroupTimelineItemImpl(props: BotGroupTimelineItemProps) {
       onQuote={props.onQuote ? () => props.onQuote!(message.id) : undefined}
       onReply={props.onOpenThread ? () => props.onOpenThread!(message.id) : undefined}
       onChanged={props.onChanged}
-      copyText={share ? share.status === 'available' ? share.content : '' : undefined}
+      copyText={share
+        ? share.status === 'available' ? botGroupDisplayText(share.content, share.authorKind, 'text') : ''
+        : botGroupDisplayText(message.content, message.authorKind, 'text')}
       replyCountShown={Boolean(threadPreview)}
       menuActions={props.menuActions}
     />

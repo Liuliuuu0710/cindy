@@ -78,6 +78,17 @@ it('keeps user messages and the cloud private-chat caller unchanged', async () =
   expect(node.textContent).toContain('"op":"create"');
 });
 
+it('keeps component text literal while rendering Markdown components', async () => {
+  const literal = '<name> *literal* &lt; [label](https://example.com)';
+  const content = [fence + 'cindy-ui',
+    JSON.stringify({ version: 1, seq: 1, op: 'create', id: 'plain', kind: 'text', props: { text: literal } }),
+    JSON.stringify({ seq: 2, op: 'create', id: 'markdown', kind: 'markdown', props: { text: '**Formatted**' } }), fence].join('\n');
+  await act(async () => root.render(createElement(BotGroupMarkdownText, { content, authorKind: 'bot' })));
+  expect(node.textContent).toContain(literal);
+  expect(node.textContent).toContain('Formatted');
+  expect(node.textContent).not.toContain('**Formatted**');
+});
+
 it('群聊不打开链接:强调里的链接只保留强调样式,不加下划线', async () => {
   await act(async () => root.render(createElement(BotGroupMarkdownText, {
     content: '**https://a.example/x** ~~https://b.example/y~~ **`a.ts`**',

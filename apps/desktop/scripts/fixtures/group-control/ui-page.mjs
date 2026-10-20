@@ -7,6 +7,10 @@ const members = [
 const base = { name: 'Design review', members, messages: 0, sidebar: true };
 const LONG_DEVICE = 'Mac Studio · A very long device name for layout verification';
 const fence = String.fromCharCode(96).repeat(3);
+const literal = '<name> *literal* &lt; [label](https://example.com)';
+const literalAnswer = [fence + 'cindy-ui',
+  JSON.stringify({ version: 1, seq: 1, op: 'create', id: 'plain', kind: 'text', props: { text: literal } }),
+  JSON.stringify({ seq: 2, op: 'create', id: 'markdown', kind: 'markdown', props: { text: '**Formatted**' } }), fence].join('\n');
 const richAnswer = [
   'Here is the review summary.',
   fence + 'cindy-ui',
@@ -26,6 +30,10 @@ export default {
   notCovered:
     'Sending, round control, real device-link control and revocation, pending interactions, plans and attachments; the sidebar is an empty frame',
   cases: {
+    'rich-literal': {
+      about: 'Literal component text survives Markdown rendering; Markdown components keep formatting',
+      data: { ...base, answer: literalAnswer, sidebar: false },
+    },
     default: { about: 'Empty group, short controller name, expanded sidebar', data: base },
     'rich-answer': {
       about: 'A persisted component answer becomes readable Markdown in the real group timeline',
@@ -49,6 +57,14 @@ export default {
   },
   async check(page, ui) {
     const definition = this.cases[ui.case];
+    if (ui.case === 'rich-literal') {
+      const message = page.locator('[data-bot-group-message-id="rich-answer"]');
+      await message.waitFor();
+      assert.ok((await message.textContent()).includes(literal));
+      assert.equal(await message.locator('strong').innerText(), 'Formatted');
+      await ui.capture('literal-answer');
+      return;
+    }
     if (ui.case === 'rich-answer') {
       const message = page.locator('[data-bot-group-message-id="rich-answer"]');
       await message.waitFor();

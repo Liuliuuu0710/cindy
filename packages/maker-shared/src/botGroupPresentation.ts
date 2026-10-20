@@ -18,14 +18,14 @@ import {
 } from './botGroupChat.js';
 import { richAnswerText, splitRichAnswer } from './richAnswer.js';
 
-export function botGroupDisplayText(content: string, authorKind?: BotGroupAuthorKind): string {
+export function botGroupDisplayText(content: string, authorKind?: BotGroupAuthorKind, format: 'markdown' | 'text' = 'markdown'): string {
   if (authorKind !== 'bot') return content;
   const parts = splitRichAnswer(content);
   if (!parts.some(part => part.kind === 'rich')) return content;
   return parts.map((part, partIndex) => {
     const source = content.slice(part.key, parts[partIndex + 1]?.key ?? content.length);
     if (part.kind !== 'rich') return source;
-    const text = richAnswerText(source);
+    const text = richAnswerText(source, { escapeMarkdown: format === 'markdown' });
     return text.trim() ? text + '\n\n' : source;
   }).join('');
 }

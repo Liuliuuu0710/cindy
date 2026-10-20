@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { richAnswerText } from '../richAnswer.js';
 import {
   botGroupComposerPlanState,
   botGroupDisplayText,
@@ -16,6 +17,16 @@ import { BOT_GROUP_RUNTIME_FAILURE_CODES, readBotGroupExecutionFailure, type Bot
 describe('group answer display text', () => {
   const fence = String.fromCharCode(96).repeat(3);
   const outerFence = String.fromCharCode(96).repeat(4);
+  it.each(['text', 'heading', 'stat', 'icon', 'svg', 'input', 'chart', 'check', 'stack', 'markdown'])('escapes literal fields of %s without changing Markdown or legacy export', kind => {
+    const literal = '<name> *literal* &lt;';
+    const content = [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1, op: 'create', id: 'body', kind,
+      props: { text: kind === 'markdown' ? '**Formatted**' : literal, label: literal, caption: literal, default: literal },
+    }), fence].join('\n');
+    expect(botGroupDisplayText(content, 'bot')).toContain('&#60;name&#62; &#42;literal&#42; &#38;lt&#59;');
+    expect(botGroupDisplayText(content, 'bot', 'text')).toContain(literal);
+    expect(richAnswerText(content)).toContain(literal);
+    if (kind === 'markdown') expect(botGroupDisplayText(content, 'bot')).toContain('**Formatted**');
+  });
   const answer = [
     fence + 'cindy-ui',
     JSON.stringify({ version: 1, seq: 1, op: 'create', id: 'root', kind: 'stack' }),

@@ -818,7 +818,10 @@ export function richRange(
 }
 
 /** Readable copy/export for channels without a component renderer. */
-export function richAnswerText(source: string): string {
+export function richAnswerText(source: string, options: { escapeMarkdown?: boolean } = {}): string {
+  const literal = (text: string) => options.escapeMarkdown
+    ? text.replace(/[!-/:-@[-`{-~]/g, character => `&#${character.charCodeAt(0)};`)
+    : text;
   return splitRichAnswer(source)
     .map((part) => {
       if (part.kind === "markdown") return part.source;
@@ -832,37 +835,37 @@ export function richAnswerText(source: string): string {
           return (
             md +
             (richString(node, "caption")
-              ? `\n${richString(node, "caption")}`
+              ? `\n${literal(richString(node, "caption"))}`
               : "")
           );
         if (node.children.length)
-          return [richString(node, "label"), ...node.children.map(visit)]
+          return [literal(richString(node, "label")), ...node.children.map(visit)]
             .filter(Boolean)
             .join("\n\n");
         if (node.kind === "svg")
-          return richString(node, "label", richString(node, "alt"));
-        if (node.kind === "heading") return `### ${richLabel(node, values)}`;
+          return literal(richString(node, "label", richString(node, "alt")));
+        if (node.kind === "heading") return `### ${literal(richLabel(node, values))}`;
         if (node.kind === "icon")
-          return [richString(node, "label"), richString(node, "text")]
+          return [richString(node, "label"), richString(node, "text")].map(literal)
             .filter(Boolean)
             .join("\n");
-        if (node.kind === "text") return richLabel(node, values);
+        if (node.kind === "text") return literal(richLabel(node, values));
         if (node.kind === "divider") return "---";
         if (node.kind === "stat")
-          return `${richString(node, "label")}: ${richLabel(node, values)}`;
+          return `${literal(richString(node, "label"))}: ${literal(richLabel(node, values))}`;
         if (node.kind === "chart")
           return [
-            richString(node, "label"),
+            literal(richString(node, "label")),
             ...richChart(node, values).map(
-              (item) => `${item.label}: ${item.value}`,
+              (item) => `${literal(item.label)}: ${item.value}`,
             ),
           ].join("\n");
         const current = values[richString(node, "bind", node.id)];
         if (node.kind === "check")
-          return `${current ? "☑" : "☐"} ${richString(node, "label", richString(node, "text"))}`;
+          return `${current ? "☑" : "☐"} ${literal(richString(node, "label", richString(node, "text")))}`;
         return (
-          richString(node, "label") +
-          (current === undefined ? "" : `: ${current}`)
+          literal(richString(node, "label")) +
+          (current === undefined ? "" : `: ${literal(String(current))}`)
         );
       };
       return doc.roots.map(visit).filter(Boolean).join("\n\n");
