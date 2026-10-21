@@ -699,8 +699,10 @@ export function richChart(
         .filter(record)
         .map((item) => ({
           label: typeof item.label === "string" ? item.label : "",
-          value: Number(richEvaluate(item.value, values)),
+          value: richEvaluate(item.value, values),
         }))
+        .filter((item) => item.value !== undefined && !(typeof item.value === "string" && !item.value.trim()))
+        .map((item) => ({ ...item, value: Number(item.value) }))
         .filter((item) => Number.isFinite(item.value))
     : [];
 }
@@ -844,9 +846,17 @@ export function richAnswerTextProjection(source: string, options: { escapeMarkdo
       const visit = (id: string): string => {
         const node = doc.nodes.get(id);
         if (!node) return "";
+        if (['image', 'video', 'audio'].includes(node.kind)) {
+          const src = richMediaSource({ ...node, props: { ...node.props, src: richString(node, 'src').replace(/[<>]/g, '') } });
+          recordContent(src ?? '');
+          return [
+            src ? richMarkdown({ ...node, props: { ...node.props, src } }) : literal(richString(node, 'alt')),
+            literal(richString(node, 'caption')),
+          ].filter(Boolean).join('\n');
+        }
         const md = richMarkdown(node);
         if (md !== null) {
-          recordContent(['image', 'video', 'audio'].includes(node.kind) ? md : richString(node, 'text'));
+          recordContent(richString(node, 'text'));
           return (
             md +
             (richString(node, "caption")

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { richAnswerText } from '../richAnswer.js';
+import { botGroupQuoteExcerpt } from '../botGroupQuote.js';
 import {
   botGroupComposerPlanState,
   botGroupDisplayText,
@@ -17,6 +18,49 @@ import { BOT_GROUP_RUNTIME_FAILURE_CODES, readBotGroupExecutionFailure, type Bot
 describe('group answer display text', () => {
   const fence = String.fromCharCode(96).repeat(3);
   const outerFence = String.fromCharCode(96).repeat(4);
+  it.each(['image', 'video', 'audio'])('does not replace a %s with only a blank source with Markdown syntax', kind => {
+    for (const src of ['', '   ', '\n\t']) {
+      const content = [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1, op: 'create',
+        id: 'media', kind, props: { src } }), fence].join('\n');
+      for (const format of ['markdown', 'text'] as const) expect(botGroupDisplayText(content, 'bot', format)).toBe(content);
+      expect(botGroupQuoteExcerpt(content, 'bot')).toBe(content.replace(/\s+/g, ' ').trim());
+    }
+  });
+
+  it('omits unavailable chart values without losing real zero or readable neighboring content', () => {
+    const content = [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1, op: 'create', id: 'chart', kind: 'chart',
+      props: { data: [{ label: 'Missing', value: ' ' }, { label: 'Zero', value: 0 }, { label: 'Amount', value: '2' }] } }),
+      JSON.stringify({ seq: 2, op: 'create', id: 'note', kind: 'text', props: { text: 'Actual data' } }), fence].join('\n');
+    expect(botGroupDisplayText(content, 'bot', 'text').trim()).toBe('Zero: 0\nAmount: 2\n\nActual data');
+    expect(botGroupQuoteExcerpt(content, 'bot')).toBe('Zero: 0 Amount: 2 Actual data');
+  });
+
+  it.each(['', ' ', '\n\t', null, undefined, { ref: 'missing' }, 'not a number'])('preserves charts with unavailable values: %j', value => {
+    const content = [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1, op: 'create',
+      id: 'chart', kind: 'chart', props: { data: [{ value }] } }), fence].join('\n');
+    for (const format of ['markdown', 'text'] as const) expect(botGroupDisplayText(content, 'bot', format)).toBe(content);
+    expect(botGroupQuoteExcerpt(content, 'bot')).toBe(content.replace(/\s+/g, ' ').trim());
+  });
+
+  it.each(['image', 'video', 'audio'])('preserves unavailable %s sources, but projects actual labels and valid media', kind => {
+    const component = (props: Record<string, unknown>) => [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1,
+      op: 'create', id: 'media', kind, props }), fence].join('\n');
+    for (const src of [undefined, null, '', '   ', '\n\t', '<>', 'javascript:alert(1)', '<javascript:alert(1)>', 'https://example.com/\nimage.png']) {
+      const content = component({ src });
+      for (const format of ['markdown', 'text'] as const) expect(botGroupDisplayText(content, 'bot', format)).toBe(content);
+      expect(botGroupQuoteExcerpt(content, 'bot')).toBe(content.replace(/\s+/g, ' ').trim());
+      expect(botGroupDisplayText(component({ src, alt: 'Readable <alt>' }), 'bot', 'text').trim()).toBe('Readable <alt>');
+      expect(botGroupDisplayText(component({ src, caption: 'Caption' }), 'bot', 'text').trim()).toBe('Caption');
+      expect(botGroupDisplayText(component({ src, alt: ' ', caption: '\t' }), 'bot')).toBe(component({ src, alt: ' ', caption: '\t' }));
+    }
+    for (const src of ['https://example.com/image.png', 'cindy-media://blobs/image.png', '/tmp/image.png']) {
+      const text = botGroupDisplayText(component({ src: '  ' + src + '  ' }), 'bot', 'text');
+      expect(text.trim()).toBe('![](<'+ src + '>)');
+      expect(text).not.toContain('cindy-ui');
+    }
+    expect(botGroupDisplayText(component({ src: ' ', alt: '<name>' }), 'bot').trim()).toBe('&#60;name&#62;');
+  });
+
   it.each(['heading', 'stat', 'input', 'text', 'code', 'math', 'diagram', 'divider'])('preserves semantically empty %s blocks', kind => {
     for (const props of [{}, { text: '', default: '' }, { text: ' \n\t ', label: ' ', default: ' ' }]) {
       const content = [fence + 'cindy-ui',

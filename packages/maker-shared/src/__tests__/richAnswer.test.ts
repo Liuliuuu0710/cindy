@@ -4,6 +4,18 @@ import { RichAnswerStream, RichInteractionMemory, hasRichAnswer, splitRichAnswer
 // Tier 1: actual stream reducer. Regression targets are partial transport, edits,
 // replay and preservation of user input; no DOM/source-string contracts.
 const line = (seq: number, op: Record<string, unknown>) => JSON.stringify({ seq, ...op }) + '\n';
+it('omits unavailable chart rows before coercion and keeps real zero, booleans and numeric strings', () => {
+  const data = ['', ' ', '\n\t', null, undefined, { ref: 'missing' }, { ref: 'blank' }, 'bad',
+    0, false, true, ' 2 ', { ref: 'zero' }].map((value, index) => ({ label: String(index), value }));
+  const doc = new RichAnswerStream().update(line(1, { op: 'create', id: 'chart', kind: 'chart', props: { data } }));
+  const node = doc.nodes.get('chart')!;
+  const values = { blank: ' ', zero: 0 };
+  expect(richCalculationUnavailable(node, values)).toBe(true);
+  expect(richChart(node, values)).toEqual([
+    { label: '8', value: 0 }, { label: '9', value: 0 }, { label: '10', value: 1 },
+    { label: '11', value: 2 }, { label: '12', value: 0 },
+  ]);
+});
 describe('streaming answer documents', () => {
   it('commits complete operations before the closing fence without exposing partial protocol', () => {
     const first = line(1, { op: 'create', id: 'title', kind: 'heading', props: { text: '你好' } });

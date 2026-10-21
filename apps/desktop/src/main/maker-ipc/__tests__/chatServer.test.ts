@@ -311,7 +311,7 @@ describe('Chat Server result delivery and refresh', () => {
     }
     const posts = () => fixture.handle.mock.calls.filter(([route, method]) => route.endsWith('/messages') && method === 'POST');
 
-    it.each(['bot', 'human'])('posts a readable component quote for a %s author without changing the original', async kind => {
+    it.each(['bot', 'human', 'integration'])('posts a readable component quote for a %s author without changing the original', async kind => {
       const fence = String.fromCharCode(96).repeat(3);
       const content = [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1, op: 'create',
         id: 'body', kind: 'text', props: { text: 'Readable quote <name>' } }), fence].join('\n');
@@ -321,7 +321,7 @@ describe('Chat Server result delivery and refresh', () => {
       expect(await service.sendMessage({ groupId: roomId, text: 'Agreed', clientId: 'component-quote',
         mentions: { all: false, botIds: [] }, quote: { messageId: quotedId } })).toMatchObject({ ok: true });
       const card = posts()[0]![2].content[0];
-      expect(card.data.excerpt).toBe(kind === 'bot' ? 'Readable quote <name>' : content.replace(/\s+/g, ' ').trim());
+      expect(card.data.excerpt).toBe(kind === 'human' ? content.replace(/\s+/g, ' ').trim() : 'Readable quote <name>');
       expect(card.namespace).toBe('cindy.quote');
       expect(original.content).toEqual([{ type: 'text', text: content }]);
     });

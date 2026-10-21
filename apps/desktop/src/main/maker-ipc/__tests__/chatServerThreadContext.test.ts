@@ -223,17 +223,20 @@ describe('Chat Server Thread context reaches the Agent input', () => {
     expect(seen).toContain(JSON.stringify({ messageId: live.id, from: 'Alex', text: '', attachments: 1, attachmentName: 'live-plan.pdf' }));
   });
 
-  it('uses readable component text from a loaded bot original in quote context', async () => {
+  it.each(['bot', 'human', 'integration'])('uses the same author mapping for a loaded %s original in quote context', async kind => {
     const fence = String.fromCharCode(96).repeat(3);
     const content = [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1, op: 'create',
       id: 'body', kind: 'text', props: { text: 'Readable quote <name>' } }), fence].join('\n');
     const original = post(content, { by: 1 });
+    original.author.kind = kind;
     const request = quoting(post('Explain this'), original);
     request.mentions = [bots[0].id];
     trigger(request);
     await vi.advanceTimersByTimeAsync(2000);
     const data = payload(inputs('nova')[0]!.message);
-    expect(data.currentRequest.quote.text).toBe('Readable quote &lt;name&gt;');
+    expect(data.currentRequest.quote.text).toBe(kind === 'human'
+      ? content.replace(/\s+/g, ' ').trim().replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      : 'Readable quote &lt;name&gt;');
     expect(original.content[0].text).toBe(content);
   });
 
