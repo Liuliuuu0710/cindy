@@ -286,6 +286,18 @@ describe('bot group remote resources', () => {
     expect((rich.blocks![0]!.data as ReturnType<typeof botGroupRemoteChatData>).messages[0]!.content).toBe(content);
   });
 
+  it.each([100, 279, 280, 281])('clips %s escaped punctuation characters without breaking an entity', async count => {
+    const fence = String.fromCharCode(96).repeat(3);
+    const content = [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1, op: 'create', id: 'body', kind: 'text',
+      props: { text: '*'.repeat(count) } }), fence].join(String.fromCharCode(10));
+    service.getGroup.mockResolvedValue({ ok: true, group: detail({ messages: [
+      { ...detail().messages[1]!, authorKind: 'bot', content },
+    ] }) });
+    const plain = await remoteResourceRegistry.get(context, { client: client(), ref: ref('g1') });
+    const expected = count > 280 ? '&#42;'.repeat(279) + '…' : '&#42;'.repeat(count);
+    expect(plain.blocks?.[0]?.fallbackMarkdown).toBe('**阿布**: ' + expected);
+  });
+
   it('projects current failures for existing phones without putting notices into the message cache', () => {
     const group = detail();
     const source = group.messages[0]!;

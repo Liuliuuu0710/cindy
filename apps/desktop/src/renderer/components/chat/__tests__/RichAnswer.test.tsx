@@ -5,7 +5,17 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: { id: 'test-owner' } }) }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 import { RichAnswer } from '../RichAnswer';
+import ReactMarkdown from 'react-markdown';
+import { botGroupDisplayText } from '@cindy/maker-shared/botGroupPresentation';
 afterEach(cleanup);
+it.each(['cindy-media://blobs/image.png', 'xdt-image://image', 'file:///tmp/image.png', './image.png', '/tmp/a&b.png'])('renders blocked component media %s as visible text, not an image', src => {
+  const fence = String.fromCharCode(96).repeat(3);
+  const content = [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1, op: 'create', id: 'image', kind: 'image', props: { src } }), fence].join(String.fromCharCode(10));
+  const view = render(<ReactMarkdown>{botGroupDisplayText(content, 'bot')}</ReactMarkdown>);
+  expect(view.container.textContent?.trim()).toBe(src);
+  expect(view.container.querySelector('img')).toBeNull();
+  expect(view.container.querySelector('a')).toBeNull();
+});
 vi.stubGlobal(
   'ResizeObserver',
   class {
@@ -308,4 +318,3 @@ it('bounds fixed widths and leaves backgrounds and literal colors to the host', 
   expect(card.style.minWidth).toBe('min(480px, 100%)');
   expect(screen.getByText('Faint').style.color).toBe('');
 });
-

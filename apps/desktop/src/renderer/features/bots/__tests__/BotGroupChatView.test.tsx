@@ -3063,6 +3063,25 @@ describe('readable component answers in groups', () => {
     'After the answer',
   ].join('\n');
 
+  it.each([false, true])('keeps blocked component media visible in the Markdown input (shared=%s)', async shared => {
+    const content = [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1, op: 'create', id: 'image',
+      kind: 'image', props: { src: 'cindy-media://blobs/image.png' } }), fence].join(String.fromCharCode(10));
+    mocks.getBotGroup.mockResolvedValue({ ok: true, group: detail({ serverBacked: true, messages: [
+      msg({ id: 'blocked-media', authorKind: shared ? 'user' : 'bot', content: shared ? 'Share envelope' : content,
+        ...(shared ? { threadShare: { messageId: 'source', threadRootId: 'root', status: 'available' as const,
+          authorKind: 'bot' as const, authorBotId: 'xiaoman', authorName: 'Original', sharedByAuthor: false,
+          content, attachments: [], createdAt: 1_700_000_000_000, edited: false } } : {}),
+      }),
+    ] }) });
+    renderView();
+    await waitFor(() => {
+      const body = document.querySelector('[data-bot-group-message-id="blocked-media"] [data-markdown]');
+      expect(body?.textContent).toContain('cindy');
+      expect(body?.textContent).not.toContain('![');
+      expect(body?.textContent).not.toContain('cindy-ui');
+    });
+  });
+
   it('projects a bot component answer into the quote composer and sends only its original id', async () => {
     const user = userEvent.setup();
     vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });

@@ -824,7 +824,7 @@ export function richAnswerText(source: string, options: { escapeMarkdown?: boole
   return richAnswerTextProjection(source, options).text;
 }
 
-export function richAnswerTextProjection(source: string, options: { escapeMarkdown?: boolean; omitEmptyNodes?: boolean } = {}): { text: string; hasReadableContent: boolean } {
+export function richAnswerTextProjection(source: string, options: { escapeMarkdown?: boolean; omitEmptyNodes?: boolean; allowPrivilegedMedia?: boolean } = {}): { text: string; hasReadableContent: boolean } {
   let readableContentCount = 0;
   const recordContent = (text: string) => {
     if (text.trim()) readableContentCount += 1;
@@ -850,6 +850,10 @@ export function richAnswerTextProjection(source: string, options: { escapeMarkdo
         if (['image', 'video', 'audio'].includes(node.kind)) {
           const src = richMediaSource({ ...node, props: { ...node.props, src: richString(node, 'src').replace(/[<>]/g, '') } });
           recordContent(src ?? '');
+          if (src && options.allowPrivilegedMedia === false && !src.startsWith('https://') && !src.startsWith('http://')) {
+            const alt = richString(node, 'alt');
+            return [literal(alt.trim() ? alt : src), literal(richString(node, 'caption'))].filter(Boolean).join('\n');
+          }
           return [
             src ? richMarkdown({ ...node, props: { ...node.props, src } }) : literal(richString(node, 'alt')),
             literal(richString(node, 'caption')),

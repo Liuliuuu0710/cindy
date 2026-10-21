@@ -238,8 +238,9 @@ function fallbackMarkdown(detail: BotGroupDetail): string {
       // Older phones cannot show attachments; they still see what was attached.
       const attached = message.attachments.map((attachment) => `📎 ${attachment.name}`).join(' ');
       const text = [botGroupDisplayText(message.content, message.authorKind).replace(/\s+/g, ' ').trim(), attached].filter(Boolean).join(' ');
-      const clipped = Array.from(text).length > FALLBACK_MESSAGE_CHARS
-        ? `${Array.from(text).slice(0, FALLBACK_MESSAGE_CHARS - 1).join('')}…`
+      const characters = text.match(/&#[0-9]{1,7};|./gu) ?? [];
+      const clipped = characters.length > FALLBACK_MESSAGE_CHARS
+        ? `${characters.slice(0, FALLBACK_MESSAGE_CHARS - 1).join('')}…`
         : text;
       if (message.authorKind === 'system') return clipped;
       return message.authorKind === 'user' ? `> ${clipped}` : `**${message.authorName}**: ${clipped}`;

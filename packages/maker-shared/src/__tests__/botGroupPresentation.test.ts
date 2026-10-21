@@ -48,6 +48,18 @@ describe('group answer display text', () => {
     }
   });
 
+  it.each(['image', 'video', 'audio'])('keeps blocked %s media visible without granting access', kind => {
+    for (const src of ['cindy-media://blobs/image.png', 'cindy-remote-media://image', 'xdt-image://image', 'file:///tmp/image.png', '/tmp/image.png', './image.png']) {
+      const content = [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1, op: 'create',
+        id: 'media', kind, props: { src } }), fence].join(String.fromCharCode(10));
+      const projected = botGroupDisplayText(content, 'bot');
+      expect(projected).not.toContain('![');
+      expect(botGroupDisplayText(content, 'bot', 'text').trim()).toBe(src);
+      expect(richAnswerText(content)).toContain('![](<'+ src + '>)');
+      expect(botGroupDisplayText(content, 'user')).toBe(content);
+    }
+  });
+
   it('omits unavailable chart values without losing real zero or readable neighboring content', () => {
     const content = [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1, op: 'create', id: 'chart', kind: 'chart',
       props: { data: [{ label: 'Missing', value: ' ' }, { label: 'Zero', value: 0 }, { label: 'Amount', value: '2' }] } }),
@@ -76,10 +88,12 @@ describe('group answer display text', () => {
     }
     for (const src of ['https://example.com/image.png', 'cindy-media://blobs/image.png', '/tmp/image.png']) {
       const text = botGroupDisplayText(component({ src: '  ' + src + '  ' }), 'bot', 'text');
-      expect(text.trim()).toBe('![](<'+ src + '>)');
+      expect(text.trim()).toBe(src.startsWith('https://') ? '![](<'+ src + '>)' : src);
       expect(text).not.toContain('cindy-ui');
     }
     expect(botGroupDisplayText(component({ src: ' ', alt: '<name>' }), 'bot').trim()).toBe('&#60;name&#62;');
+    expect(botGroupDisplayText(component({ src: '/tmp/image.png', alt: '<name>', caption: 'Caption' }), 'bot').trim())
+      .toBe('&#60;name&#62;' + String.fromCharCode(10) + 'Caption');
   });
 
   it.each(['heading', 'stat', 'input', 'text', 'code', 'math', 'diagram', 'divider'])('preserves semantically empty %s blocks', kind => {
