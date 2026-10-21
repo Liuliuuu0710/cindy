@@ -22,9 +22,16 @@ type：feat / fix / refactor / perf / chore / docs / test / revert / build / ci
 
 ### 范围
 
+<!-- 遵循 docs/dev-rules/development-workflow.md「单场景 PR 与范围控制」。
+填写具体入口、操作和预期结果；纯工程／文档 PR 填写单一目标。
+必要的跨端适配、错误处理与测试属于同一场景；独立需求或新的产品取舍先协调、再决定拆分。
+自动评审意见不自动扩大范围。 -->
+
+- 单一场景／工程目标与验收结果：
 - 关联 Issue / 需求：
 - 本 PR 包含：
 - 明确不包含：
+- 并行／依赖 PR 与协调结果（无则写“无”）：
 - 用户可见变化：
 - 是否存在 breaking change：无 / 有，说明：
 
@@ -105,6 +112,7 @@ docs/dev-rules/mobile-development.md 的「冷更边界」。 -->
 ### 提交前检查
 
 - [ ] 已 review 完整 diff
+- [ ] 最终 diff 聚焦上述单一场景／目标；范围扩大及并行改动已协调，独立需求已拆分，必要保护与测试保留
 - [ ] 每个 commit 都带 DCO 签名（`git commit -s`，见 [DCO](../DCO)）
 - [ ] UI 改动已在「UI 变化」注明引用的设计规范章节（不涉及 UI 则跳过）
 - [ ] 未提交凭证、令牌或授权文件
