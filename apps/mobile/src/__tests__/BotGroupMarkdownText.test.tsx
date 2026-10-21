@@ -78,6 +78,42 @@ it('keeps user messages and the cloud private-chat caller unchanged', async () =
   expect(node.textContent).toContain('"op":"create"');
 });
 
+it.each(['image', 'video', 'audio'])('keeps an unlabelled %s component visible as its URL', async kind => {
+  const url = 'https://example.com/media?first=1&second=2';
+  const content = [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1, op: 'create',
+    id: 'media', kind, props: { src: url } }), fence].join('\n');
+  await act(async () => root.render(createElement(BotGroupMarkdownText, { content, authorKind: 'bot' })));
+  expect(node.textContent).toContain(url);
+  expect(node.textContent).not.toContain('"op":"create"');
+  expect(node.querySelector('a, img, video, audio')).toBeNull();
+});
+
+it.each(['![](<https://example.com/image.png>)', '**![](<https://example.com/image.png>)**',
+  '| Media |\n| --- |\n| ![](<https://example.com/image.png>) |'])('keeps unlabelled bot media visible in %s', async content => {
+  await act(async () => root.render(createElement(BotGroupMarkdownText, { content, authorKind: 'bot' })));
+  expect(node.textContent).toContain('https://example.com/image.png');
+  await act(async () => root.render(createElement(BotGroupMarkdownText, { content })));
+  if (content.startsWith('**')) expect(node.textContent).toBe('![](<https://example.com/image.png>)');
+  else expect(node.textContent).not.toContain('https://example.com/image.png');
+});
+
+it('preserves labelled media and captions without fetching the URL', async () => {
+  const content = [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1, op: 'create',
+    id: 'media', kind: 'image', props: { src: 'https://example.com/image.png', alt: 'Diagram', caption: 'Details' } }), fence].join('\n');
+  await act(async () => root.render(createElement(BotGroupMarkdownText, { content, authorKind: 'bot' })));
+  expect(node.textContent).toContain('[Diagram]');
+  expect(node.textContent).toContain('Details');
+  expect(node.querySelector('a, img')).toBeNull();
+});
+
+it('treats whitespace-only bot media labels as missing while preserving private-chat rendering', async () => {
+  const content = '![' + '   ' + '](https://example.com/image.png)';
+  await act(async () => root.render(createElement(BotGroupMarkdownText, { content, authorKind: 'bot' })));
+  expect(node.textContent).toBe('https://example.com/image.png');
+  await act(async () => root.render(createElement(BotGroupMarkdownText, { content })));
+  expect(node.textContent).toBe('[   ]');
+});
+
 it('keeps component text literal while rendering Markdown components', async () => {
   const literal = '<name> *literal* &lt; [label](https://example.com)';
   const content = [fence + 'cindy-ui',

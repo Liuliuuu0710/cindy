@@ -223,6 +223,20 @@ describe('Chat Server Thread context reaches the Agent input', () => {
     expect(seen).toContain(JSON.stringify({ messageId: live.id, from: 'Alex', text: '', attachments: 1, attachmentName: 'live-plan.pdf' }));
   });
 
+  it('uses readable component text from a loaded bot original in quote context', async () => {
+    const fence = String.fromCharCode(96).repeat(3);
+    const content = [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1, op: 'create',
+      id: 'body', kind: 'text', props: { text: 'Readable quote <name>' } }), fence].join('\n');
+    const original = post(content, { by: 1 });
+    const request = quoting(post('Explain this'), original);
+    request.mentions = [bots[0].id];
+    trigger(request);
+    await vi.advanceTimersByTimeAsync(2000);
+    const data = payload(inputs('nova')[0]!.message);
+    expect(data.currentRequest.quote.text).toBe('Readable quote &lt;name&gt;');
+    expect(original.content[0].text).toBe(content);
+  });
+
   it('carries a 话题 root\'s quote into the Thread context, resolved against what this run read', async () => {
     const original = post('定价页分三档：免费、个人、团队。');
     const root = quoting(post('就按这个做'), original);

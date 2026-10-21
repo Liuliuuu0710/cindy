@@ -3063,6 +3063,23 @@ describe('readable component answers in groups', () => {
     'After the answer',
   ].join('\n');
 
+  it('projects a bot component answer into the quote composer and sends only its original id', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+    const original = msg({ id: 'component-original', authorKind: 'bot', authorBotId: 'xiaoman', content: answer });
+    mocks.getBotGroup.mockResolvedValue({ ok: true, group: detail({ serverBacked: true, messages: [original] }) });
+    renderView();
+    await user.click(await screen.findByRole('button', { name: 'bots.groupChat.server.quoteReply' }));
+    const preview = screen.getByTestId('bot-group-quote-preview');
+    expect(preview.textContent).toContain('Readable group answer');
+    expect(preview.textContent).not.toContain('"op":"create"');
+    await user.type(screen.getByRole('textbox', { name: 'bots.groupChat.composer.label' }), 'Agreed{Enter}');
+    await waitFor(() => expect(mocks.sendBotGroupMessage).toHaveBeenCalledWith(expect.objectContaining({
+      quote: { messageId: 'component-original' }, text: 'Agreed',
+    })));
+    expect(original.content).toBe(answer);
+  });
+
   it.each([
     { authorKind: 'bot' as const, shared: false }, { authorKind: 'user' as const, shared: false },
     { authorKind: 'bot' as const, shared: true }, { authorKind: 'user' as const, shared: true },

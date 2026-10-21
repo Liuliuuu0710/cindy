@@ -9,6 +9,7 @@ interface GroupData {
   messages: number;
   sidebar: boolean;
   answer?: string;
+  serverBacked?: boolean;
   /** A server group with teammates' bubbles: quote, reactions, thread entry and a task card. */
   bubbles?: boolean;
   wrappedReactions?: boolean;
@@ -124,7 +125,7 @@ function groupFrom(data: GroupData) {
     createdAt: 1,
     updatedAt: 1,
     plans: [],
-    ...(data.bubbles ? { serverBacked: true } : {}),
+    ...(data.bubbles || data.serverBacked ? { serverBacked: true } : {}),
     messages: data.bubbles ? bubbleMessages(data.wrappedReactions) : [...Array.from({ length: data.messages }, (_, i) => ({
       id: `m${i}`,
       sequence: i + 1,

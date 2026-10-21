@@ -15,7 +15,7 @@ import { parseMobileMarkdown, type MobileMarkdownBlock, type MobileMarkdownInlin
 
 type Styles = ReturnType<typeof makeStyles>;
 
-function renderInlines(inlines: readonly MobileMarkdownInline[], styles: Styles): ReactNode[] {
+function renderInlines(inlines: readonly MobileMarkdownInline[], styles: Styles, mediaFallback: boolean): ReactNode[] {
   return inlines.map((inline, index) => {
     // 强调里的代码等:外层套一层带强调样式的 Text,嵌套 Text 继承样式。强调里的链接按强调
     // 纯文本显示:群聊不打开链接,不加下划线,不做出「看着能点却点不动」的样子(DESIGN.md §14.5)。
@@ -23,7 +23,7 @@ function renderInlines(inlines: readonly MobileMarkdownInline[], styles: Styles)
       const markStyles = { strong: styles.strong, emphasis: styles.emphasis, strikethrough: styles.strike };
       return (
         <Text key={index} style={inline.marks.map((mark) => markStyles[mark])}>
-          {inline.type === 'link' ? inline.text : renderInlines([{ ...inline, marks: undefined }], styles)}
+          {inline.type === 'link' ? inline.text : renderInlines([{ ...inline, marks: undefined }], styles, mediaFallback)}
         </Text>
       );
     }
@@ -33,31 +33,32 @@ function renderInlines(inlines: readonly MobileMarkdownInline[], styles: Styles)
       case 'strikethrough': return <Text key={index} style={styles.strike}>{inline.text}</Text>;
       case 'code': return <Text key={index} style={styles.inlineCode}>{inline.text}</Text>;
       case 'link': return <Text key={index} style={styles.link}>{inline.text}</Text>;
-      case 'image': return <Text key={index}>{inline.alt ? `[${inline.alt}]` : ''}</Text>;
+      case 'image': return <Text key={index}>{(mediaFallback ? inline.alt.trim() : inline.alt) ? `[${inline.alt}]` : mediaFallback ? inline.url : ''}</Text>;
       default: return <Text key={index}>{inline.text}</Text>;
     }
   });
 }
 
-function tableText(block: Extract<MobileMarkdownBlock, { type: 'table' }>): string {
-  const cell = (inlines: readonly MobileMarkdownInline[]) => inlines.map((inline) => inline.type === 'image' ? inline.alt : inline.text).join('');
+function tableText(block: Extract<MobileMarkdownBlock, { type: 'table' }>, mediaFallback: boolean): string {
+  const cell = (inlines: readonly MobileMarkdownInline[]) => inlines.map((inline) => inline.type === 'image'
+    ? inline.alt.trim() ? inline.alt : mediaFallback ? inline.url : inline.alt : inline.text).join('');
   return [block.header, ...block.rows.map((row) => row.cells)]
     .map((cells) => cells.map(cell).join(' | '))
     .join('\n');
 }
 
-function renderBlock(block: MobileMarkdownBlock, styles: Styles): ReactNode {
+function renderBlock(block: MobileMarkdownBlock, styles: Styles, mediaFallback: boolean): ReactNode {
   switch (block.type) {
     case 'heading':
-      return <Text key={block.key} selectable style={[styles.text, styles.heading]}>{renderInlines(block.inlines, styles)}</Text>;
+      return <Text key={block.key} selectable style={[styles.text, styles.heading]}>{renderInlines(block.inlines, styles, mediaFallback)}</Text>;
     case 'blockquote':
       return <View key={block.key} style={styles.quote}>
-        <Text selectable style={[styles.text, styles.quoteText]}>{renderInlines(block.inlines, styles)}</Text>
+        <Text selectable style={[styles.text, styles.quoteText]}>{renderInlines(block.inlines, styles, mediaFallback)}</Text>
       </View>;
     case 'list_item':
       return <View key={block.key} style={styles.listItem}>
         <Text style={styles.text}>{block.checked === undefined ? (block.ordered ? block.marker : '•') : block.checked ? '☑' : '☐'}</Text>
-        <Text selectable style={[styles.text, styles.listText]}>{renderInlines(block.inlines, styles)}</Text>
+        <Text selectable style={[styles.text, styles.listText]}>{renderInlines(block.inlines, styles, mediaFallback)}</Text>
       </View>;
     case 'code':
     case 'mermaid':
@@ -67,17 +68,17 @@ function renderBlock(block: MobileMarkdownBlock, styles: Styles): ReactNode {
       </View>;
     case 'table':
       return <View key={block.key} style={styles.codeBlock}>
-        <Text selectable style={styles.codeText}>{tableText(block)}</Text>
+        <Text selectable style={styles.codeText}>{tableText(block, mediaFallback)}</Text>
       </View>;
     default:
-      return <Text key={block.key} selectable style={styles.text}>{renderInlines(block.inlines, styles)}</Text>;
+      return <Text key={block.key} selectable style={styles.text}>{renderInlines(block.inlines, styles, mediaFallback)}</Text>;
   }
 }
 
 export function BotGroupMarkdownText({ content, authorKind }: { content: string; authorKind?: BotGroupAuthorKind }) {
   const styles = useThemedStyles(makeStyles);
   const blocks = useMemo(() => parseMobileMarkdown(botGroupDisplayText(content, authorKind)), [content, authorKind]);
-  return <View style={styles.body}>{blocks.map((block) => renderBlock(block, styles))}</View>;
+  return <View style={styles.body}>{blocks.map((block) => renderBlock(block, styles, authorKind === 'bot'))}</View>;
 }
 
 /** The user's own words: plain text with `@name` shown as a mention mark. */

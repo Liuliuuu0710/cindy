@@ -217,7 +217,7 @@ function quoteContext(m: Message, history: readonly Message[]) {
   if (original?.deleted) return { quote: { messageId: quote.messageId, deleted: true } };
   const files = original ? quotedAttachments(original) : null;
   return { quote: { messageId: quote.messageId, from: original?.author.name ?? quote.authorName,
-    text: original ? botGroupQuoteExcerpt(quotedText(original)) : quote.excerpt,
+    text: original ? botGroupQuoteExcerpt(quotedText(original), original.author.kind === 'bot' ? 'bot' : 'user') : quote.excerpt,
     ...(files ? quoteAttachments(files.length, botGroupQuoteAttachmentName(files)) : quoteAttachments(quote.attachmentCount, quote.attachmentName)) } };
 }
 // Presentation only: keep actor IDs and stored names independent of ownership labels.

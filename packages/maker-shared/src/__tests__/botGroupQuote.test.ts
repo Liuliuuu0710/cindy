@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { BotGroupMessageView } from '../botGroupChat';
 import {
   BOT_GROUP_QUOTE_EXCERPT_MAX,
+  botGroupQuoteExcerpt,
   botGroupQuoteFromMessage,
   buildBotGroupQuoteCard,
   isBotGroupMessageQuotable,
@@ -29,6 +30,24 @@ const quote = (overrides: Partial<BotGroupQuoteView> = {}): BotGroupQuoteView =>
 });
 
 describe('botGroupQuoteFromMessage', () => {
+  it.each(['bot', 'user'] as const)('projects %s quote previews, cards and loaded originals before clipping', authorKind => {
+    const fence = String.fromCharCode(96).repeat(3);
+    const words = '可读正文 <name> '.repeat(40);
+    const content = [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1, op: 'create',
+      id: 'body', kind: 'text', props: { text: words } }), fence].join('\n');
+    const original = message({ content, authorKind });
+    const expected = botGroupQuoteExcerpt(authorKind === 'bot' ? words : content);
+    const snapshot = botGroupQuoteFromMessage(original);
+    expect(snapshot.excerpt).toBe(expected);
+    const restored = readBotGroupQuoteCard(JSON.parse(JSON.stringify(buildBotGroupQuoteCard(snapshot))))!;
+    expect(resolveBotGroupQuote(restored, [])).toMatchObject({ state: 'snapshot', excerpt: expected });
+    expect(resolveBotGroupQuote(quote({ excerpt: 'old protocol snapshot' }), [original]))
+      .toMatchObject({ state: 'live', excerpt: expected });
+    expect(resolveBotGroupQuote(restored, [{ ...original, deleted: true }])).toMatchObject({ state: 'deleted' });
+    expect(original.content).toBe(content);
+    expect(Array.from(snapshot.excerpt).length).toBeLessThanOrEqual(BOT_GROUP_QUOTE_EXCERPT_MAX);
+  });
+
   it('snapshots author, collapsed text, attachments and server order', () => {
     expect(botGroupQuoteFromMessage(message({
       attachments: [{ id: 'a', name: 'plan.pdf', category: 'pdf', mimeType: 'application/pdf', size: 1, url: null, path: null },

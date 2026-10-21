@@ -33,6 +33,10 @@ export default {
   notCovered:
     'Sending, round control, real device-link control and revocation, pending interactions, plans and attachments; the bubbles case shows a task snapshot, not a live task; the sidebar is an empty frame',
   cases: {
+    'rich-quote': {
+      about: 'Quoting a component answer shows readable text in the composer without changing the source message',
+      data: { ...base, answer: richAnswer, sidebar: false, serverBacked: true },
+    },
     'rich-empty': {
       about: 'An empty component answer preserves the original block instead of silently disappearing',
       data: { ...base, answer: emptyAnswer, sidebar: false },
@@ -73,6 +77,21 @@ export default {
   },
   async check(page, ui) {
     const definition = this.cases[ui.case];
+    if (ui.case === 'rich-quote') {
+      const message = page.locator('[data-bot-group-message-id="rich-answer"]');
+      await message.waitFor();
+      await message.hover();
+      await message.getByRole('button', { name: /引用回复|Quote reply/i }).click();
+      const preview = page.getByTestId('bot-group-quote-preview');
+      await preview.waitFor();
+      const text = await preview.textContent();
+      assert.ok(text.includes('Next steps'));
+      assert.ok(text.includes('Check the group reply.'));
+      assert.ok(!text.includes('"op":"create"'));
+      assert.equal(await message.locator('h3').innerText(), 'Next steps');
+      await ui.capture('quote-preview');
+      return;
+    }
     if (ui.case === 'rich-empty') {
       const message = page.locator('[data-bot-group-message-id="rich-answer"]');
       await message.waitFor();

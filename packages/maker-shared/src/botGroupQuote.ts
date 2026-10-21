@@ -11,7 +11,8 @@
  * 不能当作指令或授权，也不能指向别的群或 Thread。
  */
 import { botGroupMessageSummaryText } from './botGroupTask';
-import type { BotGroupAttachment, BotGroupMessageView } from './botGroupChat';
+import { botGroupDisplayText } from './botGroupDisplayText';
+import type { BotGroupAttachment, BotGroupAuthorKind, BotGroupMessageView } from './botGroupChat';
 
 export const BOT_GROUP_QUOTE_NAMESPACE = 'cindy.quote';
 export const BOT_GROUP_QUOTE_SCHEMA_REVISION = 1;
@@ -80,8 +81,8 @@ function clip(text: string, max: number): string {
 }
 
 /** One-line excerpt of a message body: whitespace collapsed, bounded. */
-export function botGroupQuoteExcerpt(text: string): string {
-  return clip(text.replace(/\s+/g, ' ').trim(), BOT_GROUP_QUOTE_EXCERPT_MAX);
+export function botGroupQuoteExcerpt(text: string, authorKind?: BotGroupAuthorKind): string {
+  return clip(botGroupDisplayText(text, authorKind, 'text').replace(/\s+/g, ' ').trim(), BOT_GROUP_QUOTE_EXCERPT_MAX);
 }
 
 /** Snapshot of a message the reader can see, e.g. when picking 引用回复 in a timeline. */
@@ -91,7 +92,7 @@ export function botGroupQuoteFromMessage(message: Pick<BotGroupMessageView,
     messageId: message.id,
     authorName: clip(message.authorName.trim(), AUTHOR_NAME_MAX),
     authorKind: message.authorKind === 'user' ? 'user' : 'bot',
-    excerpt: botGroupQuoteExcerpt(botGroupMessageSummaryText(message)),
+    excerpt: botGroupQuoteExcerpt(botGroupMessageSummaryText(message), message.authorKind),
     attachmentCount: message.attachments.length,
     attachmentName: botGroupQuoteAttachmentName(message.attachments),
     sequence: Number.isSafeInteger(message.sequence) && message.sequence > 0 ? message.sequence : null,
@@ -204,7 +205,7 @@ export type BotGroupQuoteDisplay =
 
 export function resolveBotGroupQuote(
   quote: BotGroupQuoteView,
-  loaded: readonly Pick<BotGroupMessageView, 'id' | 'deleted' | 'threadRootId' | 'authorName' | 'content' | 'attachments' | 'task'>[],
+  loaded: readonly Pick<BotGroupMessageView, 'id' | 'deleted' | 'threadRootId' | 'authorName' | 'authorKind' | 'content' | 'attachments' | 'task'>[],
 ): BotGroupQuoteDisplay {
   const original = loaded.find((message) => message.id === quote.messageId && !message.threadRootId);
   if (quote.originalDeleted) return { state: 'deleted', authorName: original?.authorName || quote.authorName };
@@ -217,7 +218,7 @@ export function resolveBotGroupQuote(
   return {
     state: 'live',
     authorName: original.authorName || quote.authorName,
-    excerpt: botGroupQuoteExcerpt(botGroupMessageSummaryText(original)),
+    excerpt: botGroupQuoteExcerpt(botGroupMessageSummaryText(original), original.authorKind),
     ...(attachments.length
       ? { attachmentCount: attachments.length, attachmentName: botGroupQuoteAttachmentName(attachments) }
       : { attachmentCount: quote.attachmentCount, attachmentName: quote.attachmentName }),
