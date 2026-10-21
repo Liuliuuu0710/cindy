@@ -893,8 +893,24 @@ export function richAnswerTextProjection(source: string, options: { escapeMarkdo
             ),
           ].join("\n");
         const current = values[richString(node, "bind", node.id)];
-        if (node.kind === "check")
+        const authoredDefault = value(node.props.default) && String(node.props.default).trim() !== '';
+        if (node.kind === "check") {
+          // An explicit false is content; an implicit unchecked box is only UI chrome.
+          if (options.omitEmptyNodes && authoredDefault) recordContent(String(current));
           return `${current ? "☑" : "☐"} ${literal(richString(node, "label", richString(node, "text")))}`;
+        }
+        if (options.omitEmptyNodes) {
+          const label = richString(node, 'label');
+          // richDefaults supplies interaction state even for an otherwise empty node.
+          // Only authored content can justify consuming that node in a group answer.
+          if (!authoredDefault && !label.trim()) return '';
+          let display = current === undefined ? '' : String(current);
+          if (display.trim() && node.kind === 'range')
+            display = String(richRange(node, current).value) + richString(node, 'suffix');
+          if (node.kind === 'select')
+            display = richOptions(node).find(option => option.value === display)?.label ?? display;
+          return literal(label) + (display.trim() ? `: ${literal(display)}` : '');
+        }
         return (
           literal(richString(node, "label")) +
           (current === undefined ? "" : `: ${literal(String(current))}`)
