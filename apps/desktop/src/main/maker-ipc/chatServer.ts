@@ -1329,7 +1329,13 @@ function createChatServer(local: BotGroupChatService, deps: BotGroupChatServiceD
               // Media endpoints have no execution ID: a permanent upload refusal
               // must explicitly fail this execution. Auth/lease refusals still drop
               // the old run; temporary responses retain the existing retry path.
-              const mediaRejected = error instanceof ChatResponseError && !retryableResponse(error)
+              // Signed object storage returns a plain HTTP error, not a Chat API
+              // auth/lease response. Its permanent refusals must also settle the run.
+              const uploadStatus = chatErrorDiagnostic(error).status;
+              const signedUploadRejected = error instanceof Error && error.message === 'MEDIA_UPLOAD_FAILED'
+                && uploadStatus !== undefined && uploadStatus >= 400 && uploadStatus < 500
+                && ![408, 429].includes(uploadStatus);
+              const mediaRejected = signedUploadRejected || error instanceof ChatResponseError && !retryableResponse(error)
                 && error.status >= 400 && error.status < 500
                 && !['AUTH_REQUIRED', 'PERMISSION_DENIED', 'NOT_FOUND', 'GROUP_DISSOLVED', 'GROUP_ARCHIVED']
                   .includes(chatGroupFailure(error).errorCode)

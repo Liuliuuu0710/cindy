@@ -562,6 +562,34 @@ describe('Chat Server result delivery and refresh', () => {
     expect(deps.dispatch).toHaveBeenCalledOnce();
   });
 
+  // PR #6644: signed object-store PUT failures are plain status-bearing errors,
+  // unlike Chat API responses. Verify terminal failure vs retry at settlement.
+  it.each([400, 403, 413])('settles a permanent signed PUT %s refusal without retrying', async status => {
+    fixture.upload.mockRejectedValue(Object.assign(new Error('MEDIA_UPLOAD_FAILED'), { status }));
+    await start();
+    await service.settleLaneTurn(terminal);
+    expect(deliveries()).toHaveLength(0);
+    const failures = () => fixture.handle.mock.calls.filter(([, , body]) => body?.action === 'fail');
+    expect(failures()).toHaveLength(1);
+    expect(failures()[0][2]).toMatchObject({ detail: 'cindy-runtime-error:RUNTIME_ERROR' });
+    await vi.advanceTimersByTimeAsync(16000);
+    expect(failures()).toHaveLength(1);
+    expect(fixture.upload).toHaveBeenCalledOnce();
+    expect(deps.dispatch).toHaveBeenCalledOnce();
+  });
+
+  it.each([408, 429, 503])('retries a transient signed PUT %s response', async status => {
+    fixture.upload.mockRejectedValueOnce(Object.assign(new Error('MEDIA_UPLOAD_FAILED'), { status })).mockResolvedValue([]);
+    await start();
+    await service.settleLaneTurn(terminal);
+    expect(deliveries()).toHaveLength(0);
+    expect(fixture.handle.mock.calls.filter(([, , body]) => body?.action === 'fail')).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(16000);
+    expect(deliveries()).toHaveLength(1);
+    expect(fixture.upload).toHaveBeenCalledTimes(2);
+    expect(deps.dispatch).toHaveBeenCalledOnce();
+  });
+
   it.each([
     ['ROLE_REQUIRED', 403], ['STALE_EXECUTOR', 409], ['STALE_EXECUTION', 409],
     ['EXECUTION_EXPIRED', 410], ['ACCOUNT_UNAVAILABLE', 401], ['CONVERSATION_NOT_FOUND', 404],
