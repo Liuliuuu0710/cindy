@@ -9077,7 +9077,14 @@
     "autosave": {
       "saving": "正在保存…",
       "saved": "已保存",
-      "retry": "重新保存"
+      "retry": "重新保存",
+      "lengthHint": "{{current}} / {{limit}} · 首尾空白不计，部分表情计为 2",
+      "tooLong": "超出 {{excess}}，请缩短后再保存。输入已保留。",
+      "correctFields": "尚未保存，请修正下方标出的内容。",
+      "invalidSettings": "设置内容未通过校验，请检查后修改。输入已保留。",
+      "notFound": "找不到这位伙伴，无法保存。请先复制修改的内容，再返回伙伴列表。",
+      "preconditionFailed": "当前无法保存这些设置。请先复制修改的内容，再重新打开设置确认状态。",
+      "saveFailed": "未能保存，输入仍保留在此处。请重新保存。"
     },
     "retry": "重试",
     "backToBot": "返回伙伴",

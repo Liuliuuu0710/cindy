@@ -422,3 +422,18 @@ describe('settings changes preserve independently joined capabilities', () => {
     expect(botSettingsChanges(after, { ...after, name: 'Updated' }, true)).toEqual({ name: 'Updated' });
   });
 });
+
+
+it('does not revive a late failure after the user restored the saved draft', async () => {
+  const h = harness();
+  h.failNextCommits(1);
+  const gate = h.gate();
+  h.edit({ name: 'Unsaved' });
+  const saving = h.autosave.flush();
+  h.edit({ name: h.baseline.name });
+  gate.release();
+  await saving;
+  expect(h.autosave.isDirty()).toBe(false);
+  expect(h.statuses).toEqual(['saving', 'idle']);
+  expect(h.commits).toHaveLength(1);
+});

@@ -1,6 +1,7 @@
 import { Camera } from 'lucide-react';
 import type { ReactNode } from 'react';
 
+import { FormField } from '@/components/ui/form-field';
 import { Input, Textarea } from '@/components/ui/input';
 import { useBotTranslation } from './botPronounContext';
 import { BotAvatar } from './BotAvatar';
@@ -25,8 +26,12 @@ export function BotBasicProfileFields({
   composition,
   onNameBlur,
   onDescriptionBlur,
+  nameFeedback,
+  descriptionFeedback,
 }: {
   avatarControl?: ReactNode;
+  nameFeedback?: { hint?: string; error?: string };
+  descriptionFeedback?: { hint?: string; error?: string };
   /** IME composition handlers shared by both text fields (see useBotSettingsAutosave). */
   composition?: { onCompositionStart: () => void; onCompositionEnd: () => void };
   onNameBlur?: () => void;
@@ -75,37 +80,50 @@ export function BotBasicProfileFields({
             ))}
         </div>
 
-        <label className="flex w-full min-w-0 flex-1 flex-col gap-1.5 text-12 text-[var(--text-secondary)]">
-          {t('bots.nameLabel')}
-          <Input
-            readOnly={readOnly}
-            autoFocus={autoFocusName}
-            ariaLabel={t('bots.nameLabel')}
-            value={value.name}
-            onChange={(next) => update('name', next, 'text')}
-            onBlur={onNameBlur}
-            {...composition}
-            placeholder={t('bots.roster.customNamePlaceholder')}
-            className="min-w-0"
-            required
-          />
-        </label>
+        <FormField
+          className="w-full min-w-0 flex-1"
+          label={t('bots.nameLabel')}
+          reserveFeedback={!!nameFeedback}
+          {...nameFeedback}
+        >
+          {(control) => (
+            <Input
+              {...control}
+              readOnly={readOnly}
+              autoFocus={autoFocusName}
+              ariaLabel={t('bots.nameLabel')}
+              value={value.name}
+              onChange={(next) => update('name', next, 'text')}
+              onBlur={onNameBlur}
+              {...composition}
+              placeholder={t('bots.roster.customNamePlaceholder')}
+              className="min-w-0"
+              required
+            />
+          )}
+        </FormField>
       </div>
 
-      <label className="flex min-w-0 flex-col gap-1.5 text-12 text-[var(--text-secondary)]">
-        {t('bots.profile.summary')}
-        <Textarea
-          aria-label={t('bots.profile.summary')}
-          readOnly={readOnly}
-          value={value.description}
-          onChange={(next) => update('description', next, 'text')}
-          onBlur={onDescriptionBlur}
-          {...composition}
-          placeholder={t('bots.profile.summaryPlaceholder')}
-          rows={3}
-          className="min-h-24 min-w-0 resize-none py-2.5 text-14 leading-6 [field-sizing:content]"
-        />
-      </label>
+      <FormField
+        label={t('bots.profile.summary')}
+        reserveFeedback={!!descriptionFeedback}
+        {...descriptionFeedback}
+      >
+        {(control) => (
+          <Textarea
+            {...control}
+            aria-label={t('bots.profile.summary')}
+            readOnly={readOnly}
+            value={value.description}
+            onChange={(next) => update('description', next, 'text')}
+            onBlur={onDescriptionBlur}
+            {...composition}
+            placeholder={t('bots.profile.summaryPlaceholder')}
+            rows={3}
+            className="min-h-24 max-h-60 min-w-0 resize-none overflow-y-auto py-2.5 text-14 leading-6 [field-sizing:content]"
+          />
+        )}
+      </FormField>
     </div>
   );
 }

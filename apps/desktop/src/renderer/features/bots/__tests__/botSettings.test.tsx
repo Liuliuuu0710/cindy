@@ -1210,3 +1210,74 @@ it('opens voice settings from the companion settings list and supports the dedic
   render(<BotSettings bot={companion} initialPage="voice" onBack={vi.fn()} onOpenSession={vi.fn()} />);
   expect(screen.getByTestId('companion-voice-settings')).toBeTruthy();
 });
+
+describe('profile validation and save recovery', () => {
+  it.each([
+    ['bots.profile.personality', 'bots.profile.personality', 12000, 'identitySource'],
+    ['bots.profile.title', 'bots.profile.summary', 12000, 'description'],
+    ['bots.profile.title', 'bots.nameLabel', 200, 'name'],
+  ])('preserves overlong %s and saves automatically after correction', async (page, label, limit, field) => {
+    vi.useFakeTimers();
+    const view = renderSettings();
+    fireEvent.click(screen.getByRole('button', { name: page }));
+    const input = screen.getByRole('textbox', { name: label });
+    const invalid = '文'.repeat(Number(limit) + 1);
+    fireEvent.change(input, { target: { value: invalid } });
+    await act(async () => { await vi.advanceTimersByTimeAsync(1200); });
+    fireEvent.blur(input);
+    await act(async () => {});
+    expect(mocks.updateBotProfile).not.toHaveBeenCalled();
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect((input as HTMLInputElement).value).toBe(invalid);
+    expect(screen.queryByRole('button', { name: 'bots.autosave.retry' })).toBeNull();
+    // Host counts trimmed UTF-16 units, not raw input length or Unicode code points.
+    const boundary = '文'.repeat(Number(limit) - 2) + '😀';
+    fireEvent.change(input, { target: { value: ` \n${boundary}\n ` } });
+    await act(async () => { await vi.advanceTimersByTimeAsync(1200); });
+    expect(mocks.updateBotProfile).toHaveBeenCalledTimes(1);
+    expect(mocks.updateBotProfile.mock.calls[0]?.[1]).toMatchObject({ [field]: boundary });
+    expect(input.getAttribute('aria-invalid')).toBeNull();
+    expect(screen.getByRole('status').textContent).toContain('bots.autosave.saved');
+    // All save paths, including unmount, must reject an invalid draft.
+    fireEvent.change(input, { target: { value: invalid } });
+    view.unmount();
+    expect(mocks.updateBotProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['ALREADY_EXISTS', 'bots.guided.duplicateName'],
+    ['INVALID_PARAMS', 'bots.autosave.invalidSettings'],
+    ['NOT_FOUND', 'bots.autosave.notFound'],
+    ['PRECONDITION_FAILED', 'bots.autosave.preconditionFailed'],
+  ])('explains host rejection %s without exposing raw errors or offering retry', async (code, key) => {
+    mocks.updateBotProfile.mockRejectedValueOnce(new Error(`Error invoking remote method 'local-db:bots:update': Error: [${code}] private host details`));
+    renderSettings();
+    fireEvent.click(screen.getByRole('button', { name: 'bots.profile.title' }));
+    const input = screen.getByRole('textbox', { name: 'bots.nameLabel' });
+    fireEvent.change(input, { target: { value: 'New name' } });
+    fireEvent.blur(input);
+    await act(async () => {});
+    expect(screen.getAllByText(key).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: 'bots.autosave.retry' })).toBeNull();
+    expect(document.body.textContent).not.toContain('private host details');
+    expect((input as HTMLInputElement).value).toBe('New name');
+  });
+
+  it('clears stale save failures when the draft is restored to the saved value', async () => {
+    mocks.updateBotProfile.mockRejectedValueOnce(new Error('private filesystem path'));
+    renderSettings();
+    fireEvent.click(screen.getByRole('button', { name: 'bots.profile.title' }));
+    const input = screen.getByRole('textbox', { name: 'bots.nameLabel' });
+    const original = (input as HTMLInputElement).value;
+    fireEvent.change(input, { target: { value: 'Unsaved name' } });
+    fireEvent.blur(input);
+    await act(async () => {});
+    expect(screen.getByRole('button', { name: 'bots.autosave.retry' })).toBeTruthy();
+    expect(document.body.textContent).not.toContain('private filesystem path');
+    fireEvent.change(input, { target: { value: original } });
+    fireEvent.blur(input);
+    await act(async () => {});
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(mocks.updateBotProfile).toHaveBeenCalledTimes(1);
+  });
+});

@@ -97,6 +97,26 @@ function boundaries(stubs, replaced, overlay) {
   return {
     name: 'ui-page-boundaries',
     setup(build) {
+      // Vite ?url imports export a served asset URL, including JavaScript worklets.
+      // Keep the suffix on the module identity so an ordinary import of the same
+      // file still uses its normal loader. Resolve the real path through the
+      // existing aliases / compare overlay before choosing the asset loader.
+      build.onResolve({ filter: /\?url$/ }, async (args) => {
+        const resolved = await build.resolve(args.path.slice(0, -4), {
+          resolveDir: args.resolveDir,
+          importer: args.importer,
+          kind: args.kind,
+        });
+        return { ...resolved, suffix: '?url' };
+      });
+      build.onLoad({ filter: /.*/, namespace: 'file' }, async (args) => {
+        if (args.suffix !== '?url') return undefined;
+        return {
+          contents: overlay?.get(args.path) ?? (await readFile(args.path)),
+          loader: 'file',
+          watchFiles: [args.path],
+        };
+      });
       build.onResolve({ filter: /.*/ }, (args) => {
         if (args.namespace === 'ui-stub') return undefined;
         let candidate;
@@ -137,7 +157,8 @@ function boundaries(stubs, replaced, overlay) {
   };
 }
 
-const sourcePath = (file) => path.resolve(root, file.replace(/ with \{[^}]*\}$/, ''));
+const sourcePath = (file) =>
+  path.resolve(root, file.replace(/ with \{[^}]*\}$/, '').replace(/\?url$/, ''));
 
 function entryContents(definition) {
   const entry = path.resolve(definition.dir, definition.entry);

@@ -201,7 +201,7 @@ export interface BotSettingsAutosaveOptions {
   /** 真正提交(IPC)。resolve = 已落库(此时 commit 侧应已推进基线);reject = 失败。 */
   commit: (payload: BotSettingsPayload) => Promise<void>;
   /** 状态变化回调。dispose 之后不再触发。 */
-  onStatusChange?: (status: BotAutosaveStatus) => void;
+  onStatusChange?: (status: BotAutosaveStatus, error?: unknown) => void;
 }
 
 export interface BotSettingsAutosaveHandle {
@@ -231,9 +231,11 @@ export function createBotSettingsAutosave(
   let inFlight: Promise<void> | null = null;
   let detached = false;
 
-  const emit = (status: BotAutosaveStatus): void => {
+  let lastStatus: BotAutosaveStatus = 'idle';
+  const emit = (status: BotAutosaveStatus, error?: unknown): void => {
     if (detached) return;
-    options.onStatusChange?.(status);
+    lastStatus = status;
+    options.onStatusChange?.(status, error);
   };
 
   const clearTimer = (): void => {
@@ -257,6 +259,8 @@ export function createBotSettingsAutosave(
     if (detached) return;
     const payload = options.readPayload();
     if (botSettingsPayloadEqual(payload, options.readBaseline())) {
+      // Reverting a failed draft clears its error without another IPC.
+      if (lastStatus === 'error') emit('idle');
       // 无实际变化 —— 不发 IPC。
       return;
     }
@@ -267,8 +271,9 @@ export function createBotSettingsAutosave(
       try {
         await options.commit(payload);
         emit(isDirty() ? 'idle' : 'saved');
-      } catch {
-        emit('error');
+      } catch (error) {
+        // A rollback can reconcile unrelated fields while the unsaved edit remains dirty.
+        emit(isDirty() ? 'error' : 'idle', error);
       }
     })();
     inFlight = attempt;
@@ -285,6 +290,7 @@ export function createBotSettingsAutosave(
   return {
     schedule(trigger) {
       if (detached) return;
+      if (lastStatus === 'error') emit('idle');
       if (trigger === 'instant') {
         if (timer !== null) clearTimeout(timer);
         instantPending = true;

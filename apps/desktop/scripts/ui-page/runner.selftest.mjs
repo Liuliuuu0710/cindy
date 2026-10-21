@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { spawn, execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { after, before, test } from 'node:test';
@@ -51,7 +51,7 @@ async function entry(name, source) {
 }
 
 before(async () => {
-  dir = await mkdtemp(path.join(os.tmpdir(), 'cindy-ui-selftest-'));
+  dir = await realpath(await mkdtemp(path.join(os.tmpdir(), 'cindy-ui-selftest-')));
 });
 after(async () => {
   await rm(dir, { recursive: true, force: true });
@@ -151,3 +151,49 @@ test(
     assert.equal(leftoverRunners(), '');
   },
 );
+
+// #6568: the real build/scan entry points must treat Vite ?url imports as files,
+// not executable page modules or filenames containing '?url'. Existing CLI tests
+// never imported assets. This integration test also protects preview fingerprints
+// and --compare, where an asset's old bytes may differ from the working tree.
+test('URL assets build, serve and track their real file in current and compare modes', async () => {
+  const { buildPage, scanPage, inputsChanged } = await import('./build.mjs');
+  const asset = path.join(dir, 'audio processor.js');
+  const original = 'registerProcessor("test", class extends AudioWorkletProcessor {});';
+  await writeFile(asset, original);
+  const file = await entry(
+    'url-asset',
+    `
+import processorUrl from './audio processor.js?url';
+mountPage({ render: () => <a href={processorUrl}>Processor</a> });
+`,
+  );
+  const definition = { dir, entry: file };
+  const scanned = await scanPage(definition);
+  assert.ok(
+    scanned.inputs.includes(asset),
+    JSON.stringify({ asset, inputs: scanned.inputs.filter((file) => file.includes('processor')) }),
+  );
+  assert.ok(!scanned.inputs.some((input) => input.endsWith('?url')));
+  const built = await buildPage(definition);
+  const emitted = [...built.files.entries()].find(
+    ([url, file]) => url.startsWith('/assets/') && file.body.toString() === original,
+  );
+  assert.ok(emitted, 'worklet bytes are served as a separate file');
+  assert.equal(emitted[1].contentType, 'text/javascript');
+  assert.ok(built.files.get('/page.js').body.toString().includes(emitted[0]));
+  assert.ok(!built.files.get('/page.js').body.toString().includes('registerProcessor('));
+  assert.ok(built.fingerprints.has(asset));
+  assert.equal(await inputsChanged(built.fingerprints), false);
+  await writeFile(asset, original + '\n// changed');
+  assert.equal(await inputsChanged(built.fingerprints), true);
+  const overlay = {
+    get: (file) => (file === asset ? original : undefined),
+    has: (file) => file === asset,
+    resolve: (file) => (file === asset ? asset : undefined),
+  };
+  await rm(asset);
+  const compared = await buildPage(definition, overlay);
+  assert.deepEqual(compared.files.get(emitted[0]), emitted[1]);
+  assert.equal(compared.fingerprints.get(asset), built.fingerprints.get(asset));
+});

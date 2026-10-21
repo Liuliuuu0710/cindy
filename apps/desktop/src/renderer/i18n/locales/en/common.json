@@ -9116,7 +9116,14 @@
     "autosave": {
       "saving": "Saving…",
       "saved": "Saved",
-      "retry": "Save Again"
+      "retry": "Save Again",
+      "lengthHint": "{{current}} / {{limit}} · Outer whitespace excluded; some emoji count as 2",
+      "tooLong": "{{excess}} over the limit. Shorten the text to save. Your input is retained.",
+      "correctFields": "Not saved. Correct the marked fields below.",
+      "invalidSettings": "These settings did not pass validation. Check and edit them. Your input is retained.",
+      "notFound": "This teammate could not be found. Copy your edits, then return to the teammate list.",
+      "preconditionFailed": "These settings cannot be saved right now. Copy your edits, then reopen settings to check the current state.",
+      "saveFailed": "Could not save. Your input is still here. Try saving again."
     },
     "retry": "Retry",
     "backToBot": "Back to teammate",

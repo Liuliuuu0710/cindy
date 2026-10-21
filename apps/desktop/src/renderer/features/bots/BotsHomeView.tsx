@@ -1,6 +1,14 @@
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/input';
+import { FormField } from '@/components/ui/form-field';
+import {
+  BOT_PROFILE_TEXT_LIMITS,
+  botProfileTextTooLong,
+  botProfileSaveFeedback,
+  validateBotProfileText,
+  type BotProfileTextField,
+} from './botSettingsValidation';
 import { shouldShowOpenPathError } from '../../../shared/openPathResult';
 import { ConnectProviderCard } from '@/components/onboarding/ConnectProviderCard';
 import { useProviderOnboarding } from '@/hooks/useProviderOnboarding';
@@ -204,6 +212,7 @@ export function BotSettings({
   );
   const commitProfile = useCallback(
     async (payload: BotSettingsPayload) => {
+      validateBotProfileText(payload);
       savingProfileRef.current = true;
       try {
         await updateBotProfile(bot.id, botSettingsChanges(savedSettingsRef.current, payload, true));
@@ -234,10 +243,32 @@ export function BotSettings({
     commit: commitProfile,
   });
 
+  const textValues = { name, description, identitySource };
+  const hasTextError = (Object.keys(BOT_PROFILE_TEXT_LIMITS) as BotProfileTextField[]).some(
+    (field) => botProfileTextTooLong(field, textValues[field]),
+  );
+  const textFeedback = (field: BotProfileTextField) => {
+    const current = textValues[field].trim().length;
+    const limit = BOT_PROFILE_TEXT_LIMITS[field];
+    return {
+      hint: t('bots.autosave.lengthHint', { current, limit }),
+      error: current > limit
+        ? t('bots.autosave.tooLong', { excess: current - limit })
+        : undefined,
+    };
+  };
+  const saveFeedback = botProfileSaveFeedback(autosave.error);
+
+  const settingsFormRef = useRef<HTMLDivElement>(null);
   const canLeave = useCallback(async () => {
     if (avatarInFlight.current) return false;
     await autosave.flush();
-    if (autosave.isDirty()) return false;
+    if (autosave.isDirty()) {
+      const invalid = settingsFormRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
+      invalid?.focus();
+      invalid?.scrollIntoView({ block: 'nearest' });
+      return false;
+    }
     if (!((await voiceLeaveRef.current?.()) ?? true)) return false;
     if (!((await memoryLeaveRef.current?.()) ?? true)) return false;
     return (await routineLeaveRef.current?.()) ?? true;
@@ -427,7 +458,7 @@ export function BotSettings({
     ['advanced', botSettingsIcons.advanced, t('bots.homeFolder.title')],
   ] as const;
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-8">
+    <div ref={settingsFormRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-8">
       <div className="mx-auto w-full max-w-xl">
         {invitationPending && (page === 'home' || page === 'model') ? (
           <BotInvitationWelcome bot={bot}
@@ -461,7 +492,11 @@ export function BotSettings({
           ) : (
             <span />
           )}
-          {nameTaken ? (
+          {hasTextError ? (
+            <p className="text-11 text-[var(--text-danger)]" role="alert">
+              {t('bots.autosave.correctFields')}
+            </p>
+          ) : nameTaken ? (
             // The host rejects the rename; say why instead of a generic save failure and a futile retry.
             <p className="text-11 text-[var(--text-danger)]" role="alert">
               {t('bots.guided.duplicateName')}
@@ -482,14 +517,16 @@ export function BotSettings({
             </span>
           ) : autosave.status === 'error' ? (
             <p className="flex items-center gap-2 text-11 text-[var(--text-danger)]" role="alert">
-              {t('bots.profileSaveFailed')}
-              <button
-                type="button"
-                onClick={() => void autosave.retry()}
-                className="font-medium text-[var(--text-primary)]"
-              >
-                {t('bots.autosave.retry')}
-              </button>
+              {t(saveFeedback.key)}
+              {saveFeedback.retry && (
+                <button
+                  type="button"
+                  onClick={() => void autosave.retry()}
+                  className="font-medium text-[var(--text-primary)]"
+                >
+                  {t('bots.autosave.retry')}
+                </button>
+              )}
             </p>
           ) : null}
         </div>
@@ -540,6 +577,13 @@ export function BotSettings({
         <div hidden={page !== 'profile'} className="pt-3">
           <BotBasicProfileFields
             centeredAvatar
+            nameFeedback={{
+              ...textFeedback('name'),
+              error: textFeedback('name').error ||
+                (nameTaken || (autosave.status === 'error' && saveFeedback.key === 'bots.guided.duplicateName')
+                  ? t('bots.guided.duplicateName') : undefined),
+            }}
+            descriptionFeedback={textFeedback('description')}
             readOnly={!!invitationPending}
             value={{ name, description, avatar, avatarColor }}
             avatarControl={avatarPicker}
@@ -580,19 +624,29 @@ export function BotSettings({
           ) : null}
         </div>
         <div hidden={page !== 'personality'} className="pt-3">
-          <Textarea
-            aria-label={t('bots.profile.personality')}
-            readOnly={!!invitationPending}
-            value={identitySource}
-            onChange={(next) => {
-              setIdentitySource(next);
-              autosave.onEdit('text');
-            }}
-            onBlur={() => void autosave.flush()}
-            {...autosave.composition}
-            rows={6}
-            className="min-h-40 resize-none p-3 leading-6 [field-sizing:content]"
-          />
+          <FormField
+            label={t('bots.profile.personality')}
+            hideLabel
+            reserveFeedback
+            {...textFeedback('identitySource')}
+          >
+            {(control) => (
+              <Textarea
+                {...control}
+                aria-label={t('bots.profile.personality')}
+                readOnly={!!invitationPending}
+                value={identitySource}
+                onChange={(next) => {
+                  setIdentitySource(next);
+                  autosave.onEdit('text');
+                }}
+                onBlur={() => void autosave.flush()}
+                {...autosave.composition}
+                rows={6}
+                className="min-h-40 max-h-80 resize-none overflow-y-auto p-3 leading-6 [field-sizing:content]"
+              />
+            )}
+          </FormField>
         </div>
         <section
           hidden={page !== 'model'}

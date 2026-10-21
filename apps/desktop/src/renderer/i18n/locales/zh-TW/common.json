@@ -9077,7 +9077,14 @@
     "autosave": {
       "saving": "正在儲存…",
       "saved": "已儲存",
-      "retry": "重新儲存"
+      "retry": "重新儲存",
+      "lengthHint": "{{current}} / {{limit}} · 首尾空白不計，部分表情計為 2",
+      "tooLong": "超出 {{excess}}，請縮短後再儲存。輸入已保留。",
+      "correctFields": "尚未儲存，請修正下方標出的內容。",
+      "invalidSettings": "設定內容未通過驗證，請檢查後修改。輸入已保留。",
+      "notFound": "找不到這位夥伴，無法儲存。請先複製修改的內容，再返回夥伴列表。",
+      "preconditionFailed": "目前無法儲存這些設定。請先複製修改的內容，再重新開啟設定確認狀態。",
+      "saveFailed": "未能儲存，輸入仍保留在此處。請重新儲存。"
     },
     "retry": "重試",
     "backToBot": "返回夥伴",
