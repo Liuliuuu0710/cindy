@@ -1,0 +1,754 @@
+From f5ffcd4398b70978d03866d9707c74df40563de2 Mon Sep 17 00:00:00 2001
+From: ylliuuu66 <y11iu66666@gmail.com>
+Date: Wed, 21 Oct 2026 18:04:54 +0800
+Subject: [PATCH] fix(desktop): validate companion profile input and repair UI
+ asset checks
+
+Signed-off-by: ylliuuu66 <y11iu66666@gmail.com>
+---
+ apps/desktop/scripts/ui-page/build.mjs        |  23 +++-
+ .../scripts/ui-page/runner.selftest.mjs       |  50 ++++++++-
+ .../features/bots/BotBasicProfileFields.tsx   |  74 ++++++++-----
+ .../renderer/features/bots/BotsHomeView.tsx   | 102 +++++++++++++-----
+ .../bots/__tests__/botSettings.test.tsx       |  71 ++++++++++++
+ .../__tests__/botSettingsAutosave.test.ts     |  15 +++
+ .../features/bots/botSettingsAutosave.ts      |  16 ++-
+ .../features/bots/botSettingsValidation.ts    |  41 +++++++
+ .../features/bots/useBotSettingsAutosave.ts   |   7 +-
+ .../src/renderer/i18n/locales/en/common.json  |   9 +-
+ .../src/renderer/i18n/locales/ja/common.json  |   9 +-
+ .../src/renderer/i18n/locales/ko/common.json  |   9 +-
+ .../renderer/i18n/locales/zh-CN/common.json   |   9 +-
+ .../renderer/i18n/locales/zh-TW/common.json   |   9 +-
+ 14 files changed, 377 insertions(+), 67 deletions(-)
+ create mode 100644 apps/desktop/src/renderer/features/bots/botSettingsValidation.ts
+
+diff --git a/apps/desktop/scripts/ui-page/build.mjs b/apps/desktop/scripts/ui-page/build.mjs
+index a86cb94188..2cbce1acc5 100644
+--- a/apps/desktop/scripts/ui-page/build.mjs
++++ b/apps/desktop/scripts/ui-page/build.mjs
+@@ -97,6 +97,26 @@ function boundaries(stubs, replaced, overlay) {
+   return {
+     name: 'ui-page-boundaries',
+     setup(build) {
++      // Vite ?url imports export a served asset URL, including JavaScript worklets.
++      // Keep the suffix on the module identity so an ordinary import of the same
++      // file still uses its normal loader. Resolve the real path through the
++      // existing aliases / compare overlay before choosing the asset loader.
++      build.onResolve({ filter: /\?url$/ }, async (args) => {
++        const resolved = await build.resolve(args.path.slice(0, -4), {
++          resolveDir: args.resolveDir,
++          importer: args.importer,
++          kind: args.kind,
++        });
++        return { ...resolved, suffix: '?url' };
++      });
++      build.onLoad({ filter: /.*/, namespace: 'file' }, async (args) => {
++        if (args.suffix !== '?url') return undefined;
++        return {
++          contents: overlay?.get(args.path) ?? (await readFile(args.path)),
++          loader: 'file',
++          watchFiles: [args.path],
++        };
++      });
+       build.onResolve({ filter: /.*/ }, (args) => {
+         if (args.namespace === 'ui-stub') return undefined;
+         let candidate;
+@@ -137,7 +157,8 @@ function boundaries(stubs, replaced, overlay) {
+   };
+ }
+ 
+-const sourcePath = (file) => path.resolve(root, file.replace(/ with \{[^}]*\}$/, ''));
++const sourcePath = (file) =>
++  path.resolve(root, file.replace(/ with \{[^}]*\}$/, '').replace(/\?url$/, ''));
+ 
+ function entryContents(definition) {
+   const entry = path.resolve(definition.dir, definition.entry);
+diff --git a/apps/desktop/scripts/ui-page/runner.selftest.mjs b/apps/desktop/scripts/ui-page/runner.selftest.mjs
+index 61c5df2b5e..f714e9786f 100644
+--- a/apps/desktop/scripts/ui-page/runner.selftest.mjs
++++ b/apps/desktop/scripts/ui-page/runner.selftest.mjs
+@@ -3,7 +3,7 @@
+ import assert from 'node:assert/strict';
+ import { spawn, execFileSync } from 'node:child_process';
+ import { existsSync } from 'node:fs';
+-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
++import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
+ import os from 'node:os';
+ import path from 'node:path';
+ import { after, before, test } from 'node:test';
+@@ -51,7 +51,7 @@ async function entry(name, source) {
+ }
+ 
+ before(async () => {
+-  dir = await mkdtemp(path.join(os.tmpdir(), 'cindy-ui-selftest-'));
++  dir = await realpath(await mkdtemp(path.join(os.tmpdir(), 'cindy-ui-selftest-')));
+ });
+ after(async () => {
+   await rm(dir, { recursive: true, force: true });
+@@ -151,3 +151,49 @@ test(
+     assert.equal(leftoverRunners(), '');
+   },
+ );
++
++// #6568: the real build/scan entry points must treat Vite ?url imports as files,
++// not executable page modules or filenames containing '?url'. Existing CLI tests
++// never imported assets. This integration test also protects preview fingerprints
++// and --compare, where an asset's old bytes may differ from the working tree.
++test('URL assets build, serve and track their real file in current and compare modes', async () => {
++  const { buildPage, scanPage, inputsChanged } = await import('./build.mjs');
++  const asset = path.join(dir, 'audio processor.js');
++  const original = 'registerProcessor("test", class extends AudioWorkletProcessor {});';
++  await writeFile(asset, original);
++  const file = await entry(
++    'url-asset',
++    `
++import processorUrl from './audio processor.js?url';
++mountPage({ render: () => <a href={processorUrl}>Processor</a> });
++`,
++  );
++  const definition = { dir, entry: file };
++  const scanned = await scanPage(definition);
++  assert.ok(
++    scanned.inputs.includes(asset),
++    JSON.stringify({ asset, inputs: scanned.inputs.filter((file) => file.includes('processor')) }),
++  );
++  assert.ok(!scanned.inputs.some((input) => input.endsWith('?url')));
++  const built = await buildPage(definition);
++  const emitted = [...built.files.entries()].find(
++    ([url, file]) => url.startsWith('/assets/') && file.body.toString() === original,
++  );
++  assert.ok(emitted, 'worklet bytes are served as a separate file');
++  assert.equal(emitted[1].contentType, 'text/javascript');
++  assert.ok(built.files.get('/page.js').body.toString().includes(emitted[0]));
++  assert.ok(!built.files.get('/page.js').body.toString().includes('registerProcessor('));
++  assert.ok(built.fingerprints.has(asset));
++  assert.equal(await inputsChanged(built.fingerprints), false);
++  await writeFile(asset, original + '\n// changed');
++  assert.equal(await inputsChanged(built.fingerprints), true);
++  const overlay = {
++    get: (file) => (file === asset ? original : undefined),
++    has: (file) => file === asset,
++    resolve: (file) => (file === asset ? asset : undefined),
++  };
++  await rm(asset);
++  const compared = await buildPage(definition, overlay);
++  assert.deepEqual(compared.files.get(emitted[0]), emitted[1]);
++  assert.equal(compared.fingerprints.get(asset), built.fingerprints.get(asset));
++});
+diff --git a/apps/desktop/src/renderer/features/bots/BotBasicProfileFields.tsx b/apps/desktop/src/renderer/features/bots/BotBasicProfileFields.tsx
+index db83305f4f..b53a649551 100644
+--- a/apps/desktop/src/renderer/features/bots/BotBasicProfileFields.tsx
++++ b/apps/desktop/src/renderer/features/bots/BotBasicProfileFields.tsx
+@@ -1,6 +1,7 @@
+ import { Camera } from 'lucide-react';
+ import type { ReactNode } from 'react';
+ 
++import { FormField } from '@/components/ui/form-field';
+ import { Input, Textarea } from '@/components/ui/input';
+ import { useBotTranslation } from './botPronounContext';
+ import { BotAvatar } from './BotAvatar';
+@@ -25,8 +26,12 @@ export function BotBasicProfileFields({
+   composition,
+   onNameBlur,
+   onDescriptionBlur,
++  nameFeedback,
++  descriptionFeedback,
+ }: {
+   avatarControl?: ReactNode;
++  nameFeedback?: { hint?: string; error?: string };
++  descriptionFeedback?: { hint?: string; error?: string };
+   /** IME composition handlers shared by both text fields (see useBotSettingsAutosave). */
+   composition?: { onCompositionStart: () => void; onCompositionEnd: () => void };
+   onNameBlur?: () => void;
+@@ -75,37 +80,50 @@ export function BotBasicProfileFields({
+             ))}
+         </div>
+ 
+-        <label className="flex w-full min-w-0 flex-1 flex-col gap-1.5 text-12 text-[var(--text-secondary)]">
+-          {t('bots.nameLabel')}
+-          <Input
++        <FormField
++          className="w-full min-w-0 flex-1"
++          label={t('bots.nameLabel')}
++          reserveFeedback={!!nameFeedback}
++          {...nameFeedback}
++        >
++          {(control) => (
++            <Input
++              {...control}
++              readOnly={readOnly}
++              autoFocus={autoFocusName}
++              ariaLabel={t('bots.nameLabel')}
++              value={value.name}
++              onChange={(next) => update('name', next, 'text')}
++              onBlur={onNameBlur}
++              {...composition}
++              placeholder={t('bots.roster.customNamePlaceholder')}
++              className="min-w-0"
++              required
++            />
++          )}
++        </FormField>
++      </div>
++
++      <FormField
++        label={t('bots.profile.summary')}
++        reserveFeedback={!!descriptionFeedback}
++        {...descriptionFeedback}
++      >
++        {(control) => (
++          <Textarea
++            {...control}
++            aria-label={t('bots.profile.summary')}
+             readOnly={readOnly}
+-            autoFocus={autoFocusName}
+-            ariaLabel={t('bots.nameLabel')}
+-            value={value.name}
+-            onChange={(next) => update('name', next, 'text')}
+-            onBlur={onNameBlur}
++            value={value.description}
++            onChange={(next) => update('description', next, 'text')}
++            onBlur={onDescriptionBlur}
+             {...composition}
+-            placeholder={t('bots.roster.customNamePlaceholder')}
+-            className="min-w-0"
+-            required
++            placeholder={t('bots.profile.summaryPlaceholder')}
++            rows={3}
++            className="min-h-24 max-h-60 min-w-0 resize-none overflow-y-auto py-2.5 text-14 leading-6 [field-sizing:content]"
+           />
+-        </label>
+-      </div>
+-
+-      <label className="flex min-w-0 flex-col gap-1.5 text-12 text-[var(--text-secondary)]">
+-        {t('bots.profile.summary')}
+-        <Textarea
+-          aria-label={t('bots.profile.summary')}
+-          readOnly={readOnly}
+-          value={value.description}
+-          onChange={(next) => update('description', next, 'text')}
+-          onBlur={onDescriptionBlur}
+-          {...composition}
+-          placeholder={t('bots.profile.summaryPlaceholder')}
+-          rows={3}
+-          className="min-h-24 min-w-0 resize-none py-2.5 text-14 leading-6 [field-sizing:content]"
+-        />
+-      </label>
++        )}
++      </FormField>
+     </div>
+   );
+ }
+diff --git a/apps/desktop/src/renderer/features/bots/BotsHomeView.tsx b/apps/desktop/src/renderer/features/bots/BotsHomeView.tsx
+index c7056ca982..631536bbe4 100644
+--- a/apps/desktop/src/renderer/features/bots/BotsHomeView.tsx
++++ b/apps/desktop/src/renderer/features/bots/BotsHomeView.tsx
+@@ -1,6 +1,14 @@
+ import { Button } from '@/components/ui/button';
+ import { Switch } from '@/components/ui/switch';
+ import { Textarea } from '@/components/ui/input';
++import { FormField } from '@/components/ui/form-field';
++import {
++  BOT_PROFILE_TEXT_LIMITS,
++  botProfileTextTooLong,
++  botProfileSaveFeedback,
++  validateBotProfileText,
++  type BotProfileTextField,
++} from './botSettingsValidation';
+ import { shouldShowOpenPathError } from '../../../shared/openPathResult';
+ import { ConnectProviderCard } from '@/components/onboarding/ConnectProviderCard';
+ import { useProviderOnboarding } from '@/hooks/useProviderOnboarding';
+@@ -204,6 +212,7 @@ export function BotSettings({
+   );
+   const commitProfile = useCallback(
+     async (payload: BotSettingsPayload) => {
++      validateBotProfileText(payload);
+       savingProfileRef.current = true;
+       try {
+         await updateBotProfile(bot.id, botSettingsChanges(savedSettingsRef.current, payload, true));
+@@ -234,10 +243,32 @@ export function BotSettings({
+     commit: commitProfile,
+   });
+ 
++  const textValues = { name, description, identitySource };
++  const hasTextError = (Object.keys(BOT_PROFILE_TEXT_LIMITS) as BotProfileTextField[]).some(
++    (field) => botProfileTextTooLong(field, textValues[field]),
++  );
++  const textFeedback = (field: BotProfileTextField) => {
++    const current = textValues[field].trim().length;
++    const limit = BOT_PROFILE_TEXT_LIMITS[field];
++    return {
++      hint: t('bots.autosave.lengthHint', { current, limit }),
++      error: current > limit
++        ? t('bots.autosave.tooLong', { excess: current - limit })
++        : undefined,
++    };
++  };
++  const saveFeedback = botProfileSaveFeedback(autosave.error);
++
++  const settingsFormRef = useRef<HTMLDivElement>(null);
+   const canLeave = useCallback(async () => {
+     if (avatarInFlight.current) return false;
+     await autosave.flush();
+-    if (autosave.isDirty()) return false;
++    if (autosave.isDirty()) {
++      const invalid = settingsFormRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
++      invalid?.focus();
++      invalid?.scrollIntoView({ block: 'nearest' });
++      return false;
++    }
+     if (!((await voiceLeaveRef.current?.()) ?? true)) return false;
+     if (!((await memoryLeaveRef.current?.()) ?? true)) return false;
+     return (await routineLeaveRef.current?.()) ?? true;
+@@ -427,7 +458,7 @@ export function BotSettings({
+     ['advanced', botSettingsIcons.advanced, t('bots.homeFolder.title')],
+   ] as const;
+   return (
+-    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-8">
++    <div ref={settingsFormRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-8">
+       <div className="mx-auto w-full max-w-xl">
+         {invitationPending && (page === 'home' || page === 'model') ? (
+           <BotInvitationWelcome bot={bot}
+@@ -461,7 +492,11 @@ export function BotSettings({
+           ) : (
+             <span />
+           )}
+-          {nameTaken ? (
++          {hasTextError ? (
++            <p className="text-11 text-[var(--text-danger)]" role="alert">
++              {t('bots.autosave.correctFields')}
++            </p>
++          ) : nameTaken ? (
+             // The host rejects the rename; say why instead of a generic save failure and a futile retry.
+             <p className="text-11 text-[var(--text-danger)]" role="alert">
+               {t('bots.guided.duplicateName')}
+@@ -482,14 +517,16 @@ export function BotSettings({
+             </span>
+           ) : autosave.status === 'error' ? (
+             <p className="flex items-center gap-2 text-11 text-[var(--text-danger)]" role="alert">
+-              {t('bots.profileSaveFailed')}
+-              <button
+-                type="button"
+-                onClick={() => void autosave.retry()}
+-                className="font-medium text-[var(--text-primary)]"
+-              >
+-                {t('bots.autosave.retry')}
+-              </button>
++              {t(saveFeedback.key)}
++              {saveFeedback.retry && (
++                <button
++                  type="button"
++                  onClick={() => void autosave.retry()}
++                  className="font-medium text-[var(--text-primary)]"
++                >
++                  {t('bots.autosave.retry')}
++                </button>
++              )}
+             </p>
+           ) : null}
+         </div>
+@@ -540,6 +577,13 @@ export function BotSettings({
+         <div hidden={page !== 'profile'} className="pt-3">
+           <BotBasicProfileFields
+             centeredAvatar
++            nameFeedback={{
++              ...textFeedback('name'),
++              error: textFeedback('name').error ||
++                (nameTaken || (autosave.status === 'error' && saveFeedback.key === 'bots.guided.duplicateName')
++                  ? t('bots.guided.duplicateName') : undefined),
++            }}
++            descriptionFeedback={textFeedback('description')}
+             readOnly={!!invitationPending}
+             value={{ name, description, avatar, avatarColor }}
+             avatarControl={avatarPicker}
+@@ -580,19 +624,29 @@ export function BotSettings({
+           ) : null}
+         </div>
+         <div hidden={page !== 'personality'} className="pt-3">
+-          <Textarea
+-            aria-label={t('bots.profile.personality')}
+-            readOnly={!!invitationPending}
+-            value={identitySource}
+-            onChange={(next) => {
+-              setIdentitySource(next);
+-              autosave.onEdit('text');
+-            }}
+-            onBlur={() => void autosave.flush()}
+-            {...autosave.composition}
+-            rows={6}
+-            className="min-h-40 resize-none p-3 leading-6 [field-sizing:content]"
+-          />
++          <FormField
++            label={t('bots.profile.personality')}
++            hideLabel
++            reserveFeedback
++            {...textFeedback('identitySource')}
++          >
++            {(control) => (
++              <Textarea
++                {...control}
++                aria-label={t('bots.profile.personality')}
++                readOnly={!!invitationPending}
++                value={identitySource}
++                onChange={(next) => {
++                  setIdentitySource(next);
++                  autosave.onEdit('text');
++                }}
++                onBlur={() => void autosave.flush()}
++                {...autosave.composition}
++                rows={6}
++                className="min-h-40 max-h-80 resize-none overflow-y-auto p-3 leading-6 [field-sizing:content]"
++              />
++            )}
++          </FormField>
+         </div>
+         <section
+           hidden={page !== 'model'}
+diff --git a/apps/desktop/src/renderer/features/bots/__tests__/botSettings.test.tsx b/apps/desktop/src/renderer/features/bots/__tests__/botSettings.test.tsx
+index ecaaf1fc4c..48d1da22e2 100644
+--- a/apps/desktop/src/renderer/features/bots/__tests__/botSettings.test.tsx
++++ b/apps/desktop/src/renderer/features/bots/__tests__/botSettings.test.tsx
+@@ -1210,3 +1210,74 @@ it('opens voice settings from the companion settings list and supports the dedic
+   render(<BotSettings bot={companion} initialPage="voice" onBack={vi.fn()} onOpenSession={vi.fn()} />);
+   expect(screen.getByTestId('companion-voice-settings')).toBeTruthy();
+ });
++
++describe('profile validation and save recovery', () => {
++  it.each([
++    ['bots.profile.personality', 'bots.profile.personality', 12000, 'identitySource'],
++    ['bots.profile.title', 'bots.profile.summary', 12000, 'description'],
++    ['bots.profile.title', 'bots.nameLabel', 200, 'name'],
++  ])('preserves overlong %s and saves automatically after correction', async (page, label, limit, field) => {
++    vi.useFakeTimers();
++    const view = renderSettings();
++    fireEvent.click(screen.getByRole('button', { name: page }));
++    const input = screen.getByRole('textbox', { name: label });
++    const invalid = '文'.repeat(Number(limit) + 1);
++    fireEvent.change(input, { target: { value: invalid } });
++    await act(async () => { await vi.advanceTimersByTimeAsync(1200); });
++    fireEvent.blur(input);
++    await act(async () => {});
++    expect(mocks.updateBotProfile).not.toHaveBeenCalled();
++    expect(input.getAttribute('aria-invalid')).toBe('true');
++    expect((input as HTMLInputElement).value).toBe(invalid);
++    expect(screen.queryByRole('button', { name: 'bots.autosave.retry' })).toBeNull();
++    // Host counts trimmed UTF-16 units, not raw input length or Unicode code points.
++    const boundary = '文'.repeat(Number(limit) - 2) + '😀';
++    fireEvent.change(input, { target: { value: ` \n${boundary}\n ` } });
++    await act(async () => { await vi.advanceTimersByTimeAsync(1200); });
++    expect(mocks.updateBotProfile).toHaveBeenCalledTimes(1);
++    expect(mocks.updateBotProfile.mock.calls[0]?.[1]).toMatchObject({ [field]: boundary });
++    expect(input.getAttribute('aria-invalid')).toBeNull();
++    expect(screen.getByRole('status').textContent).toContain('bots.autosave.saved');
++    // All save paths, including unmount, must reject an invalid draft.
++    fireEvent.change(input, { target: { value: invalid } });
++    view.unmount();
++    expect(mocks.updateBotProfile).toHaveBeenCalledTimes(1);
++  });
++
++  it.each([
++    ['ALREADY_EXISTS', 'bots.guided.duplicateName'],
++    ['INVALID_PARAMS', 'bots.autosave.invalidSettings'],
++    ['NOT_FOUND', 'bots.autosave.notFound'],
++    ['PRECONDITION_FAILED', 'bots.autosave.preconditionFailed'],
++  ])('explains host rejection %s without exposing raw errors or offering retry', async (code, key) => {
++    mocks.updateBotProfile.mockRejectedValueOnce(new Error(`Error invoking remote method 'local-db:bots:update': Error: [${code}] private host details`));
++    renderSettings();
++    fireEvent.click(screen.getByRole('button', { name: 'bots.profile.title' }));
++    const input = screen.getByRole('textbox', { name: 'bots.nameLabel' });
++    fireEvent.change(input, { target: { value: 'New name' } });
++    fireEvent.blur(input);
++    await act(async () => {});
++    expect(screen.getAllByText(key).length).toBeGreaterThan(0);
++    expect(screen.queryByRole('button', { name: 'bots.autosave.retry' })).toBeNull();
++    expect(document.body.textContent).not.toContain('private host details');
++    expect((input as HTMLInputElement).value).toBe('New name');
++  });
++
++  it('clears stale save failures when the draft is restored to the saved value', async () => {
++    mocks.updateBotProfile.mockRejectedValueOnce(new Error('private filesystem path'));
++    renderSettings();
++    fireEvent.click(screen.getByRole('button', { name: 'bots.profile.title' }));
++    const input = screen.getByRole('textbox', { name: 'bots.nameLabel' });
++    const original = (input as HTMLInputElement).value;
++    fireEvent.change(input, { target: { value: 'Unsaved name' } });
++    fireEvent.blur(input);
++    await act(async () => {});
++    expect(screen.getByRole('button', { name: 'bots.autosave.retry' })).toBeTruthy();
++    expect(document.body.textContent).not.toContain('private filesystem path');
++    fireEvent.change(input, { target: { value: original } });
++    fireEvent.blur(input);
++    await act(async () => {});
++    expect(screen.queryByRole('alert')).toBeNull();
++    expect(mocks.updateBotProfile).toHaveBeenCalledTimes(1);
++  });
++});
+diff --git a/apps/desktop/src/renderer/features/bots/__tests__/botSettingsAutosave.test.ts b/apps/desktop/src/renderer/features/bots/__tests__/botSettingsAutosave.test.ts
+index e0e3d49e49..0e5444e934 100644
+--- a/apps/desktop/src/renderer/features/bots/__tests__/botSettingsAutosave.test.ts
++++ b/apps/desktop/src/renderer/features/bots/__tests__/botSettingsAutosave.test.ts
+@@ -422,3 +422,18 @@ describe('settings changes preserve independently joined capabilities', () => {
+     expect(botSettingsChanges(after, { ...after, name: 'Updated' }, true)).toEqual({ name: 'Updated' });
+   });
+ });
++
++
++it('does not revive a late failure after the user restored the saved draft', async () => {
++  const h = harness();
++  h.failNextCommits(1);
++  const gate = h.gate();
++  h.edit({ name: 'Unsaved' });
++  const saving = h.autosave.flush();
++  h.edit({ name: h.baseline.name });
++  gate.release();
++  await saving;
++  expect(h.autosave.isDirty()).toBe(false);
++  expect(h.statuses).toEqual(['saving', 'idle']);
++  expect(h.commits).toHaveLength(1);
++});
+diff --git a/apps/desktop/src/renderer/features/bots/botSettingsAutosave.ts b/apps/desktop/src/renderer/features/bots/botSettingsAutosave.ts
+index d573135118..b2b0e69aff 100644
+--- a/apps/desktop/src/renderer/features/bots/botSettingsAutosave.ts
++++ b/apps/desktop/src/renderer/features/bots/botSettingsAutosave.ts
+@@ -201,7 +201,7 @@ export interface BotSettingsAutosaveOptions {
+   /** 真正提交(IPC)。resolve = 已落库(此时 commit 侧应已推进基线);reject = 失败。 */
+   commit: (payload: BotSettingsPayload) => Promise<void>;
+   /** 状态变化回调。dispose 之后不再触发。 */
+-  onStatusChange?: (status: BotAutosaveStatus) => void;
++  onStatusChange?: (status: BotAutosaveStatus, error?: unknown) => void;
+ }
+ 
+ export interface BotSettingsAutosaveHandle {
+@@ -231,9 +231,11 @@ export function createBotSettingsAutosave(
+   let inFlight: Promise<void> | null = null;
+   let detached = false;
+ 
+-  const emit = (status: BotAutosaveStatus): void => {
++  let lastStatus: BotAutosaveStatus = 'idle';
++  const emit = (status: BotAutosaveStatus, error?: unknown): void => {
+     if (detached) return;
+-    options.onStatusChange?.(status);
++    lastStatus = status;
++    options.onStatusChange?.(status, error);
+   };
+ 
+   const clearTimer = (): void => {
+@@ -257,6 +259,8 @@ export function createBotSettingsAutosave(
+     if (detached) return;
+     const payload = options.readPayload();
+     if (botSettingsPayloadEqual(payload, options.readBaseline())) {
++      // Reverting a failed draft clears its error without another IPC.
++      if (lastStatus === 'error') emit('idle');
+       // 无实际变化 —— 不发 IPC。
+       return;
+     }
+@@ -267,8 +271,9 @@ export function createBotSettingsAutosave(
+       try {
+         await options.commit(payload);
+         emit(isDirty() ? 'idle' : 'saved');
+-      } catch {
+-        emit('error');
++      } catch (error) {
++        // A rollback can reconcile unrelated fields while the unsaved edit remains dirty.
++        emit(isDirty() ? 'error' : 'idle', error);
+       }
+     })();
+     inFlight = attempt;
+@@ -285,6 +290,7 @@ export function createBotSettingsAutosave(
+   return {
+     schedule(trigger) {
+       if (detached) return;
++      if (lastStatus === 'error') emit('idle');
+       if (trigger === 'instant') {
+         if (timer !== null) clearTimeout(timer);
+         instantPending = true;
+diff --git a/apps/desktop/src/renderer/features/bots/botSettingsValidation.ts b/apps/desktop/src/renderer/features/bots/botSettingsValidation.ts
+new file mode 100644
+index 0000000000..7bf7097fe5
+--- /dev/null
++++ b/apps/desktop/src/renderer/features/bots/botSettingsValidation.ts
+@@ -0,0 +1,41 @@
++import { createIpcError } from '../../../shared/ipc-errors';
++import { extractIpcError } from '../../../shared/ipcError';
++
++// Match localDb/ipc/bots.ts readText: trimmed UTF-16 length, never truncate a draft.
++export const BOT_PROFILE_TEXT_LIMITS = {
++  name: 200,
++  description: 12000,
++  identitySource: 12000,
++} as const;
++
++export type BotProfileTextField = keyof typeof BOT_PROFILE_TEXT_LIMITS;
++
++export function botProfileTextTooLong(field: BotProfileTextField, value: string): boolean {
++  return value.trim().length > BOT_PROFILE_TEXT_LIMITS[field];
++}
++
++export function validateBotProfileText(draft: Record<BotProfileTextField, string>): void {
++  if (
++    Object.keys(BOT_PROFILE_TEXT_LIMITS).some((field) =>
++      botProfileTextTooLong(field as BotProfileTextField, draft[field as BotProfileTextField]),
++    )
++  ) {
++    throw createIpcError('INVALID_PARAMS', 'Profile text exceeds its limit');
++  }
++}
++
++/** Whitelisted messages only: IPC exceptions can contain private paths or payloads. */
++export function botProfileSaveFeedback(error: unknown): { key: string; retry: boolean } {
++  switch (extractIpcError(error)?.code) {
++    case 'ALREADY_EXISTS':
++      return { key: 'bots.guided.duplicateName', retry: false };
++    case 'INVALID_PARAMS':
++      return { key: 'bots.autosave.invalidSettings', retry: false };
++    case 'NOT_FOUND':
++      return { key: 'bots.autosave.notFound', retry: false };
++    case 'PRECONDITION_FAILED':
++      return { key: 'bots.autosave.preconditionFailed', retry: false };
++    default:
++      return { key: 'bots.autosave.saveFailed', retry: true };
++  }
++}
+diff --git a/apps/desktop/src/renderer/features/bots/useBotSettingsAutosave.ts b/apps/desktop/src/renderer/features/bots/useBotSettingsAutosave.ts
+index 805865439f..412713f514 100644
+--- a/apps/desktop/src/renderer/features/bots/useBotSettingsAutosave.ts
++++ b/apps/desktop/src/renderer/features/bots/useBotSettingsAutosave.ts
+@@ -43,6 +43,7 @@ export interface UseBotSettingsAutosaveOptions {
+ 
+ export interface BotSettingsAutosaveController {
+   status: BotAutosaveStatus;
++  error: unknown;
+   /** 字段变化:文本走防抖,离散选择走即时合并窗口。 */
+   onEdit: (trigger: BotAutosaveTrigger) => void;
+   /** blur / 返回聊天等显式边界的冲刷。 */
+@@ -83,16 +84,18 @@ export function useBotSettingsAutosave(
+   enabledRef.current = enabled;
+ 
+   const [status, setStatus] = useState<BotAutosaveStatus>('idle');
++  const [error, setError] = useState<unknown>(null);
+   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+   const mountedRef = useRef(true);
+ 
+-  const handleStatus = useCallback((next: BotAutosaveStatus) => {
++  const handleStatus = useCallback((next: BotAutosaveStatus, failure?: unknown) => {
+     if (!mountedRef.current) return;
+     if (savedTimerRef.current !== null) {
+       clearTimeout(savedTimerRef.current);
+       savedTimerRef.current = null;
+     }
+     setStatus(next);
++    setError(next === 'error' ? failure : null);
+     if (next !== 'saved') return;
+     savedTimerRef.current = setTimeout(() => {
+       savedTimerRef.current = null;
+@@ -163,5 +166,5 @@ export function useBotSettingsAutosave(
+ 
+   const isDirty = useCallback(() => enabledRef.current && autosave.isDirty(), [autosave]);
+ 
+-  return { status, onEdit, flush, retry, isDirty, composition };
++  return { status, error, onEdit, flush, retry, isDirty, composition };
+ }
+diff --git a/apps/desktop/src/renderer/i18n/locales/en/common.json b/apps/desktop/src/renderer/i18n/locales/en/common.json
+index c96d05c0d1..4d12396ba7 100644
+--- a/apps/desktop/src/renderer/i18n/locales/en/common.json
++++ b/apps/desktop/src/renderer/i18n/locales/en/common.json
+@@ -9116,7 +9116,14 @@
+     "autosave": {
+       "saving": "Saving…",
+       "saved": "Saved",
+-      "retry": "Save Again"
++      "retry": "Save Again",
++      "lengthHint": "{{current}} / {{limit}} · Outer whitespace excluded; some emoji count as 2",
++      "tooLong": "{{excess}} over the limit. Shorten the text to save. Your input is retained.",
++      "correctFields": "Not saved. Correct the marked fields below.",
++      "invalidSettings": "These settings did not pass validation. Check and edit them. Your input is retained.",
++      "notFound": "This teammate could not be found. Copy your edits, then return to the teammate list.",
++      "preconditionFailed": "These settings cannot be saved right now. Copy your edits, then reopen settings to check the current state.",
++      "saveFailed": "Could not save. Your input is still here. Try saving again."
+     },
+     "retry": "Retry",
+     "backToBot": "Back to teammate",
+diff --git a/apps/desktop/src/renderer/i18n/locales/ja/common.json b/apps/desktop/src/renderer/i18n/locales/ja/common.json
+index b3e58899ce..ad2b4ef634 100644
+--- a/apps/desktop/src/renderer/i18n/locales/ja/common.json
++++ b/apps/desktop/src/renderer/i18n/locales/ja/common.json
+@@ -9077,7 +9077,14 @@
+     "autosave": {
+       "saving": "保存中…",
+       "saved": "保存しました",
+-      "retry": "再保存"
++      "retry": "再保存",
++      "lengthHint": "{{current}} / {{limit}} · 前後の空白を除外。一部の絵文字は2と数えます",
++      "tooLong": "上限を {{excess}} 超えています。短くして保存してください。入力内容は保持されています。",
++      "correctFields": "未保存です。下の印が付いた項目を修正してください。",
++      "invalidSettings": "設定内容が検証に通りませんでした。確認して修正してください。入力内容は保持されています。",
++      "notFound": "この仲間が見つからないため保存できません。編集内容をコピーしてから仲間一覧に戻ってください。",
++      "preconditionFailed": "現在、この設定は保存できません。編集内容をコピーしてから設定を開き直し、状態を確認してください。",
++      "saveFailed": "保存できませんでした。入力内容はここに保持されています。再度保存してください。"
+     },
+     "retry": "再試行",
+     "backToBot": "仲間に戻る",
+diff --git a/apps/desktop/src/renderer/i18n/locales/ko/common.json b/apps/desktop/src/renderer/i18n/locales/ko/common.json
+index 92664dc80f..ee094e67b6 100644
+--- a/apps/desktop/src/renderer/i18n/locales/ko/common.json
++++ b/apps/desktop/src/renderer/i18n/locales/ko/common.json
+@@ -9077,7 +9077,14 @@
+     "autosave": {
+       "saving": "저장 중…",
+       "saved": "저장됨",
+-      "retry": "다시 저장"
++      "retry": "다시 저장",
++      "lengthHint": "{{current}} / {{limit}} · 앞뒤 공백 제외, 일부 이모지는 2로 계산",
++      "tooLong": "한도를 {{excess}} 초과했습니다. 내용을 줄인 후 저장하세요. 입력한 내용은 유지됩니다.",
++      "correctFields": "저장되지 않았습니다. 아래 표시된 항목을 수정하세요.",
++      "invalidSettings": "설정 내용이 유효하지 않습니다. 확인 후 수정하세요. 입력한 내용은 유지됩니다.",
++      "notFound": "이 동료를 찾을 수 없어 저장할 수 없습니다. 수정 내용을 복사한 후 동료 목록으로 돌아가세요.",
++      "preconditionFailed": "현재 이 설정을 저장할 수 없습니다. 수정 내용을 복사한 후 설정을 다시 열어 상태를 확인하세요.",
++      "saveFailed": "저장하지 못했습니다. 입력한 내용은 여기에 유지됩니다. 다시 저장하세요."
+     },
+     "retry": "다시 시도",
+     "backToBot": "동료로 돌아가기",
+diff --git a/apps/desktop/src/renderer/i18n/locales/zh-CN/common.json b/apps/desktop/src/renderer/i18n/locales/zh-CN/common.json
+index 5c256b2a20..e90484595a 100644
+--- a/apps/desktop/src/renderer/i18n/locales/zh-CN/common.json
++++ b/apps/desktop/src/renderer/i18n/locales/zh-CN/common.json
+@@ -9077,7 +9077,14 @@
+     "autosave": {
+       "saving": "正在保存…",
+       "saved": "已保存",
+-      "retry": "重新保存"
++      "retry": "重新保存",
++      "lengthHint": "{{current}} / {{limit}} · 首尾空白不计，部分表情计为 2",
++      "tooLong": "超出 {{excess}}，请缩短后再保存。输入已保留。",
++      "correctFields": "尚未保存，请修正下方标出的内容。",
++      "invalidSettings": "设置内容未通过校验，请检查后修改。输入已保留。",
++      "notFound": "找不到这位伙伴，无法保存。请先复制修改的内容，再返回伙伴列表。",
++      "preconditionFailed": "当前无法保存这些设置。请先复制修改的内容，再重新打开设置确认状态。",
++      "saveFailed": "未能保存，输入仍保留在此处。请重新保存。"
+     },
+     "retry": "重试",
+     "backToBot": "返回伙伴",
+diff --git a/apps/desktop/src/renderer/i18n/locales/zh-TW/common.json b/apps/desktop/src/renderer/i18n/locales/zh-TW/common.json
+index 44eeaba8c6..ca52aebfb1 100644
+--- a/apps/desktop/src/renderer/i18n/locales/zh-TW/common.json
++++ b/apps/desktop/src/renderer/i18n/locales/zh-TW/common.json
+@@ -9077,7 +9077,14 @@
+     "autosave": {
+       "saving": "正在儲存…",
+       "saved": "已儲存",
+-      "retry": "重新儲存"
++      "retry": "重新儲存",
++      "lengthHint": "{{current}} / {{limit}} · 首尾空白不計，部分表情計為 2",
++      "tooLong": "超出 {{excess}}，請縮短後再儲存。輸入已保留。",
++      "correctFields": "尚未儲存，請修正下方標出的內容。",
++      "invalidSettings": "設定內容未通過驗證，請檢查後修改。輸入已保留。",
++      "notFound": "找不到這位夥伴，無法儲存。請先複製修改的內容，再返回夥伴列表。",
++      "preconditionFailed": "目前無法儲存這些設定。請先複製修改的內容，再重新開啟設定確認狀態。",
++      "saveFailed": "未能儲存，輸入仍保留在此處。請重新儲存。"
+     },
+     "retry": "重試",
+     "backToBot": "返回夥伴",
+-- 
+2.50.1 (Apple Git-155)
+

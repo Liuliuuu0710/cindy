@@ -1,0 +1,8 @@
+[
+  {
+    "file": "evidence/ui-assets-red.log",
+    "replacements": 2,
+    "replacement": "<REDACTED_TASK_TMP>",
+    "purpose": "Remove machine-specific temporary-root identifiers; preserve filename, ?url and failure details."
+  }
+]

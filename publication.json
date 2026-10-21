@@ -1,0 +1,18 @@
+{
+  "codeCommit": "f5ffcd4398b70978d03866d9707c74df40563de2",
+  "codeRepo": "Liuliuuu0710/cindy",
+  "codeBranch": "fix/6568-profile-validation",
+  "targetPR": 5678,
+  "targetHead": "03d053b0d6bb20540009dfc83f2597b142238818",
+  "targetUpdated": false,
+  "reason": "Current account has no push permission to source fork or upstream.",
+  "integrationConflicts": [
+    "apps/desktop/scripts/ui-page/build.mjs",
+    "apps/desktop/scripts/ui-page/runner.selftest.mjs",
+    "apps/desktop/src/renderer/features/bots/BotBasicProfileFields.tsx",
+    "apps/desktop/src/renderer/features/bots/BotsHomeView.tsx",
+    "apps/desktop/src/renderer/features/bots/__tests__/botSettings.test.tsx",
+    "apps/desktop/src/renderer/features/bots/useBotSettingsAutosave.ts"
+  ],
+  "combinedRuntimeVerified": false
+}
