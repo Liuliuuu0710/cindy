@@ -1,5 +1,10 @@
 import type { BotGroupErrorCode, BotGroupFailure } from '../../shared/botGroupChat.js';
 
+/** A deterministic local read failure; retrying a transport cannot repair this source. */
+export class ChatMediaSourceUnavailableError extends Error {
+  constructor(readonly code = 'ATTACHMENT_UNAVAILABLE') { super('ATTACHMENT_UNAVAILABLE'); }
+}
+
 /** Keep diagnostic codes and HTTP status, never exception text, URLs, paths or response bodies. */
 export function chatErrorDiagnostic(error: unknown): { code: string; status?: number } {
   const value = error as { code?: unknown; message?: unknown; status?: unknown; name?: unknown } | null;

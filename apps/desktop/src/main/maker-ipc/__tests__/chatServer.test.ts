@@ -64,6 +64,7 @@ vi.mock('ws', async () => {
 });
 import { ChatResponseError, REACTION_REVISION_MESSAGE_LIMIT, splitChatMessageText, withChatServer } from '../chatServer.js';
 import { ChatReplyImageUnavailableError } from '../chatServerReplyImages.js';
+import { ChatMediaSourceUnavailableError } from '../chatServerErrors.js';
 import { t } from '../../i18n.js';
 import { projectBotGroupExecutionFailures } from '@cindy/maker-shared/botGroupPresentation';
 import { botGroupRuntimeFailureCode, settleUndispatchedBotGroupTurn } from '../botGroupRuntimeFailure.js';
@@ -493,6 +494,17 @@ describe('Chat Server result delivery and refresh', () => {
     await vi.advanceTimersByTimeAsync(16000);
     expect(deliveries()).toHaveLength(1);
     expect(deliveries()[0][2].content[1]).toMatchObject({ type: 'media' });
+    expect(deps.dispatch).toHaveBeenCalledOnce();
+  });
+
+  it('fails an ordinary reply when upload cannot read its prepared image, without retrying', async () => {
+    fixture.upload.mockRejectedValue(new ChatMediaSourceUnavailableError());
+    await start();
+    await service.settleLaneTurn(terminal);
+    expect(deliveries()).toHaveLength(0);
+    expect(fixture.handle.mock.calls.filter(([, , body]) => body?.action === 'fail')).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(16000);
+    expect(fixture.upload).toHaveBeenCalledOnce();
     expect(deps.dispatch).toHaveBeenCalledOnce();
   });
 

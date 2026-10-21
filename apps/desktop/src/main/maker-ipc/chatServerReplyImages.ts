@@ -6,6 +6,7 @@ import { taskImageReferences, rewriteTaskImageReferences } from '../cindy-media/
 import { resolveSafe as resolveLegacyImage } from '../imageCacheStore.js';
 import { getDbClient } from '../localDb/client/current.js';
 import type { BotGroupAttachment } from '../../shared/botGroupChat.js';
+import { BOT_GROUP_ATTACHMENTS_MAX } from '../../shared/botGroupChat.js';
 
 /** A missing/unauthorized local source cannot recover by renewing the execution lease. */
 export class ChatReplyImageUnavailableError extends Error {
@@ -20,6 +21,8 @@ export async function prepareChatReplyImages(text: string, sessionId: string, as
   const replacements = new Map<string, string>();
   for (const ref of taskImageReferences(text)) {
     if (!/^(cindy-media|xdt-image):\/\//.test(ref.url) || replacements.has(ref.url)) continue;
+    // Fail the whole reply before any upload; never silently truncate delivered images.
+    if (attachments.length >= BOT_GROUP_ATTACHMENTS_MAX) throw new ChatReplyImageUnavailableError();
     assertCurrent();
     let resolved: { absPath: string; mimeType: string };
     if (ref.url.startsWith('cindy-media://')) {

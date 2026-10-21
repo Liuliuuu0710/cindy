@@ -14,6 +14,11 @@ const hash = 'a'.repeat(64);
 const url = `cindy-media://blobs/${hash}.png`;
 const file = path.resolve('fixture-media', `${hash}.png`);
 describe('ordinary group reply image delivery', () => {
+  it('accepts 20 distinct images and rejects 21 instead of dropping images', async () => {
+    const images = Array.from({ length: 21 }, (_, i) => `![image](cindy-media://blobs/${i.toString(16).padStart(64, '0')}.png)`);
+    expect((await prepareChatReplyImages(images.slice(0, 20).join('\n'), 'lane', vi.fn())).attachments).toHaveLength(20);
+    await expect(prepareChatReplyImages(images.join('\n'), 'lane', vi.fn())).rejects.toThrow('ATTACHMENT_UNAVAILABLE');
+  });
   beforeEach(() => {
     vi.resetAllMocks();
     f.canRead.mockResolvedValue(true);

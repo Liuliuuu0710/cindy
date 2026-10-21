@@ -14,7 +14,7 @@ import { MIRROR_ATTACHMENT_MAX_BYTES } from '../companion-cloud/mirror.js';
 import { request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import { migrateLocalGroups, type ChatContentBlock } from './chatServerMigration.js';
-import { chatErrorDiagnostic, chatGroupFailure, missingGroupCode } from './chatServerErrors.js';
+import { ChatMediaSourceUnavailableError, chatErrorDiagnostic, chatGroupFailure, missingGroupCode } from './chatServerErrors.js';
 import { createChatMedia } from './chatServerMedia.js';
 import { ChatReplyImageUnavailableError, prepareChatReplyImages } from './chatServerReplyImages.js';
 import { chatServerWorkspaces } from './chatServerWorkspaces.js';
@@ -1323,7 +1323,15 @@ function createChatServer(local: BotGroupChatService, deps: BotGroupChatServiceD
             }
           }
           assertDeliveryCurrent();
-          const files = await media.upload(run.execution.conversation_id, `step:${run.execution.id}:${run.execution.epoch}`, produced, run.execution.bot_id, assertDeliveryCurrent);
+          let files: ChatContentBlock[] = [];
+          if (terminal.outcome !== 'error') {
+            try {
+              files = await media.upload(run.execution.conversation_id, `step:${run.execution.id}:${run.execution.epoch}`, produced, run.execution.bot_id, assertDeliveryCurrent);
+            } catch (error) {
+              if (run.plan || !(error instanceof ChatMediaSourceUnavailableError)) throw error;
+              terminal = pending.terminal = { ...terminal, outcome: 'error', failureCode: 'RUNTIME_ERROR' };
+            }
+          }
           text = reply.text;
           if (terminal.outcome === 'error') {
             failureCodes.set(`${run.execution.id}:${run.execution.epoch}`, terminal.failureCode ?? 'RUNTIME_ERROR');

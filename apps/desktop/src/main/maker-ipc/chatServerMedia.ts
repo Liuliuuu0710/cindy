@@ -1,4 +1,4 @@
-import { chatErrorDiagnostic } from './chatServerErrors.js';
+import { ChatMediaSourceUnavailableError, chatErrorDiagnostic } from './chatServerErrors.js';
 import { net } from 'electron';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -87,6 +87,8 @@ export function createChatMedia(api: ChatApi, current: () => boolean, log?: { wa
         } catch (error) {
           log?.warn('Chat media upload failed', { stage, groupId: roomId,
             trace: createHash('sha256').update(source).digest('hex').slice(0, 16), durationMs: Date.now() - started, ...chatErrorDiagnostic(error) });
+          if (stage === 'read' && ['ENOENT', 'ENOTDIR', 'EACCES', 'EPERM', 'ATTACHMENT_TOO_LARGE', 'ATTACHMENT_UNAVAILABLE']
+            .includes(chatErrorDiagnostic(error).code)) throw new ChatMediaSourceUnavailableError(chatErrorDiagnostic(error).code);
           throw error;
         }
       }
