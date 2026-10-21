@@ -583,6 +583,20 @@ describe('Chat Server result delivery and refresh', () => {
     expect(deps.dispatch).toHaveBeenCalledOnce();
   });
 
+  it.each(['INVALID_MEDIA_URL', 'ERR_INVALID_URL'])('fails a permanently invalid signed upload URL %s without retrying', async code => {
+    fixture.upload.mockRejectedValue(Object.assign(new Error(code), { code }));
+    await start();
+    await service.settleLaneTurn(terminal);
+    const failures = () => fixture.handle.mock.calls.filter(([, , body]) => body?.action === 'fail');
+    expect(failures()).toHaveLength(1);
+    expect(failures()[0][2]).toMatchObject({ detail: 'cindy-runtime-error:RUNTIME_ERROR' });
+    expect(deliveries()).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(16000);
+    expect(failures()).toHaveLength(1);
+    expect(fixture.upload).toHaveBeenCalledOnce();
+    expect(deps.dispatch).toHaveBeenCalledOnce();
+  });
+
   // PR #6644: signed object-store PUT failures are plain status-bearing errors,
   // unlike Chat API responses. Verify terminal failure vs retry at settlement.
   it.each([400, 403, 413])('settles a permanent signed PUT %s refusal without retrying', async status => {

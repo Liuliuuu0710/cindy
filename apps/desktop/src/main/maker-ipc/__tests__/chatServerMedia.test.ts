@@ -1,9 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-const f = vi.hoisted(() => ({ fetch: vi.fn(), read: vi.fn(), ingest: vi.fn() }));
+import os from 'node:os';
+const f = vi.hoisted(() => ({ fetch: vi.fn(), read: vi.fn(), ingest: vi.fn(), root: '' }));
 vi.mock('electron', () => ({ net: { fetch: f.fetch } }));
 vi.mock('../../cindy-media/blobStore.js', () => ({ readFile: f.read, supportedMime: () => true }));
+vi.mock('../../imageCacheStore.js', () => ({
+  getCacheRoot: () => f.root,
+  resolveSafe: (url: string) => ({ absPath: path.join(f.root, new URL(url).hostname, path.basename(new URL(url).pathname)), mimeType: 'image/png' }),
+}));
 vi.mock('../../cindy-media/ingest.js', () => ({ ingestMedia: f.ingest }));
 vi.mock('../../localDb/client/current.js', () => ({ getDbClient: () => ({ drizzle: {} }) }));
 vi.mock('../../appSessionState.js', () => ({ ownerScopedUserDataPath: () => '/unused-test-owner' }));
@@ -15,33 +20,73 @@ import type { BotGroupAttachment } from '../../../shared/botGroupChat.js';
 const attachment: BotGroupAttachment = { id: 'file', name: 'picture.png', category: 'image', mimeType: 'image/png', size: 3, url: 'cindy-media://test', path: null };
 
 describe('chat private media', () => {
-  it.each([Buffer.from('not an image'), Buffer.from('OggS audio')])('refuses non-image legacy bytes before prepare: %s', async bytes => {
-    const stat = vi.spyOn(fs, 'stat').mockResolvedValueOnce({ isFile: () => true, size: bytes.length } as Awaited<ReturnType<typeof fs.stat>>);
-    const read = vi.spyOn(fs, 'readFile').mockResolvedValueOnce(bytes);
-    const api = vi.fn().mockResolvedValue({ id: 'media', uploadUrl: 'https://upload.example.test/signed' }) as unknown as ChatApi;
-    f.fetch.mockClear().mockResolvedValue(new Response(''));
-    try {
-      await expect(createChatMedia(api, () => true).upload('room', 'reply', [{ ...attachment,
-        id: 'xdt-image://lane/image.png', url: null, path: path.resolve('fixture', 'image.png'), size: bytes.length }], 'bot'))
-        .rejects.toBeInstanceOf(ChatMediaSourceUnavailableError);
-      expect(api).not.toHaveBeenCalled();
-      expect(f.fetch).not.toHaveBeenCalled();
-    } finally { stat.mockRestore(); read.mockRestore(); }
-  });
-  it('uses the actual image MIME for the same legacy bytes sent to storage', async () => {
+  // PR #6644: actual filesystem escapes and check/open replacement must fail
+  // before a private byte reaches prepare or PUT. All files stay in one temp tree.
+  it.each(['leaf-link', 'session-link', 'leaf-swap', 'parent-swap'])('refuses a legacy cache escape: %s', async scenario => {
+    const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'cindy-reply-legacy-'));
+    f.root = path.join(temp, 'cache');
+    const lane = path.join(f.root, 'lane');
+    const outside = path.join(temp, 'outside');
+    await fs.mkdir(lane, { recursive: true }); await fs.mkdir(outside);
     const bytes = Buffer.from([0xff, 0xd8, 0xff, 42]);
-    const stat = vi.spyOn(fs, 'stat').mockResolvedValueOnce({ isFile: () => true, size: bytes.length } as Awaited<ReturnType<typeof fs.stat>>);
-    const read = vi.spyOn(fs, 'readFile').mockResolvedValueOnce(bytes);
+    await fs.writeFile(path.join(outside, 'image.png'), bytes);
+    const source = path.join(lane, 'image.png');
+    await fs.writeFile(source, bytes);
+    // Probe native symlink support; unsupported hosts keep the ordinary file test.
+    try {
+      if (scenario.startsWith('leaf')) await fs.symlink(path.join(outside, 'image.png'), path.join(temp, 'probe'));
+      else await fs.symlink(outside, path.join(temp, 'probe'), 'junction');
+    }
+    catch (error) { if (['EPERM', 'EACCES', 'ENOTSUP'].includes((error as NodeJS.ErrnoException).code ?? '')) { await fs.rm(temp, { recursive: true, force: true }); return; } throw error; }
+    const originalOpen = fs.open.bind(fs);
+    let restoreOpen: (() => void) | undefined;
+    const swap = async () => {
+      if (scenario.startsWith('leaf')) { await fs.unlink(source); await fs.symlink(path.join(outside, 'image.png'), source); }
+      else { await fs.rename(lane, path.join(f.root, 'old-lane')); await fs.symlink(outside, lane, 'junction'); }
+    };
     const api = vi.fn().mockResolvedValue({ id: 'media', uploadUrl: 'https://upload.example.test/signed' }) as unknown as ChatApi;
     f.fetch.mockClear().mockResolvedValue(new Response(''));
     try {
-      await createChatMedia(api, () => true).upload('room', 'reply', [{ ...attachment,
-        id: 'xdt-image://lane/image.png', url: null, path: path.resolve('fixture', 'image.png'), size: bytes.length }], 'bot');
-      expect(api).toHaveBeenCalledWith('/conversations/room/media', 'POST', expect.objectContaining({ type: 'image/jpeg', size: bytes.length }), 'bot');
-      expect(f.fetch).toHaveBeenCalledWith('https://upload.example.test/signed', expect.objectContaining({
-        headers: { 'Content-Type': 'image/jpeg' }, body: new Uint8Array(bytes) }));
-      expect(read).toHaveBeenCalledOnce();
-    } finally { stat.mockRestore(); read.mockRestore(); }
+      if (scenario.endsWith('link')) await swap();
+      else {
+        const open = vi.spyOn(fs, 'open').mockImplementationOnce(async (...args) => { await swap(); return originalOpen(...args); });
+        restoreOpen = () => { open.mockRestore(); };
+      }
+      await expect(createChatMedia(api, () => true).upload('room', 'reply', [{ ...attachment,
+        id: 'xdt-image://lane/image.png', url: null, path: source, size: bytes.length }], 'bot'))
+        .rejects.toBeInstanceOf(ChatMediaSourceUnavailableError);
+      expect(api).not.toHaveBeenCalled(); expect(f.fetch).not.toHaveBeenCalled();
+    } finally { restoreOpen?.(); await fs.rm(temp, { recursive: true, force: true }); }
+  });
+  it.each([
+    { bytes: Buffer.from('not an image'), mime: null },
+    { bytes: Buffer.from('OggS audio'), mime: null },
+    { bytes: Buffer.from([0xff, 0xd8, 0xff, 42]), mime: 'image/jpeg' },
+  ])('validates and uploads the same legacy bytes as $mime', async ({ bytes, mime }) => {
+    const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'cindy-reply-legacy-'));
+    f.root = path.join(temp, 'cache');
+    const lane = path.join(f.root, 'lane'); await fs.mkdir(lane, { recursive: true });
+    const source = path.join(lane, 'image.png'); await fs.writeFile(source, bytes);
+    const api = vi.fn().mockResolvedValue({ id: 'media', uploadUrl: 'https://upload.example.test/signed' }) as unknown as ChatApi;
+    f.fetch.mockClear().mockResolvedValue(new Response(''));
+    try {
+      const upload = createChatMedia(api, () => true).upload('room', 'reply', [{ ...attachment,
+        id: 'xdt-image://lane/image.png', url: null, path: source, size: bytes.length }], 'bot');
+      if (!mime) {
+        await expect(upload).rejects.toBeInstanceOf(ChatMediaSourceUnavailableError);
+        expect(api).not.toHaveBeenCalled(); expect(f.fetch).not.toHaveBeenCalled();
+      } else {
+        await upload;
+        expect(api).toHaveBeenCalledWith('/conversations/room/media', 'POST', expect.objectContaining({ type: mime, size: bytes.length }), 'bot');
+        expect(f.fetch).toHaveBeenCalledWith('https://upload.example.test/signed', expect.objectContaining({ headers: { 'Content-Type': mime }, body: new Uint8Array(bytes) }));
+      }
+    } finally { await fs.rm(temp, { recursive: true, force: true }); }
+  });
+  it.each(['http://upload.example.test/signed', 'broken', undefined])('rejects invalid signed upload URL %s before PUT', async uploadUrl => {
+    f.read.mockResolvedValueOnce({ buffer: Buffer.from('png') }); f.fetch.mockClear();
+    const api = vi.fn().mockResolvedValue({ id: 'media', uploadUrl }) as unknown as ChatApi;
+    await expect(createChatMedia(api, () => true).upload('room', 'reply', [attachment], 'bot')).rejects.toMatchObject({ message: 'INVALID_MEDIA_URL' });
+    expect(f.fetch).not.toHaveBeenCalled();
   });
   it('fails a legacy image whose stat succeeds but bytes cannot be read', async () => {
     const stat = vi.spyOn(fs, 'stat').mockResolvedValueOnce({ isFile: () => true, size: 3 } as Awaited<ReturnType<typeof fs.stat>>);

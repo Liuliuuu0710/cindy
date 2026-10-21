@@ -4,7 +4,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { readFile as readMedia, supportedMime } from '../cindy-media/blobStore.js';
-import { sniffMediaMime } from '../cindy-media/sniffMediaMime.js';
+import { readTaskImage } from '../cindy-media/taskImageFile.js';
+import { getCacheRoot, resolveSafe as resolveLegacyImage } from '../imageCacheStore.js';
 import { ingestMedia } from '../cindy-media/ingest.js';
 import { getDbClient } from '../localDb/client/current.js';
 import { ownerScopedUserDataPath } from '../appSessionState.js';
@@ -20,7 +21,8 @@ export function createChatMedia(api: ChatApi, current: () => boolean, log?: { wa
   const cache = new Map<string, Promise<BotGroupAttachment>>();
   const check = () => { if (!current()) throw new Error('OWNER_CHANGED'); };
   const signedUrl = (value: string) => {
-    const url = new URL(value);
+    let url: URL;
+    try { url = new URL(value); } catch { throw new Error('INVALID_MEDIA_URL'); }
     if ((url.protocol !== 'https:' && !(options.allowLoopback && url.origin === 'http://127.0.0.1:3018')) || url.username || url.password) throw new Error('INVALID_MEDIA_URL');
     return url.href;
   };
@@ -52,22 +54,28 @@ export function createChatMedia(api: ChatApi, current: () => boolean, log?: { wa
         try {
           checkUpload();
           if (attachment.size > MAX_SIZE) throw new Error('ATTACHMENT_TOO_LARGE');
-          if (attachment.path) {
-            const stat = await fs.stat(attachment.path); checkUpload();
-            if (!stat.isFile() || stat.size > MAX_SIZE) throw new Error('ATTACHMENT_TOO_LARGE');
+          let bytes: Buffer | null;
+          let mimeType = attachment.mimeType;
+          if (attachment.id.startsWith('xdt-image://') && attachment.category === 'image') {
+            const resolved = resolveLegacyImage(attachment.id);
+            if (!attachment.path || path.resolve(attachment.path) !== resolved.absPath)
+              throw new Error('ATTACHMENT_UNAVAILABLE');
+            // Resolve only the trusted cache root. Resolving the session directory
+            // itself as an allowed root would authorize a junction pointing outside.
+            const cacheRoot = await fs.realpath(getCacheRoot()); checkUpload();
+            const sessionId = decodeURIComponent(new URL(attachment.id).hostname);
+            const image = await readTaskImage(resolved.absPath, [path.join(cacheRoot, sessionId)], MAX_SIZE);
+            bytes = image.buffer; mimeType = image.mimeType;
+          } else {
+            if (attachment.path) {
+              const stat = await fs.stat(attachment.path); checkUpload();
+              if (!stat.isFile() || stat.size > MAX_SIZE) throw new Error('ATTACHMENT_TOO_LARGE');
+            }
+            bytes = attachment.url?.startsWith('cindy-media://') ? (await readMedia(attachment.url)).buffer
+              : attachment.path ? await fs.readFile(attachment.path) : null;
           }
-          const bytes = attachment.url?.startsWith('cindy-media://') ? (await readMedia(attachment.url)).buffer
-            : attachment.path ? await fs.readFile(attachment.path) : null;
           checkUpload();
           if (!bytes || !bytes.length || bytes.length > MAX_SIZE) throw new Error('ATTACHMENT_UNAVAILABLE');
-          let mimeType = attachment.mimeType;
-          // Frozen legacy caches only declare a type by extension. Validate the exact
-          // buffer we upload, without a second read that could observe different bytes.
-          if (attachment.id.startsWith('xdt-image://') && attachment.category === 'image') {
-            const detected = sniffMediaMime(bytes);
-            if (!detected?.startsWith('image/')) throw new Error('ATTACHMENT_UNAVAILABLE');
-            mimeType = detected;
-          }
           const key = createHash('sha256').update(source).update(attachment.id).update(bytes).digest('hex');
           // Expired abandoned uploads must get a new prepare receipt, but a successful
           // message keeps the same content even when the request's ACK was lost.
@@ -97,6 +105,7 @@ export function createChatMedia(api: ChatApi, current: () => boolean, log?: { wa
           log?.warn('Chat media upload failed', { stage, groupId: roomId,
             trace: createHash('sha256').update(source).digest('hex').slice(0, 16), durationMs: Date.now() - started, ...chatErrorDiagnostic(error) });
           if (stage === 'read' && (permanentChatFileReadError(error)
+            || error instanceof Error && error.message.startsWith('task-image:')
             || ['ATTACHMENT_TOO_LARGE', 'ATTACHMENT_UNAVAILABLE'].includes(chatErrorDiagnostic(error).code))) throw new ChatMediaSourceUnavailableError(chatErrorDiagnostic(error).code);
           throw error;
         }

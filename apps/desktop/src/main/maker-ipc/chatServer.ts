@@ -1341,7 +1341,8 @@ function createChatServer(local: BotGroupChatService, deps: BotGroupChatServiceD
               const signedUploadRejected = error instanceof Error && error.message === 'MEDIA_UPLOAD_FAILED'
                 && uploadStatus !== undefined && uploadStatus >= 400 && uploadStatus < 500
                 && ![408, 429].includes(uploadStatus);
-              const mediaRejected = signedUploadRejected || error instanceof ChatResponseError && !retryableResponse(error)
+              const invalidUploadUrl = ['INVALID_MEDIA_URL', 'ERR_INVALID_URL'].includes(chatErrorDiagnostic(error).code);
+              const mediaRejected = signedUploadRejected || invalidUploadUrl || error instanceof ChatResponseError && !retryableResponse(error)
                 && error.status >= 400 && error.status < 500
                 && !['AUTH_REQUIRED', 'PERMISSION_DENIED', 'NOT_FOUND', 'GROUP_DISSOLVED', 'GROUP_ARCHIVED']
                   .includes(chatGroupFailure(error).errorCode)
