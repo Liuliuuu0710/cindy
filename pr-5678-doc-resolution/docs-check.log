@@ -1,0 +1,74 @@
+
+> cindy@ check:dev-docs <TASK_WORKTREE>
+> node --test scripts/__tests__/dev-docs-contract.test.mjs
+
+TAP version 13
+# Subtest: developer docs only document pnpm commands that exist
+ok 1 - developer docs only document pnpm commands that exist
+  ---
+  duration_ms: 3.37525
+  type: 'test'
+  ...
+# Subtest: developer docs do not duplicate canonical command lines
+ok 2 - developer docs do not duplicate canonical command lines
+  ---
+  duration_ms: 0.718542
+  type: 'test'
+  ...
+# Subtest: AGENTS and CONTRIBUTING route to the canonical developer docs
+ok 3 - AGENTS and CONTRIBUTING route to the canonical developer docs
+  ---
+  duration_ms: 0.481292
+  type: 'test'
+  ...
+# Subtest: developer documentation links resolve
+ok 4 - developer documentation links resolve
+  ---
+  duration_ms: 65.345166
+  type: 'test'
+  ...
+# Subtest: login-all-hifi embeds generated truth as a script-safe static literal
+ok 5 - login-all-hifi embeds generated truth as a script-safe static literal
+  ---
+  duration_ms: 6.175042
+  type: 'test'
+  ...
+# Subtest: login QA preview countdowns match Desktop and Mobile product constants
+ok 6 - login QA preview countdowns match Desktop and Mobile product constants
+  ---
+  duration_ms: 6.438334
+  type: 'test'
+  ...
+# Subtest: current locale-aware QA artifacts cover every supported locale
+ok 7 - current locale-aware QA artifacts cover every supported locale
+  ---
+  duration_ms: 5.827667
+  type: 'test'
+  ...
+# Subtest: runtime versions and the docs contract are code-owned
+ok 8 - runtime versions and the docs contract are code-owned
+  ---
+  duration_ms: 0.092375
+  type: 'test'
+  ...
+# Subtest: client CI keeps the complete sharded unit gate on Windows
+ok 9 - client CI keeps the complete sharded unit gate on Windows
+  ---
+  duration_ms: 0.789791
+  type: 'test'
+  ...
+# Subtest: client CI runs Linux checks and complete unit shards in parallel behind stable verify
+ok 10 - client CI runs Linux checks and complete unit shards in parallel behind stable verify
+  ---
+  duration_ms: 0.558791
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 125.491416

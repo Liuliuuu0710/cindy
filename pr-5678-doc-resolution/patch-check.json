@@ -1,0 +1,9 @@
+{
+  "prHead": "03d053b0d6bb20540009dfc83f2597b142238818",
+  "appliesCleanly": true,
+  "files": [
+    "apps/desktop/src/renderer/features/bots/__tests__/botGroupCapabilityDrawer.test.tsx",
+    "apps/desktop/src/renderer/features/bots/__tests__/botSettings.test.tsx",
+    "docs/product-rules/cindy-bots-runtime.md"
+  ]
+}

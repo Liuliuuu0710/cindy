@@ -1,0 +1,18 @@
+{
+  "commit": "01e3c51f73da5caf0c81eeff7cd59793cba3a6ad",
+  "tests": {
+    "passed": 128,
+    "files": 5
+  },
+  "docsChecks": {
+    "passed": 10
+  },
+  "desktopTypecheck": {
+    "exitCode": 0
+  },
+  "lint": "pre-existing unused _id at botSettings.test.tsx:29:36, reproduced on unchanged main",
+  "dco": "passed",
+  "newUIAcceptance": false,
+  "fullCI": false,
+  "issue6568Included": false
+}

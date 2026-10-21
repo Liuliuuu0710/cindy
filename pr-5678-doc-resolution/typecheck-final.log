@@ -1,0 +1,4 @@
+
+> desktop@0.0.0 typecheck <TASK_WORKTREE>/apps/desktop
+> cross-env NODE_OPTIONS=--max-old-space-size=12288 tsc --noEmit -p tsconfig.json
+
