@@ -483,6 +483,36 @@ describe('Chat Server result delivery and refresh', () => {
     expect(deps.dispatch).toHaveBeenCalledOnce();
   });
 
+  // PR #6644: media-only replies are speech even when removing image Markdown
+  // leaves no text. Exercise the real settlement payload and lost-ACK retry (unit).
+  it.each(['', ' '])('continues discussion for an image-only reply with alt %j', async alt => {
+    const url = `cindy-media://blobs/${'a'.repeat(64)}.png`;
+    const image = { id: url, name: 'image.png', category: 'image' as const, mimeType: 'image/png', size: 3, url, path: null };
+    replyImages.mockResolvedValue({ text: alt, attachments: [image] });
+    const media = { type: 'media', mediaId: '60000000-0000-4000-8000-000000000001', caption: 'image.png' };
+    fixture.upload.mockResolvedValue([media]);
+    let attempts = 0;
+    fixture.handle.mockImplementation((route, _method, body) => {
+      if (body?.action === 'complete' && attempts++ === 0) throw new Error('lost receipt');
+      return response(route);
+    });
+    await start();
+    await service.settleLaneTurn({ ...terminal, resultText: `![${alt}](${url})` });
+    expect(deliveries()[0][2]).toMatchObject({ continueDiscussion: true, content: [expect.anything(), media] });
+    await vi.advanceTimersByTimeAsync(16000);
+    expect(deliveries()).toHaveLength(2);
+    expect(deliveries()[1][2]).toEqual(deliveries()[0][2]);
+    expect(fixture.upload).toHaveBeenCalledOnce();
+    expect(deps.dispatch).toHaveBeenCalledOnce();
+  });
+
+  it.each(['', 'NO_REPLY'])('does not continue a silent ordinary reply %j without media', async resultText => {
+    await start();
+    await service.settleLaneTurn({ ...terminal, resultText });
+    expect(deliveries()[0][2]).toMatchObject({ action: 'complete', continueDiscussion: false });
+    expect(deliveries()[0][2]).not.toHaveProperty('content');
+  });
+
   it('never completes a text-only reply when its image upload fails, then retries without rerunning the Agent', async () => {
     const image = { id: 'image', name: 'image.png', category: 'image' as const, mimeType: 'image/png', size: 3, url: 'cindy-media://image', path: null };
     replyImages.mockResolvedValue({ text: 'Preview', attachments: [image] });
@@ -1327,6 +1357,16 @@ describe('Chat Server result delivery and refresh', () => {
     expect(deps.abortLane).not.toHaveBeenCalled();
     if (status === 401) expect(fixture.refresh).toHaveBeenCalledOnce();
     else expect(fixture.refresh).not.toHaveBeenCalled();
+  });
+
+  it('does not continue discussion when a welcome contains only media', async () => {
+    fixture.handle.mockImplementation(welcomeResponse);
+    replyImages.mockResolvedValue({ text: '', attachments: [] });
+    const media = { type: 'media', mediaId: '60000000-0000-4000-8000-000000000001' };
+    fixture.upload.mockResolvedValue([media]);
+    await start();
+    await service.settleLaneTurn(terminal);
+    expect(deliveries()[0][2]).toMatchObject({ continueDiscussion: false, content: [expect.anything(), media] });
   });
 
   it('posts the existing welcome reply once, never requests continuation and ignores replayed system history', async () => {

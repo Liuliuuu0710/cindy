@@ -1343,8 +1343,9 @@ function createChatServer(local: BotGroupChatService, deps: BotGroupChatServiceD
             failureCodes.set(`${run.execution.id}:${run.execution.epoch}`, terminal.failureCode ?? 'RUNTIME_ERROR');
             if (failureCodes.size > 1000) failureCodes.delete(failureCodes.keys().next().value!);
           }
+          const hasReply = !isBotGroupNoReplyText(text) || files.length > 0;
           pending.payload = terminal.outcome === 'error' ? { detail: botGroupRuntimeFailureDetail(terminal.failureCode ?? 'RUNTIME_ERROR') }
-            : { ...(isBotGroupNoReplyText(text) && !files.length ? {} : { content: [{ type: 'text', text: text.slice(0, 16000) || '已完成' }, ...files] }), continueDiscussion: run.context?.kind !== 'member.joined' && !run.plan && !isBotGroupNoReplyText(text) };
+            : { ...(!hasReply ? {} : { content: [{ type: 'text', text: text.slice(0, 16000) || '已完成' }, ...files] }), continueDiscussion: run.context?.kind !== 'member.joined' && !run.plan && hasReply };
         }
         if (!current() || running.get(run.execution.bot_id) !== run) return;
         await updateExecution(run, pending.terminal.outcome === 'error' ? 'fail' : 'complete', pending.payload);
