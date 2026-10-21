@@ -13,6 +13,20 @@ const snapshot = (): ChatSnapshot => ({ room: room(), cursor: '9007199254741099'
 ] });
 
 describe('direct Chat Server client', () => {
+  it.each(['bot', 'integration', 'human'])('projects %s group and room-list previews before clipping', kind => {
+    const fence = String.fromCharCode(96).repeat(3);
+    const text = 'Readable <name> ' + 'x'.repeat(300);
+    const content = [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1, op: 'create', id: 'body', kind: 'text', props: { text } }), fence].join('\n');
+    const source = { ...message(20), author: { kind, name: 'Original' }, content: [{ type: 'text', text: content }] };
+    const state = { ...snapshot(), messages: [source] };
+    const view = chatGroupView({ snapshot: state, messages: [source], before: null }, id(11));
+    const expected = kind === 'human' ? content : text;
+    expect(view.lastMessage!.preview).toBe(expected.slice(0, 80));
+    expect(chatRoomRow(room(), state, id(11)).item.display.preview).toBe(expected.slice(0, 160));
+    expect(view.messages[0]!.content).toBe(content);
+    expect(source.content).toEqual([{ type: 'text', text: content }]);
+  });
+
   it('reads a 引用回复 card as the quote, keeps it out of text and previews, and marks a deleted original', () => {
     const card = buildBotGroupQuoteCard({ messageId: id(20), authorName: 'Other member', authorKind: 'user', excerpt: 'original words',
       attachmentCount: 0, attachmentName: null, sequence: 20 });

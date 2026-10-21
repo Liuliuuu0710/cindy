@@ -2489,6 +2489,28 @@ describe('Chat Server result delivery and refresh', () => {
       expect(posts[0][2]).not.toHaveProperty('deferExecution');
     });
 
+    it.each(['bot', 'integration', 'human'])('projects %s thread previews and persisted share fallbacks from the source author', async kind => {
+      const fence = String.fromCharCode(96).repeat(3);
+      const content = [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1, op: 'create', id: 'body', kind: 'text',
+        props: { text: 'Readable <name> ' + 'x'.repeat(300) } }), fence].join('\n');
+      const source = msg(botReply, 2, botId, { threadRootId: rootId, author: { kind, name: 'Original' }, content: [{ type: 'text', text: content }] });
+      fixture.handle.mockImplementation((route, method, body) => {
+        if (route.endsWith('/snapshot')) return { body: { room: room(roomId), members, messages: [source, root], cursor: '8' } };
+        if (route.endsWith('/messages/' + botReply)) return { body: source };
+        return threadResponse(route, method, body);
+      });
+      const result = await service.getGroup(roomId);
+      if (!result.ok) throw new Error('Expected group');
+      const preview = result.group.messages.find(message => message.id === rootId)!.threadPreview!.replies[0]!.text;
+      const expected = kind === 'human' ? content.replace(/\s+/g, ' ').trim().slice(0, 280) : ('Readable <name> ' + 'x'.repeat(300)).slice(0, 280);
+      expect(preview).toBe(expected);
+      expect(result.group.lastMessage!.preview).toBe(kind === 'human' ? content.trim().slice(0, 80) : ('Readable <name> ' + 'x'.repeat(300)).slice(0, 80));
+      expect((await service.chatServer!.shareToMain({ groupId: roomId, messageId: botReply })).ok).toBe(true);
+      const posted = fixture.handle.mock.calls.find(([route, method]) => route === '/conversations/' + roomId + '/messages' && method === 'POST')![2];
+      expect(posted.content[0].fallback).toBe('↪ Bot (Me): ' + expected);
+      expect(source.content).toEqual([{ type: 'text', text: content }]);
+    });
+
     it.each([['a root message', rootId], ['a deleted reply', deletedReply], ['an unknown message', '70000000-0000-4000-8000-0000000000ff']])(
       'refuses to share %s', async (_label, messageId) => {
         const result = await service.chatServer!.shareToMain({ groupId: roomId, messageId });

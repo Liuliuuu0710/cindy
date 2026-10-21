@@ -48,7 +48,7 @@ import {
   type BotGroupThreadShareView,
 } from '../../shared/botGroupChat.js';
 import type { BotGroupChatService } from './botGroupChatService.js';
-import { projectBotGroupExecutionFailures } from '@cindy/maker-shared/botGroupPresentation';
+import { botGroupDisplayText, projectBotGroupExecutionFailures } from '@cindy/maker-shared/botGroupPresentation';
 
 const FALLBACK_MESSAGES = 20;
 const FALLBACK_MESSAGE_CHARS = 280;
@@ -237,7 +237,7 @@ function fallbackMarkdown(detail: BotGroupDetail): string {
     .map((message) => {
       // Older phones cannot show attachments; they still see what was attached.
       const attached = message.attachments.map((attachment) => `📎 ${attachment.name}`).join(' ');
-      const text = [message.content.replace(/\s+/g, ' ').trim(), attached].filter(Boolean).join(' ');
+      const text = [botGroupDisplayText(message.content, message.authorKind).replace(/\s+/g, ' ').trim(), attached].filter(Boolean).join(' ');
       const clipped = Array.from(text).length > FALLBACK_MESSAGE_CHARS
         ? `${Array.from(text).slice(0, FALLBACK_MESSAGE_CHARS - 1).join('')}…`
         : text;

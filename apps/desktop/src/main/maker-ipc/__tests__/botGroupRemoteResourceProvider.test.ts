@@ -268,6 +268,24 @@ describe('bot group remote resources', () => {
     expect(plain.blocks?.[0]?.fallbackMarkdown).toContain('**阿布**: 写好了');
   });
 
+  it.each(['bot', 'user'] as const)('projects an old-phone %s summary before clipping, without rewriting the resource data', async authorKind => {
+    const fence = String.fromCharCode(96).repeat(3);
+    const content = [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1, op: 'create', id: 'body', kind: 'text',
+      props: { text: 'Readable <name> ' + '😀'.repeat(300) } }), fence].join('\n');
+    const original = { ...detail().messages[1]!, authorKind, content };
+    service.getGroup.mockResolvedValue({ ok: true, group: detail({ messages: [original] }) });
+    const plain = await remoteResourceRegistry.get(context, { client: client(), ref: ref('g1') });
+    const fallback = plain.blocks?.[0]?.fallbackMarkdown;
+    if (authorKind === 'bot') {
+      expect(fallback).toContain('Readable &#60;name&#62;');
+      expect(fallback).not.toContain('cindy-ui');
+      expect(fallback).toContain('…');
+    } else expect(fallback).toContain('cindy-ui');
+    expect(original.content).toBe(content);
+    const rich = await remoteResourceRegistry.get(context, { client: client([BOT_GROUP_CHAT_PRIMITIVE]), ref: ref('g1') });
+    expect((rich.blocks![0]!.data as ReturnType<typeof botGroupRemoteChatData>).messages[0]!.content).toBe(content);
+  });
+
   it('projects current failures for existing phones without putting notices into the message cache', () => {
     const group = detail();
     const source = group.messages[0]!;

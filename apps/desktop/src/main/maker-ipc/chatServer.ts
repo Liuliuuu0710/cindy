@@ -44,7 +44,7 @@ import {
 import type { BotGroupChatService, BotGroupChatServiceDeps, BotGroupLaneTerminal, BotGroupTaskPostInput, BotGroupTaskPostResult } from './botGroupChatService.js';
 import { readPersistedReplyText } from './botGroupChatService.js';
 import { botGroupRuntimeFailureCode, botGroupRuntimeFailureDetail } from './botGroupRuntimeFailure.js';
-import { botGroupExecutionFailureBatches } from '@cindy/maker-shared/botGroupPresentation';
+import { botGroupDisplayText, botGroupExecutionFailureBatches } from '@cindy/maker-shared/botGroupPresentation';
 import { createThreadProjection, isShareableThreadReply, threadPreviewAttachments, threadPreviewText } from './chatServerThreads.js';
 import { companionSnapshot, registerCompanionHomes } from '../companion-cloud/homes.js';
 import { startCompanionCloud, type CompanionCloudRuntime } from '../companion-cloud/runtime.js';
@@ -1093,7 +1093,7 @@ function createChatServer(local: BotGroupChatService, deps: BotGroupChatServiceD
       const replies = preview?.replies.flatMap(reply => {
         const replyView = messageView(reply, members);
         return replyView.kind === 'message' ? [{ id: reply.id, authorKind: replyView.authorKind, authorBotId: replyView.authorBotId,
-          authorName: replyView.authorName, isSelf: replyView.isSelf, text: threadPreviewText(reply),
+          authorName: replyView.authorName, isSelf: replyView.isSelf, text: threadPreviewText(reply, replyView.authorKind),
           attachments: threadPreviewAttachments(reply, attachmentName), createdAt: replyView.createdAt }] : [];
       });
       if (replies?.length) view.threadPreview = { replies, responders: preview!.responders.flatMap(reply => {
@@ -1165,7 +1165,7 @@ function createChatServer(local: BotGroupChatService, deps: BotGroupChatServiceD
           name: memberName(m), avatar: p?.avatar ?? (m.avatar?.startsWith('https://') ? '' : m.avatar) ?? '', avatarColor: p?.avatarColor ?? 'violet', status: p?.status ?? 'active' };
       }), organizerBotId: s.room.organizer_id ? localBot(s.room.organizer_id)?.id ?? s.room.organizer_id : s.members.find(m => m.kind === 'bot' && m.state === 'joined')?.id ?? null, projectDir: workspace?.projectDir ?? null, lastMessage: last && lastView ? {
         isSelf: lastView.isSelf, authorKind: lastView.authorKind, authorName: lastView.authorName, noticeCode: lastView.noticeCode,
-        preview: lastIsShare ? '' : (botGroupMessageSummaryText(lastView) || mediaNames(last)).slice(0, 80), createdAt: lastView.createdAt, ...(lastIsShare ? { threadShare: true } : {}),
+        preview: lastIsShare ? '' : (botGroupDisplayText(botGroupMessageSummaryText(lastView), lastView.authorKind, 'text') || mediaNames(last)).slice(0, 80), createdAt: lastView.createdAt, ...(lastIsShare ? { threadShare: true } : {}),
       } : null, speakingBotIds: speakers.map(s => s.botId), planningBotId: planning.get(roomId)?.botId ?? null, openPlan: open ? { id: open.id, status: open.status, currentStep: open.currentStep, stepCount: open.steps.length, currentBotName: open.steps[open.currentStep ?? 0]?.botName ?? null, currentStepStatus: open.steps[open.currentStep ?? 0]?.status ?? null } : null,
       lastReplyAt: s.messages.reduce((latest, m) => !m.deleted && m.origin !== 'system' && m.authorId !== selfId
         ? Math.max(latest, Date.parse(m.createdAt)) : latest, 0),
@@ -1910,7 +1910,7 @@ function createChatServer(local: BotGroupChatService, deps: BotGroupChatServiceD
       const author = members.find(member => member.id === source.authorId);
       const card = buildBotGroupThreadShareCard({ messageId: source.id, threadRootId: source.threadRootId!,
         authorName: author ? memberName(author) : source.author.name,
-        text: threadPreviewText(source) || threadPreviewAttachments(source, attachmentName).map(file => file.name).join(', ') });
+        text: threadPreviewText(source, source.author.kind === 'human' ? 'user' : 'bot') || threadPreviewAttachments(source, attachmentName).map(file => file.name).join(', ') });
       try {
         const posted = await api<{ id: string }>(`/conversations/${room}/messages`, 'POST', {
           operationId: botGroupThreadShareOperationId(source.id), content: [card],

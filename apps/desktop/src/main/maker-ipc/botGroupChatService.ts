@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
+import { botGroupDisplayText } from '@cindy/maker-shared/botGroupPresentation';
 
 import { and, asc, desc, eq, gt, inArray, lt, ne } from 'drizzle-orm';
 
@@ -786,7 +787,7 @@ export function createBotGroupChatService(deps: BotGroupChatServiceDeps) {
         ? {
             authorKind: latestSpoken.authorKind,
             authorName: latestSpoken.authorName,
-            preview: preview(latestSpoken.content
+            preview: preview(botGroupDisplayText(latestSpoken.content, latestSpoken.authorKind, 'text')
               || parseAttachments(latestSpoken.attachmentsJson).map((attachment) => attachment.name).join(', ')),
             createdAt: latestSpoken.createdAt,
           }

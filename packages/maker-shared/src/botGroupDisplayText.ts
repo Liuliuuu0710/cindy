@@ -8,7 +8,7 @@ export function botGroupDisplayText(content: string, authorKind?: BotGroupAuthor
   return parts.map((part, partIndex) => {
     const source = content.slice(part.key, parts[partIndex + 1]?.key ?? content.length);
     if (part.kind !== 'rich') return source;
-    const { text, hasReadableContent } = richAnswerTextProjection(source, { escapeMarkdown: format === 'markdown' });
+    const { text, hasReadableContent } = richAnswerTextProjection(source, { escapeMarkdown: format === 'markdown', omitEmptyNodes: true });
     return hasReadableContent ? text + '\n\n' : source;
   }).join('');
 }

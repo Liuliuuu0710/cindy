@@ -233,6 +233,26 @@ describe('botGroupChatService', () => {
     ]);
   });
 
+  it.each(['bot', 'user'])('projects the local %s group preview before truncation without changing messages', async authorKind => {
+    const fence = String.fromCharCode(96).repeat(3);
+    const content = [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1, op: 'create', id: 'body', kind: 'text',
+      props: { text: 'Readable <name> ' + 'x'.repeat(300) } }), fence].join('\n');
+    const harness = createHarness((_botId, _prompt, index) => authorKind === 'bot' && index === 0 ? content : 'NO_REPLY');
+    const groupId = await createGroup(harness);
+    expect((await harness.service.sendMessage({ groupId, text: authorKind === 'user' ? content : 'Summarize',
+      mentions: { all: false, botIds: [] }, clientId: 'component-preview' })).ok).toBe(true);
+    const group = await waitForIdle(harness, groupId);
+    const list = await harness.service.listGroups();
+    if (!list.ok) throw new Error('Expected groups');
+    const preview = group.lastMessage!.preview;
+    if (authorKind === 'bot') {
+      expect(preview).toContain('Readable <name>');
+      expect(preview).not.toContain('cindy-ui');
+    } else expect(preview).toContain('cindy-ui');
+    expect(list.groups[0]!.lastMessage!.preview).toBe(preview);
+    expect(group.messages.some(message => message.authorKind === authorKind && message.content === content)).toBe(true);
+  });
+
   it('in sequential mode lets every member answer in turn, rotates the next circle, and ends when a circle is silent', async () => {
     const replies: Record<string, string[]> = {
       mimi: ['先定个大框架', 'NO_REPLY'],

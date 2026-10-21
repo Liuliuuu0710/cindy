@@ -824,12 +824,13 @@ export function richAnswerText(source: string, options: { escapeMarkdown?: boole
   return richAnswerTextProjection(source, options).text;
 }
 
-export function richAnswerTextProjection(source: string, options: { escapeMarkdown?: boolean } = {}): { text: string; hasReadableContent: boolean } {
-  let hasReadableContent = false;
+export function richAnswerTextProjection(source: string, options: { escapeMarkdown?: boolean; omitEmptyNodes?: boolean } = {}): { text: string; hasReadableContent: boolean } {
+  let readableContentCount = 0;
   const recordContent = (text: string) => {
-    if (text.trim()) hasReadableContent = true;
+    if (text.trim()) readableContentCount += 1;
   };
   const literal = (text: string) => {
+    if (options.omitEmptyNodes && !text.trim()) return '';
     recordContent(text);
     if (!options.escapeMarkdown) return text;
     return text.replace(/[!-/:-?[-`{-~]/g, character => `&#${character.charCodeAt(0)};`)
@@ -843,7 +844,7 @@ export function richAnswerTextProjection(source: string, options: { escapeMarkdo
       }
       const doc = new RichAnswerStream().update(part.source, true);
       const values = richResolvedValues(doc);
-      const visit = (id: string): string => {
+      const render = (id: string): string => {
         const node = doc.nodes.get(id);
         if (!node) return "";
         if (['image', 'video', 'audio'].includes(node.kind)) {
@@ -856,6 +857,7 @@ export function richAnswerTextProjection(source: string, options: { escapeMarkdo
         }
         const md = richMarkdown(node);
         if (md !== null) {
+          if (options.omitEmptyNodes && !richString(node, 'text').trim()) return literal(richString(node, 'caption'));
           recordContent(richString(node, 'text'));
           return (
             md +
@@ -894,10 +896,15 @@ export function richAnswerTextProjection(source: string, options: { escapeMarkdo
           (current === undefined ? "" : `: ${literal(String(current))}`)
         );
       };
+      const visit = (id: string): string => {
+        const before = readableContentCount;
+        const rendered = render(id);
+        return !options.omitEmptyNodes || readableContentCount > before ? rendered : '';
+      };
       return doc.roots.map(visit).filter(Boolean).join("\n\n");
     })
     .join("\n\n");
-  return { text, hasReadableContent };
+  return { text, hasReadableContent: readableContentCount > 0 };
 }
 /** Collapse redundant operations into a complete replayable tree for bounded history frames. */
 export function compactRichAnswer(source: string): string {

@@ -9,7 +9,8 @@
  * Shares: a share card only names a reply. Its author, text and files always come from
  * the server's copy of that reply, which the server checks against this reader's access.
  */
-import { BOT_GROUP_THREAD_PREVIEW_REPLIES, BOT_GROUP_THREAD_PREVIEW_RESPONDERS, readBotGroupThreadShareCard } from '../../shared/botGroupChat.js';
+import { BOT_GROUP_THREAD_PREVIEW_REPLIES, BOT_GROUP_THREAD_PREVIEW_RESPONDERS, readBotGroupThreadShareCard, type BotGroupAuthorKind } from '../../shared/botGroupChat.js';
+import { botGroupDisplayText } from '@cindy/maker-shared/botGroupPresentation';
 
 export interface ThreadMessage {
   id: string; seq: string; authorId: string; deleted: boolean; threadRootId: string | null;
@@ -237,9 +238,9 @@ export function isShareableThreadReply(message: ThreadMessage): boolean {
 }
 
 /** Reply text for a one-line preview; files are listed separately. */
-export function threadPreviewText(message: ThreadMessage): string {
-  return message.content.flatMap(block => block.type === 'media' ? [] : [block.text ?? block.fallback ?? '']).join(' ')
-    .replace(/\s+/g, ' ').trim().slice(0, 280);
+export function threadPreviewText(message: ThreadMessage, authorKind: BotGroupAuthorKind): string {
+  const content = message.content.flatMap(block => block.type === 'media' ? [] : [block.text ?? block.fallback ?? '']).join('\n');
+  return botGroupDisplayText(content, authorKind, 'text').replace(/\s+/g, ' ').trim().slice(0, 280);
 }
 
 export function threadPreviewAttachments(message: ThreadMessage, attachmentName: (block: ThreadMessage['content'][number]) => string) {

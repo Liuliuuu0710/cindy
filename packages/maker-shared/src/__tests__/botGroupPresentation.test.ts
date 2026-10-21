@@ -18,6 +18,27 @@ import { BOT_GROUP_RUNTIME_FAILURE_CODES, readBotGroupExecutionFailure, type Bot
 describe('group answer display text', () => {
   const fence = String.fromCharCode(96).repeat(3);
   const outerFence = String.fromCharCode(96).repeat(4);
+  it.each(['heading', 'stat', 'input', 'text', 'code', 'math', 'diagram', 'divider', 'icon', 'svg', 'check'])('omits an empty %s sibling without hiding readable nested content', kind => {
+    for (const emptyFirst of [true, false]) {
+      const nodes = [
+        { id: 'empty', kind, props: { text: ' ', label: ' ', default: ' ' } },
+        { id: 'readable', kind: 'text', props: { text: 'Actual content' } },
+      ];
+      if (!emptyFirst) nodes.reverse();
+      const content = [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1, op: 'create', id: 'group', kind: 'stack', props: { label: ' ' } }),
+        ...nodes.map((node, index) => JSON.stringify({ seq: index + 2, op: 'create', parent: 'group', ...node })), fence].join('\n');
+      for (const format of ['markdown', 'text'] as const) expect(botGroupDisplayText(content, 'bot', format).trim()).toBe('Actual content');
+      expect(botGroupQuoteExcerpt(content, 'bot')).toBe('Actual content');
+    }
+  });
+
+  it.each(['code', 'math', 'diagram'])('keeps a %s caption without an empty generated fence', kind => {
+    const content = [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1, op: 'create',
+      id: 'node', kind, props: { text: '', caption: 'Caption' } }), fence].join('\n');
+    expect(botGroupDisplayText(content, 'bot', 'text').trim()).toBe('Caption');
+    expect(richAnswerText(content)).not.toBe('Caption');
+  });
+
   it.each(['image', 'video', 'audio'])('does not replace a %s with only a blank source with Markdown syntax', kind => {
     for (const src of ['', '   ', '\n\t']) {
       const content = [fence + 'cindy-ui', JSON.stringify({ version: 1, seq: 1, op: 'create',

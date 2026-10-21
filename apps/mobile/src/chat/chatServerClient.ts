@@ -1,7 +1,7 @@
 import { createConversationListState } from '@cindy/maker-shared/chatConversationList';
 /** The existing Chat Server HTTP contract; no device-link or executor registration. */
 import { botGroupMessageSummaryText, readBotGroupExecutionFailure, readBotGroupQuote, readBotGroupQuoteCard, readBotGroupTaskCard, readImportedBotGroupRuntimeFailureCode, type BotGroupAttachment, type BotGroupMemberView, type BotGroupMessageView, type BotGroupRemoteChatData } from '@cindy/maker-shared/botGroupChat';
-import { botGroupExecutionFailureBatches, projectBotGroupExecutionFailures } from '@cindy/maker-shared/botGroupPresentation';
+import { botGroupDisplayText, botGroupExecutionFailureBatches, projectBotGroupExecutionFailures } from '@cindy/maker-shared/botGroupPresentation';
 import type { HostedRemoteCollectionItem } from '@/device-link/remoteResources';
 // The app's `@/i18n` sets up this default instance; importing it here would pull React bindings into a plain client.
 import i18next from 'i18next';
@@ -84,13 +84,15 @@ export function chatRoomRow(room: ChatRoom, snapshot?: ChatSnapshot, selfId?: st
   const members = snapshot?.members.filter(member => member.state === 'joined') ?? [];
   const last = snapshot?.messages.filter(message => !message.threadRootId && !message.deleted)
     .sort((a, b) => BigInt(chatCursor(a.seq)) < BigInt(chatCursor(b.seq)) ? 1 : -1)[0];
+  const lastText = last ? botGroupDisplayText(botGroupMessageSummaryText({ content: contentText(last), task: taskCardOf(last) ?? undefined, deleted: last.deleted }),
+    last.origin === 'system' ? 'system' : last.author.kind === 'human' ? 'user' : 'bot', 'text') : '';
   return { key: `chat:${room.id}`, host: { deviceId: '', deviceName: '' },
     lastReplySequence: snapshot && selfId ? chatLastReplySequence(snapshot.messages, selfId) : undefined,
     groupMembers: snapshot ? members.map(chatMemberIdentity) : undefined, item: {
     ref: { collectionId: 'bot-groups', kind: 'bot-group', id: room.id },
     revision: String(room.head ?? room.revision), display: { title: room.name,
       subtitle: members.map(memberName).join(' · '),
-      ...(snapshot ? { preview: last ? (botGroupMessageSummaryText({ content: contentText(last), task: taskCardOf(last) ?? undefined, deleted: last.deleted }) || mediaNames(last)).slice(0, 160) || members.map(memberName).join(' · ') : '' } : {}),
+      ...(snapshot ? { preview: last ? (lastText || mediaNames(last)).slice(0, 160) || members.map(memberName).join(' · ') : '' } : {}),
       timestamp: Date.parse(last?.createdAt ?? room.updated_at),
       lastReplyAt: snapshot && selfId ? chatLastReplyAt(snapshot.messages, selfId) : undefined },
     links: members.map(member => ({ rel: 'member', label: memberName(member),
@@ -190,7 +192,7 @@ export function chatGroupView(page: ChatPage, selfId: string, actors: readonly C
     revision: room.revision, members: memberViews, replyMode: room.response_mode, speakingMode: room.speaking_mode,
     organizerBotId: room.organizer_id ?? null, projectDir: null, projectDirName: null,
     createdAt: Date.parse(room.created_at), updatedAt: Date.parse(room.updated_at),
-    lastMessage: last ? { authorKind: last.authorKind, authorName: last.authorName, preview: botGroupMessageSummaryText(last).slice(0, 80), createdAt: last.createdAt } : null,
+    lastMessage: last ? { authorKind: last.authorKind, authorName: last.authorName, preview: botGroupDisplayText(botGroupMessageSummaryText(last), last.authorKind, 'text').slice(0, 80), createdAt: last.createdAt } : null,
     speakingBotIds: [], planningBotId: null, openPlan: null, plans: [], messages: projectBotGroupExecutionFailures(messages, failures),
     hasMoreBefore: page.before !== null, round: { status: 'idle', speakers: [], canContinue: false }, supportsAttachments: false };
 }

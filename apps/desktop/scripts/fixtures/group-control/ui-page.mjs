@@ -33,6 +33,15 @@ export default {
   notCovered:
     'Sending, round control, real device-link control and revocation, pending interactions, plans and attachments; the bubbles case shows a task snapshot, not a live task; the sidebar is an empty frame',
   cases: {
+    'rich-mixed': {
+      about: 'Readable component content does not expose empty sibling headings, code fences or stat labels',
+      data: { ...base, sidebar: false, answer: richAnswer.replace(fence + '\nNo new controls', [
+        JSON.stringify({ seq: 4, op: 'create', id: 'empty-heading', parent: 'root', kind: 'heading', props: { text: '' } }),
+        JSON.stringify({ seq: 5, op: 'create', id: 'empty-code', parent: 'root', kind: 'code', props: { text: '' } }),
+        JSON.stringify({ seq: 6, op: 'create', id: 'empty-stat', parent: 'root', kind: 'stat', props: { value: '' } }),
+        fence + '\nNo new controls',
+      ].join('\n')) },
+    },
     'rich-quote': {
       about: 'Quoting a component answer shows readable text in the composer without changing the source message',
       data: { ...base, answer: richAnswer, sidebar: false, serverBacked: true },
@@ -111,11 +120,13 @@ export default {
       await ui.capture('literal-answer');
       return;
     }
-    if (ui.case === 'rich-answer') {
+    if (ui.case === 'rich-answer' || ui.case === 'rich-mixed') {
       const message = page.locator('[data-bot-group-message-id="rich-answer"]');
       await message.waitFor();
       await ui.capture('group-answer');
       assert.equal(await message.getByRole('heading', { name: 'Next steps' }).count(), 1);
+      assert.equal(await message.getByRole('heading').count(), 1);
+      assert.equal(await message.locator('pre').count(), 0);
       assert.equal(await message.locator('li').count(), 2);
       const text = await message.innerText();
       assert.ok(text.includes('Here is the review summary.'));

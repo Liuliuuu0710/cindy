@@ -304,9 +304,9 @@ describe('late reads after a reset or invalidation', () => {
 describe('reply summaries', () => {
   it('summarizes text separately from files and refuses system or deleted replies', () => {
     const files = reply('f', rootA, { content: [{ type: 'text', text: '  第一行\n第二行 ' }, { type: 'media', mediaId: 'm1', caption: 'shot.PNG' }, { type: 'media', mediaId: 'm2', caption: 'notes.pdf' }] });
-    expect(threadPreviewText(files)).toBe('第一行 第二行');
+    expect(threadPreviewText(files, 'user')).toBe('第一行 第二行');
     expect(threadPreviewAttachments(files, block => block.caption!)).toEqual([{ name: 'shot.PNG', category: 'image' }, { name: 'notes.pdf', category: 'file' }]);
-    expect(threadPreviewText(reply('long', rootA, { content: [{ type: 'text', text: 'x'.repeat(400) }] }))).toHaveLength(280);
+    expect(threadPreviewText(reply('long', rootA, { content: [{ type: 'text', text: 'x'.repeat(400) }] }), 'user')).toHaveLength(280);
     expect(isShareableThreadReply(files)).toBe(true);
     expect(isShareableThreadReply(message({ id: 'root' }))).toBe(false);
     expect(isShareableThreadReply(reply('d', rootA, { deleted: true }))).toBe(false);
