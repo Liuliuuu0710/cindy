@@ -82,7 +82,7 @@ interface ServerPlan {
 interface Running {
   execution: Execution; sessionId: string; clientId: string; accepted: boolean; started: number;
   context?: ExecutionContext;
-  settlement?: { terminal: BotGroupLaneTerminal; payload?: Record<string, unknown>; retryAt: number; keepLease?: boolean };
+  settlement?: { terminal: BotGroupLaneTerminal; payload?: Record<string, unknown>; reply?: { text: string; attachments: BotGroupAttachment[] }; retryAt: number; keepLease?: boolean };
   delivery?: Promise<void>;
   plan?: ServerPlan;
   workspace?: { workDir: string; branch: string | null; ownerSessionId: string | null };
@@ -1295,14 +1295,20 @@ function createChatServer(local: BotGroupChatService, deps: BotGroupChatServiceD
       try {
         if (!pending.payload) {
           let terminal = pending.terminal;
-          let text = terminal.resultText;
-          if (!text.trim() && terminal.resultMessageClientId) text = (await readPersistedReplyText(terminal.sessionId, terminal.resultMessageClientId)) ?? '';
+          let text = pending.reply?.text ?? terminal.resultText;
+          if (!pending.reply && !text.trim() && terminal.resultMessageClientId) text = (await readPersistedReplyText(terminal.sessionId, terminal.resultMessageClientId)) ?? '';
           const assertDeliveryCurrent = () => {
             if (!current() || running.get(run.execution.bot_id) !== run) throw new Error('STALE_EXECUTOR');
           };
-          let reply: { text: string; attachments: BotGroupAttachment[] } = { text, attachments: [] };
-          if (terminal.outcome !== 'error' && !run.plan) {
-            try { reply = await prepareChatReplyImages(text, run.sessionId, assertDeliveryCurrent); }
+          let reply: { text: string; attachments: BotGroupAttachment[] } = pending.reply ?? { text, attachments: [] };
+          if (terminal.outcome !== 'error' && !run.plan && !pending.reply) {
+            try {
+              reply = await prepareChatReplyImages(text, run.sessionId, assertDeliveryCurrent);
+              assertDeliveryCurrent();
+              // Import once before any network request: scratchpad cleanup or edits
+              // must not change the managed reply we retry after a transport failure.
+              pending.reply = { text: reply.text, attachments: reply.attachments.map(attachment => ({ ...attachment })) };
+            }
             catch (error) {
               if (!(error instanceof ChatReplyImageUnavailableError)) throw error;
               // Fail through the existing group notice instead of renewing forever

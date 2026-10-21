@@ -527,6 +527,27 @@ describe('Chat Server result delivery and refresh', () => {
     expect(deps.dispatch).toHaveBeenCalledOnce();
   });
 
+  // PR #6644: importing succeeds before HTTP fails. Deleting/changing the
+  // original scratchpad must not invalidate the managed snapshot on retry (unit).
+  it.each([408, 429, 503])('reuses the imported reply snapshot after media HTTP %s', async status => {
+    const url = `cindy-media://blobs/${'a'.repeat(64)}.png`;
+    const image = { id: url, name: 'image.png', category: 'image' as const, mimeType: 'image/png', size: 3, url, path: null };
+    replyImages.mockResolvedValueOnce({ text: 'Original image', attachments: [image] })
+      .mockRejectedValue(new ChatReplyImageUnavailableError());
+    const media = { type: 'media', mediaId: '60000000-0000-4000-8000-000000000001' };
+    fixture.upload.mockRejectedValueOnce(new ChatResponseError('TEMPORARY_UPLOAD', status)).mockResolvedValue([media]);
+    await start();
+    await service.settleLaneTurn({ ...terminal, resultText: '![](xdt-image:///scratchpad/result.png)' });
+    expect(deliveries()).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(status === 429 ? 61000 : 16000);
+    expect(deliveries()).toHaveLength(1);
+    expect(deliveries()[0][2].content).toEqual([{ type: 'text', text: 'Original image' }, media]);
+    expect(replyImages).toHaveBeenCalledOnce();
+    expect(fixture.upload).toHaveBeenCalledTimes(2);
+    expect(fixture.upload.mock.calls[1].slice(0, 4)).toEqual(fixture.upload.mock.calls[0].slice(0, 4));
+    expect(deps.dispatch).toHaveBeenCalledOnce();
+  });
+
   it('fails an ordinary reply when upload cannot read its prepared image, without retrying', async () => {
     fixture.upload.mockRejectedValue(new ChatMediaSourceUnavailableError());
     await start();
