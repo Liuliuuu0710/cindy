@@ -189,6 +189,9 @@ const CORE_INVOKE_CHANNELS: readonly string[] = [
   'maker:mcp-apps:v1',
   DL_SESSION_HANDOFF_CHANNEL,
   'maker:steer',
+  // 控制端输入框开始打字时，请被控端提前启动该任务的 Agent。被控端只对普通任务、
+  // 本机运行的 Agent 生效，限量并空闲回收；旧被控端 CHANNEL_NOT_ALLOWED → 控制端静默忽略。
+  'maker:session:prewarm',
   'maker:list-active',
   'maker:any-session-in-turn',
   'maker:session-in-turn',
@@ -466,6 +469,9 @@ const EXTENDED_INVOKE_CHANNELS: readonly string[] = [
   // Shared action via dispatch injection; local IPC retains its trusted-renderer guard.
   'maker:turn-change-set:apply',
   'maker:fork',
+  // Independent history branch on the task's host; same authority as fork.
+  'maker:side-chat:v1',
+  'maker:side-chat:list:v1',
   'maker:fork-strip-encrypted',
   'maker:generate-title',
   // 重命名输入框 Magic 按钮:被控端读自己 DB 里的最新对话素材、用自己的 provider 凭证
