@@ -1,3 +1,7 @@
+import { incomingShareSlotOrder } from '@/session/mobileLocalAttachmentUpload';
+import { useIncomingShareComposer } from '@/session/useIncomingShareComposer';
+import { incomingShareDestination } from '@/session/incomingShare';
+import { CompanionFollowUpInvitation } from '@/session/CompanionFollowUpInvitation';
 import { ModelSpeedIcon } from '@/session/ModelSpeedIcon';
 import { useSessionHistorySearch } from '@/session/useSessionHistorySearch';
 import { useContentRecoveryDiagnostics } from '@/debug/useContentRecoveryDiagnostics';
@@ -1351,6 +1355,7 @@ function SessionScreenContent() {
     waitForPendingUploads,
     beginOutboxAttachmentHandoff,
     getUploadedSource,
+    insertUploadedAttachment,
     getUploadedAttachmentId,
     releaseUploadedSources,
     waitForPastePlaceholdersSettled,
@@ -1368,7 +1373,7 @@ function SessionScreenContent() {
         ?.decorateUploadedAttachment(rawAttachment, candidate) ?? rawAttachment;
       // send() 在 waitForPendingUploads 落定后同步读 ref,而 setState 到 commit 有
       // 微任务延迟——这里派发时同步镜像,保证「上传完成→立即发送」不丢刚落定的附件。
-      attachmentsRef.current = [...attachmentsRef.current, attachment];
+      attachmentsRef.current = insertUploadedAttachment(attachmentsRef.current, attachment);
       if (candidate.kind === 'image') {
         setAttachmentPreviews((current) => ({ ...current, [attachment.id]: candidate.uri }));
       }
@@ -1377,7 +1382,7 @@ function SessionScreenContent() {
         const sourceId = candidate.sourceId;
         setMediaAssetAttachments((current) => ({ ...current, [sourceId]: attachment.id }));
       }
-      setAttachments((current) => [...current, attachment]);
+      setAttachments((current) => insertUploadedAttachment(current, attachment));
     },
     onError: (message) => {
       setAttachmentError(message);
@@ -3227,6 +3232,17 @@ function SessionScreenContent() {
     // 那一拍恢复正常持久化,草稿库与内存重新对齐。
     applyComposerDraft(value, queueEditingRef.current ? { persist: false } : undefined);
   }, [applyComposerDraft]);
+
+  useIncomingShareComposer({
+    destination: [incomingShareDestination(deviceId, sessionId), incomingShareDestination(deviceId, sessionId, {
+      collectionId: readRouteParam(params.resourceCollectionId) ?? '',
+      kind: readRouteParam(params.resourceKind) ?? '', id: readRouteParam(params.resourceId) ?? '',
+    })],
+    ready: composerDraftHydrated && canUseComposer && companionEntry.ready && !queueEditingRef.current,
+    appendText: text => setComposerDraft(current => [current, text].filter(Boolean).join('\n\n')),
+    attachmentCount: attachments.length,
+    enqueueUploads, getPendingUploadCount, onError: setAttachmentError,
+  });
 
   // 开始打字时请被控端提前启动 Agent，把冷启动藏进打字时间。同一任务 30 秒最多提醒一次；
   // 任务在跑、在排队编辑或旧被控端不支持时什么都不做。
@@ -6144,6 +6160,9 @@ function SessionScreenContent() {
   const companionDisplay = useCompanionDisplayResource(deviceId, sessionId, companionResource, companionChat);
   const [companionSettingsRequest, setCompanionSettingsRequest] = useState<{ sessionId: string; page: 'memory' | 'capabilities'; sequence: number }>();
   const openCompanionSettings = useCallback((page: 'memory' | 'capabilities') => setCompanionSettingsRequest(previous => ({ sessionId, page, sequence: (previous?.sequence ?? 0) + 1 })), [sessionId]);
+  const followUpScope = JSON.stringify([auth.accountGeneration, deviceId, sessionId]);
+  const [followUpEngaged, setFollowUpEngaged] = useState<string | null>(null);
+  useEffect(() => setFollowUpEngaged(null), [followUpScope]);
   const companionWorkingLabel = useCompanionWorkingLabel({ sessionId, deviceId, botId: companionDisplay?.ref.id ?? '',
     active: companionChat && showComposerActivity, messages, reconnectAttempt: remoteSessionRunStatus.reconnectAttempt });
   const companionAvatarData = companionDisplay?.display.avatar;
@@ -6654,6 +6673,10 @@ function SessionScreenContent() {
             sessionRefs: sessionRefsAtSend, agentReferences: agentReferencesAtSend,
             pastedTextRanges: pastedTextRangesAtSend, slashCommandRanges: slashCommandRangesAtSend ?? [],
             permissionModeAtSend, planModeAtSend, readyAttachments, readyPreviews,
+            attachmentOrder: incomingShareSlotOrder([
+              ...readyAttachments.map(attachment => getUploadedSource(attachment.id)?.incomingShareOrder),
+              ...pendingSources.map(({ source }) => source.incomingShareOrder),
+            ]),
             claimedUploads: pendingSources.map(({ localId, source }) => ({ localId, failed: false, kind: source.kind, previewUri: source.uri })),
           });
           const clearedAt = currentSession.clearedAt ? Date.parse(currentSession.clearedAt) : null;
@@ -6668,7 +6691,7 @@ function SessionScreenContent() {
             const source = getUploadedSource(readyAttachments[slot].id);
             if (!source && !outboxAttachmentNeedsLocalBytes(readyAttachments[slot])) continue;
             if (!source) throw new Error(t('session.screen.attachmentsNotCarriedBack', { count: 1 }));
-            record.uploads.push(await retainOutboxFile(record, slot, source));
+            record.uploads.push(await retainOutboxFile(record, item.attachmentSlots.findIndex(attachment => attachment?.id === readyAttachments[slot].id), source));
           }
           for (const { localId, source } of pendingSources) {
             record.uploads.push(await retainOutboxFile(record, item.slotByLocalId[localId]!, source));
@@ -6691,9 +6714,9 @@ function SessionScreenContent() {
             applyComposerDocument(documentAfterOptimisticClear);
           }
           rememberSentAttachmentPreviews(record.item.clientId, readyAttachments, (attachment) => {
-            const slot = readyAttachments.findIndex((a) => a.id === attachment.id);
+            const slot = item.attachmentSlots.findIndex((a) => a?.id === attachment.id);
             const upload = record?.uploads.find((u) => u.slot === slot);
-            return record && upload ? durableOutboxUploadUri(record, upload) : readyPreviews[slot] ?? null;
+            return record && upload ? durableOutboxUploadUri(record, upload) : readyPreviews[readyAttachments.findIndex(a => a.id === attachment.id)] ?? null;
           }, (attachment) => {
             const slot = item.attachmentSlots.findIndex((entry) => entry?.id === attachment.id);
             return slot >= 0 ? `${item.clientId}-slot-${slot}` : undefined;
@@ -7103,6 +7126,7 @@ function SessionScreenContent() {
       // 消息已由 A 路径落定；若等待期间切到 B，只停止旧 continuation，不能再用
       // A 的附件 id / plan 状态去清理 B 的 composer UI。
       if (!sendScopeStillAlive()) return;
+      if (enqueueAccepted) setFollowUpEngaged(followUpScope);
       if (sessionAtSend.permissionMode === 'plan') {
         // 一次性语义(对齐桌面 PR#494 / 产品决策):计划模式只对本条消息生效,发送后
         // 自动恢复进入前的权限档;本条消息通常已按 plan 派发,切换只影响后续消息。
@@ -10646,6 +10670,12 @@ function SessionScreenContent() {
                     />
                   ) : null}
                 </View>
+              ) : null}
+              {companionChat && companionResource?.ref.id === 'cindy-default'
+                && companionResource.links.some(link => link.rel === 'conversation' && link.target.kind === 'session' && link.target.sessionId === sessionId)
+                && followUpEngaged === followUpScope && !remoteSessionRunning && !isSessionStreaming
+                && pending.length === 0 && !shareSelectionActive && !remoteUnavailableReason ? (
+                <CompanionFollowUpInvitation key={followUpScope} deviceId={deviceId} deviceName={deviceName} botId="cindy-default" />
               ) : null}
               {/* Desktop BotWorkingStatus: a teammate's paced public status stays above the composer,
                   also while the user reads older messages. Interactions carry their own panel. */}

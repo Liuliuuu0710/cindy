@@ -1695,6 +1695,7 @@ interface ElectronAPI {
     onConfirm: (callback: (request: unknown) => void) => () => void;
     resolveConfirm: (requestId: string, confirmed: boolean) => Promise<{ handled: boolean }>;
   };
+  voiceConversation: import('../shared/voiceConversation').VoiceConversationApi;
   voiceInput: {
     prewarm: (payload?: {
       sourceLanguage?: string;
@@ -1996,6 +1997,7 @@ interface ElectronAPI {
       remoteHostId: string | null;
       deviceLinkDeviceId?: string | null;
       subagentsAvailable?: boolean;
+      botOwner?: { botId: string; canonical: boolean } | null;
       available: boolean;
     } | null>;
     /** 子窗口根组件挂载握手。 */
@@ -2016,6 +2018,7 @@ interface ElectronAPI {
       remoteHostId: string | null;
       deviceLinkDeviceId?: string | null;
       subagentsAvailable?: boolean;
+      botOwner?: { botId: string; canonical: boolean } | null;
       available: boolean;
     }) => void;
     onStateChanged: (
@@ -2033,6 +2036,7 @@ interface ElectronAPI {
         remoteHostId: string | null;
         deviceLinkDeviceId?: string | null;
         subagentsAvailable?: boolean;
+        botOwner?: { botId: string; canonical: boolean } | null;
         available: boolean;
       }) => void,
     ) => () => void;
@@ -6432,6 +6436,8 @@ interface ElectronAPI {
         persistId?: string;
       }>
     >;
+    /** Detached Bot workbench only: approve its current local permission row. */
+    allowBotWorkbenchPermission: (botId: string, sessionId: string, requestId: string) => Promise<{ accepted: boolean }>;
 
     // ── 运行时切换 (Stage 2 B) ─────────────────────────────────────────────
     // session 不存在(没 send 过/已 close)时 main 侧 no-op,renderer 可乐观调用。

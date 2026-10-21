@@ -1,5 +1,26 @@
 # 跨端协议兼容
 
+## 远程链路流量治理：交互优先名额与 Subagent 变更推送
+
+交互类 invoke（`maker:send`、`maker:abort-session`、`maker:input:enqueue` / `steer` / `stop` /
+`resume` / `retry-last-error` / `remove`、`maker:resolve-interaction`、`maker:agent-task:stop`，
+集合见 `packages/device-link/src/invokePolicy.ts` 的 `isInteractiveInvoke`）在控制端
+`InvokeScheduler` 与被控端 dispatch 准入上各多 2 个（被控端全局多 4 个）消息名额，且在控制端
+排队时先于普通前台请求出队；字节上限、超时、重试、授权与 wire 格式都不变。旧控制端没有本地
+名额但仍可被新被控端多放行；旧被控端对新控制端照原上限拒绝，控制端沿用既有 BACKPRESSURE
+重试。`maker:predict-prompt` 改为控制端后台档（只影响本地排队顺序）。
+
+`local-db:subagent-runs:list` 的响应新增可选 `changePush: true`，表示该被控端会把本机
+`local-db:subagent-runs:changed`（payload 顶层 `sessionId`，路由到 `session:<id>` topic）经
+link 转发给订阅了该任务的控制端。新桌面控制端收到该标记后改为按推送重读、只保留 60 秒的
+兜底轮询；旧被控端不带标记，控制端保持原 5 秒 / 20 秒轮询；旧控制端忽略该字段和未知推送
+（Mobile 当前不消费此推送）。不新增 relay 类型、数据库 schema、权限或 Mobile 原生指纹，
+云端无需改动。
+
+桌面控制端的持久推送修复读（`messages:created` / 带 persistId 的 `maker:event` 之后 1.5 秒
+重读最新页 + 交互快照）只在「窗口内最后一条推送之后已有一次成功应用的最新页读取」时才省掉；
+读取失败或晚于该读取的推送仍会触发修复读。本地行为，不进入 wire。
+
 ## Agent 预热与远程发送路径
 
 新增 invoke `maker:session:prewarm(sessionId, createOpts)`，Desktop 本机 Renderer 与 device-link
@@ -1479,6 +1500,25 @@ Codex 原生图片恢复（#6412）在既有 `maker:remote-agent:v1` 上追加�
 
 ## 协同远端 Worker：Worker 在另一台电脑运行
 
+主动回报可选追加 `maker:orca:remote-worker:bridge`，仅同账号 allowlist；不进入共享任务、
+供应商分享清单。运行设备从本机持久来源标记选定 Lead 电脑，传真实任务 ID、Lead ID、
+四个既有 Worker 工具名之一与其原参数。Lead 从 server 盖章的来源设备 ID 反查 active team
+内的 Worker，核对真实任务和 `worker_id`，再调用与本机 MCP 相同的 handler／schema；
+请求不能自报本机 role 或指定任意目标。根 Agent 回报限制在运行设备转发前执行。
+桥接请求可选增加 `reportedInputClientIds`（最多 64 个安全 ID），由运行宿主在工具调用入口
+同步捕获本轮已消费输入，不接受模型参数指定。Lead 仅结清相交的等待输入；仍在排队的新
+输入保持持久等待记录和运行状态。旧端缺少此字段时不清除等待记录，保留自动回报兜底；
+新字段不改变四个 MCP 工具 schema，也不改变本机 Worker 的回报路径。
+`caps` 可选增加 `workerBridge: true`，协议版本仍为 1，既有 open/release 载荷不变；
+桥接沿既有同账号远控授权，Lead 电脑未开放反向远控时也保留自动回报，不扩大授权。
+旧端忽略可选字段或返回 `CHANNEL_NOT_ALLOWED`，保留原有完成后自动回报，不降级为通用 handoff，
+不自动重试结果不明的写操作。完整主动往返需要 Lead 与运行设备均更新，服务端无需变化。
+`get_current_session_id` 和 `list_sessions` 可选投影既有远端来源标记；普通任务不增加空字段。
+桌面及手机的控制端继续通过任务所属电脑使用协同，不新增 UI、push 或 Mobile 原生输入。
+故障动作只影响当前 Worker 的一次桥接请求，不重启 peer 或共享 relay；另一设备的自动回报
+继续由既有运行时处理。权限隔离、旧端、账号切换与真实 handler 往返见
+`apps/desktop/src/main/maker-ipc/__tests__/orcaRemoteWorkerBridge.test.ts`。
+
 Orca 原地 Agent 切换补充边界：执行设备任务按既有 `orca_remote_lead` 判定，
 与 `orca_role` 一样拒绝用户换 Agent 位置，不新增 wire 字段或版本要求。
 Mobile 对已在另一台电脑运行的 Orca Agent，按所展示的模型目录所在电脑查询
@@ -1614,6 +1654,15 @@ B 上的 Worker 是一条普通任务，`sessions.orca_remote_lead`(migration 01
   `sharedStatus`、`remoteHandler` 测试与界面、手机同名测试。
 
 ## 供应商组：订阅配额筛选与用量均衡（2026-10-12，OpenAI 于 2026-10-20 接入）
+
+2026-10-21：同账号 `pick` 的 `{ kind: 'unavailable' }` 回包可选增加
+`usageLimit: { resetAtMs: number | null }`，仅表示已验证的订阅额度耗尽；时刻为可分配成员中
+最早的已知恢复时间（unix ms）。不发送账号信息、用量快照或成员名单。控制端保留已知／未知
+重置语义，以 `REMOTE_AGENT_GROUP_USAGE_LIMIT` 错误接入现有输入投影与限额等待；
+手机和桌面沿用 `usageLimitWait` 显示时间、取消等待。新组配旧控制端忽略可选字段，
+新控制端配旧组保留原通用错误，不猜测限额或自动等待；旧查看端仍可显示通用错误和既有等待。
+完整体验需要组所在电脑与任务所在电脑更新，查看端更新后有对应本地化文案。
+不新增 channel、持久状态、权限或服务端改动。
 
 产品规则见 [`provider-groups.md`](../product-rules/provider-groups.md) §5。选电脑仍由组所在电脑完成：先排除额度耗尽的成员，
 再按所选策略分配；Claude Code 与 OpenAI 订阅均可参与配额排序，旧策略 `usage` 沿用 `least`。
@@ -2885,3 +2934,14 @@ namespace + id 下同一插件的有界 JSON 请求；`deviceSync: true` 是独�
 旧端没有该确认或未收到释放回执时保留原过期清理，不把旧端的普通验证成功当作释放成功。断线、撤销、账号切换或重启后
 无法复核时不投递，不自动重放；已送达历史保留。未知投递结果仍要求先读取目标核实。
 没有新 relay channel、服务端变更、数据库 migration 或 Mobile 原生指纹变化。
+
+
+## 伙伴跟进邀请（2026-10-21）
+
+总调度未设置 override 时默认关闭，已有明确选择保留。跨端沿用 `teammates` 远程资源：
+`settings:<botId>/follow-up` 返回既有 form/toggle/confirmation、可选邀请标记和不透明动作票。
+读资源不启用跟进；点击开启或暂不开启才保存。票据绑定账号、控制端、伙伴及当前设置 revision；
+旧票、隐藏伙伴与账号切换沿用既有拒绝规则，不新增 invoke channel 或共享访客权限。
+新 Host 对旧查看端仍执行默认关闭；旧端忽略新增入口/字段，已有聊天不变。新查看端连接旧 Host
+时不显示邀请，不能声称旧 Host 已执行新默认。Desktop 本机、远程 Desktop 和 Mobile 均显示范围及用量，
+Mobile iOS/Android 复用现有设置表单与按钮；没有原生配置、依赖、指纹或数据库迁移变化。
