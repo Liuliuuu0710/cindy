@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import { permanentChatFileReadError } from './chatServerErrors.js';
 import path from 'node:path';
 import { parseBlobUrl, resolveSafe } from '../cindy-media/blobStore.js';
 import { sessionCanRead } from '../cindy-media/ledger.js';
@@ -52,7 +53,7 @@ export async function prepareChatReplyImages(text: string, sessionId: string, as
     }
     if (!resolved.mimeType.startsWith('image/')) throw new ChatReplyImageUnavailableError();
     const stat = await fs.stat(resolved.absPath).catch((error: NodeJS.ErrnoException) => {
-      if (['ENOENT', 'ENOTDIR', 'EACCES', 'EPERM'].includes(error.code ?? ''))
+      if (permanentChatFileReadError(error))
         throw new ChatReplyImageUnavailableError();
       throw error;
     });

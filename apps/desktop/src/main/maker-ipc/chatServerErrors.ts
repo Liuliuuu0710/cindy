@@ -1,5 +1,13 @@
 import type { BotGroupErrorCode, BotGroupFailure } from '../../shared/botGroupChat.js';
 
+/** Filesystem failures that may clear on their own during local media reads. */
+const TRANSIENT_FS_CODES = new Set(['EAGAIN', 'EBUSY', 'EINTR', 'EMFILE', 'ENFILE', 'ENOMEM', 'EIO']);
+/** Call only at a local filesystem boundary; network errors can carry similar codes. */
+export function permanentChatFileReadError(error: unknown): boolean {
+  const code = (error as NodeJS.ErrnoException | null)?.code;
+  return typeof code === 'string' && !TRANSIENT_FS_CODES.has(code);
+}
+
 /** A deterministic local read failure; retrying a transport cannot repair this source. */
 export class ChatMediaSourceUnavailableError extends Error {
   constructor(readonly code = 'ATTACHMENT_UNAVAILABLE') { super('ATTACHMENT_UNAVAILABLE'); }

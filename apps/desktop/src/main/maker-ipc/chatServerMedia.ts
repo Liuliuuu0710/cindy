@@ -1,9 +1,10 @@
-import { ChatMediaSourceUnavailableError, chatErrorDiagnostic } from './chatServerErrors.js';
+import { ChatMediaSourceUnavailableError, chatErrorDiagnostic, permanentChatFileReadError } from './chatServerErrors.js';
 import { net } from 'electron';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { readFile as readMedia, supportedMime } from '../cindy-media/blobStore.js';
+import { sniffMediaMime } from '../cindy-media/sniffMediaMime.js';
 import { ingestMedia } from '../cindy-media/ingest.js';
 import { getDbClient } from '../localDb/client/current.js';
 import { ownerScopedUserDataPath } from '../appSessionState.js';
@@ -59,6 +60,14 @@ export function createChatMedia(api: ChatApi, current: () => boolean, log?: { wa
             : attachment.path ? await fs.readFile(attachment.path) : null;
           checkUpload();
           if (!bytes || !bytes.length || bytes.length > MAX_SIZE) throw new Error('ATTACHMENT_UNAVAILABLE');
+          let mimeType = attachment.mimeType;
+          // Frozen legacy caches only declare a type by extension. Validate the exact
+          // buffer we upload, without a second read that could observe different bytes.
+          if (attachment.id.startsWith('xdt-image://') && attachment.category === 'image') {
+            const detected = sniffMediaMime(bytes);
+            if (!detected?.startsWith('image/')) throw new Error('ATTACHMENT_UNAVAILABLE');
+            mimeType = detected;
+          }
           const key = createHash('sha256').update(source).update(attachment.id).update(bytes).digest('hex');
           // Expired abandoned uploads must get a new prepare receipt, but a successful
           // message keeps the same content even when the request's ACK was lost.
@@ -66,18 +75,18 @@ export function createChatMedia(api: ChatApi, current: () => boolean, log?: { wa
           stage = 'prepare';
           try {
             upload = await api(`/conversations/${roomId}/media`, 'POST', {
-              operationId: `media:${key}`, name: attachment.name, type: attachment.mimeType, size: bytes.length,
+              operationId: `media:${key}`, name: attachment.name, type: mimeType, size: bytes.length,
             }, actorId);
           } catch (error) {
             if (!(error instanceof Error) || error.message !== 'UPLOAD_EXPIRED') throw error;
             upload = await api(`/conversations/${roomId}/media`, 'POST', {
-              operationId: `media:${key}:${randomUUID()}`, name: attachment.name, type: attachment.mimeType, size: bytes.length,
+              operationId: `media:${key}:${randomUUID()}`, name: attachment.name, type: mimeType, size: bytes.length,
             }, actorId);
           }
           checkUpload();
           stage = 'upload';
           const response = await net.fetch(signedUrl(upload.uploadUrl), { method: 'PUT', redirect: 'error',
-            headers: { 'Content-Type': attachment.mimeType }, body: new Uint8Array(bytes), signal: AbortSignal.timeout(60000) });
+            headers: { 'Content-Type': mimeType }, body: new Uint8Array(bytes), signal: AbortSignal.timeout(60000) });
           if (!response.ok) throw Object.assign(new Error('MEDIA_UPLOAD_FAILED'), { status: response.status });
           checkUpload();
           stage = 'complete';
@@ -87,8 +96,8 @@ export function createChatMedia(api: ChatApi, current: () => boolean, log?: { wa
         } catch (error) {
           log?.warn('Chat media upload failed', { stage, groupId: roomId,
             trace: createHash('sha256').update(source).digest('hex').slice(0, 16), durationMs: Date.now() - started, ...chatErrorDiagnostic(error) });
-          if (stage === 'read' && ['ENOENT', 'ENOTDIR', 'EACCES', 'EPERM', 'ATTACHMENT_TOO_LARGE', 'ATTACHMENT_UNAVAILABLE']
-            .includes(chatErrorDiagnostic(error).code)) throw new ChatMediaSourceUnavailableError(chatErrorDiagnostic(error).code);
+          if (stage === 'read' && (permanentChatFileReadError(error)
+            || ['ATTACHMENT_TOO_LARGE', 'ATTACHMENT_UNAVAILABLE'].includes(chatErrorDiagnostic(error).code))) throw new ChatMediaSourceUnavailableError(chatErrorDiagnostic(error).code);
           throw error;
         }
       }

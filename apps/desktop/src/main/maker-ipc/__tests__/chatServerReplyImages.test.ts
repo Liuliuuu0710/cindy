@@ -101,4 +101,14 @@ describe('ordinary group reply image delivery', () => {
     f.stat.mockRejectedValue(Object.assign(new Error('missing private path'), { code: 'ENOENT' }));
     await expect(prepareChatReplyImages(`![image](${url})`, 'lane', vi.fn())).rejects.toThrow('ATTACHMENT_UNAVAILABLE');
   });
+  it.each(['ELOOP', 'ENAMETOOLONG'])('fails a legacy image on permanent stat error %s', async code => {
+    f.stat.mockRejectedValue(Object.assign(new Error('private cache path'), { code, syscall: 'stat' }));
+    await expect(prepareChatReplyImages('![old](xdt-image://lane/image.png)', 'lane', vi.fn()))
+      .rejects.toThrow('ATTACHMENT_UNAVAILABLE');
+  });
+  it.each(['EBUSY', 'EIO'])('preserves transient stat error %s for delivery retries', async code => {
+    const error = Object.assign(new Error('temporary disk failure'), { code, syscall: 'stat' });
+    f.stat.mockRejectedValue(error);
+    await expect(prepareChatReplyImages('![old](xdt-image://lane/image.png)', 'lane', vi.fn())).rejects.toBe(error);
+  });
 });

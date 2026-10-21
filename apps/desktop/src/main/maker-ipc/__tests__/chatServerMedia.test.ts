@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs/promises';
+import path from 'node:path';
 const f = vi.hoisted(() => ({ fetch: vi.fn(), read: vi.fn(), ingest: vi.fn() }));
 vi.mock('electron', () => ({ net: { fetch: f.fetch } }));
 vi.mock('../../cindy-media/blobStore.js', () => ({ readFile: f.read, supportedMime: () => true }));
@@ -14,6 +15,34 @@ import type { BotGroupAttachment } from '../../../shared/botGroupChat.js';
 const attachment: BotGroupAttachment = { id: 'file', name: 'picture.png', category: 'image', mimeType: 'image/png', size: 3, url: 'cindy-media://test', path: null };
 
 describe('chat private media', () => {
+  it.each([Buffer.from('not an image'), Buffer.from('OggS audio')])('refuses non-image legacy bytes before prepare: %s', async bytes => {
+    const stat = vi.spyOn(fs, 'stat').mockResolvedValueOnce({ isFile: () => true, size: bytes.length } as Awaited<ReturnType<typeof fs.stat>>);
+    const read = vi.spyOn(fs, 'readFile').mockResolvedValueOnce(bytes);
+    const api = vi.fn().mockResolvedValue({ id: 'media', uploadUrl: 'https://upload.example.test/signed' }) as unknown as ChatApi;
+    f.fetch.mockClear().mockResolvedValue(new Response(''));
+    try {
+      await expect(createChatMedia(api, () => true).upload('room', 'reply', [{ ...attachment,
+        id: 'xdt-image://lane/image.png', url: null, path: path.resolve('fixture', 'image.png'), size: bytes.length }], 'bot'))
+        .rejects.toBeInstanceOf(ChatMediaSourceUnavailableError);
+      expect(api).not.toHaveBeenCalled();
+      expect(f.fetch).not.toHaveBeenCalled();
+    } finally { stat.mockRestore(); read.mockRestore(); }
+  });
+  it('uses the actual image MIME for the same legacy bytes sent to storage', async () => {
+    const bytes = Buffer.from([0xff, 0xd8, 0xff, 42]);
+    const stat = vi.spyOn(fs, 'stat').mockResolvedValueOnce({ isFile: () => true, size: bytes.length } as Awaited<ReturnType<typeof fs.stat>>);
+    const read = vi.spyOn(fs, 'readFile').mockResolvedValueOnce(bytes);
+    const api = vi.fn().mockResolvedValue({ id: 'media', uploadUrl: 'https://upload.example.test/signed' }) as unknown as ChatApi;
+    f.fetch.mockClear().mockResolvedValue(new Response(''));
+    try {
+      await createChatMedia(api, () => true).upload('room', 'reply', [{ ...attachment,
+        id: 'xdt-image://lane/image.png', url: null, path: path.resolve('fixture', 'image.png'), size: bytes.length }], 'bot');
+      expect(api).toHaveBeenCalledWith('/conversations/room/media', 'POST', expect.objectContaining({ type: 'image/jpeg', size: bytes.length }), 'bot');
+      expect(f.fetch).toHaveBeenCalledWith('https://upload.example.test/signed', expect.objectContaining({
+        headers: { 'Content-Type': 'image/jpeg' }, body: new Uint8Array(bytes) }));
+      expect(read).toHaveBeenCalledOnce();
+    } finally { stat.mockRestore(); read.mockRestore(); }
+  });
   it('fails a legacy image whose stat succeeds but bytes cannot be read', async () => {
     const stat = vi.spyOn(fs, 'stat').mockResolvedValueOnce({ isFile: () => true, size: 3 } as Awaited<ReturnType<typeof fs.stat>>);
     const read = vi.spyOn(fs, 'readFile').mockRejectedValueOnce(Object.assign(new Error('denied'), { code: 'EACCES' }));
@@ -32,11 +61,18 @@ describe('chat private media', () => {
     const api = vi.fn().mockRejectedValue(error) as unknown as ChatApi;
     await expect(createChatMedia(api, () => true).upload('room', 'reply', [attachment], 'bot')).rejects.toBe(error);
   });
-  it.each(['EACCES', 'EPERM', 'ENOENT', 'ENOTDIR'])('classifies a managed image byte read failure %s before uploading', async code => {
+  it.each(['EACCES', 'EPERM', 'ENOENT', 'ENOTDIR', 'ELOOP', 'ENAMETOOLONG'])('classifies a managed image byte read failure %s before uploading', async code => {
     f.read.mockRejectedValueOnce(Object.assign(new Error('private source'), { code }));
     const api = vi.fn() as unknown as ChatApi;
     await expect(createChatMedia(api, () => true).upload('room', 'reply', [attachment], 'bot'))
       .rejects.toBeInstanceOf(ChatMediaSourceUnavailableError);
+    expect(api).not.toHaveBeenCalled();
+  });
+  it.each(['EBUSY', 'EIO'])('keeps transient byte read error %s retryable', async code => {
+    const error = Object.assign(new Error('temporary source failure'), { code, syscall: 'read' });
+    f.read.mockRejectedValueOnce(error);
+    const api = vi.fn() as unknown as ChatApi;
+    await expect(createChatMedia(api, () => true).upload('room', 'reply', [attachment], 'bot')).rejects.toBe(error);
     expect(api).not.toHaveBeenCalled();
   });
   it('lets an independent recipient download and reopen the uploaded image without the sender cache', async () => {

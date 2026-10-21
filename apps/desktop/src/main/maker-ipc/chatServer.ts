@@ -14,7 +14,7 @@ import { MIRROR_ATTACHMENT_MAX_BYTES } from '../companion-cloud/mirror.js';
 import { request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import { migrateLocalGroups, type ChatContentBlock } from './chatServerMigration.js';
-import { ChatMediaSourceUnavailableError, chatErrorDiagnostic, chatGroupFailure, missingGroupCode } from './chatServerErrors.js';
+import { ChatMediaSourceUnavailableError, chatErrorDiagnostic, chatGroupFailure, missingGroupCode, permanentChatFileReadError } from './chatServerErrors.js';
 import { createChatMedia } from './chatServerMedia.js';
 import { ChatReplyImageUnavailableError, prepareChatReplyImages } from './chatServerReplyImages.js';
 import { chatServerWorkspaces } from './chatServerWorkspaces.js';
@@ -145,14 +145,12 @@ const retryableResponse = (error: ChatResponseError) => recoverableAuth(error)
   || error.status >= 500 || [408, 429].includes(error.status);
 /** A file this computer will never be able to send (chatServerMedia): retrying cannot help. */
 const LOCAL_FILE_REFUSALS = new Set(['ATTACHMENT_TOO_LARGE', 'ATTACHMENT_UNAVAILABLE']);
-/** Filesystem failures that may clear on their own; any other local read failure is permanent for this delivery. */
-const TRANSIENT_FS_CODES = new Set(['EAGAIN', 'EBUSY', 'EINTR', 'EMFILE', 'ENFILE', 'ENOMEM', 'EIO']);
 /** A delivery file this computer cannot read or send: refused once, never retried. */
 function fileRefusedHere(error: unknown): boolean {
   if (!(error instanceof Error) || error instanceof ChatResponseError) return false;
   if (LOCAL_FILE_REFUSALS.has(error.message)) return true;
-  const { code, syscall } = error as { code?: unknown; syscall?: unknown };
-  return typeof syscall === 'string' && typeof code === 'string' && !TRANSIENT_FS_CODES.has(code);
+  const { syscall } = error as { syscall?: unknown };
+  return typeof syscall === 'string' && permanentChatFileReadError(error);
 }
 const id = z.string().uuid();
 const memberJoinedTrigger = z.object({ type: z.literal('member.joined'), messageId: id, actorId: id,
