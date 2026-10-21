@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-const f = vi.hoisted(() => ({ stat: vi.fn(), canRead: vi.fn(), resolve: vi.fn(), legacy: vi.fn(), db: {} }));
+const f = vi.hoisted(() => ({ stat: vi.fn(), canRead: vi.fn(), resolve: vi.fn(), legacy: vi.fn(), materialize: vi.fn(), db: {} }));
+vi.mock('../../cindy-media/taskImageDelivery.js', () => ({ materializeTaskImageTextResult: f.materialize }));
 vi.mock('node:fs/promises', () => ({ default: { stat: f.stat } }));
 vi.mock('../../cindy-media/blobStore.js', async importOriginal => ({
   ...await importOriginal<typeof import('../../cindy-media/blobStore.js')>(), resolveSafe: f.resolve,
@@ -25,6 +26,7 @@ describe('ordinary group reply image delivery', () => {
     f.resolve.mockReturnValue({ absPath: file, mimeType: 'image/png' });
     f.legacy.mockReturnValue({ absPath: file, mimeType: 'image/png' });
     f.stat.mockResolvedValue({ isFile: () => true, size: 123 });
+    f.materialize.mockImplementation(async (_sessionId: string, text: string) => ({ text, failures: [], replacements: new Map() }));
   });
   it('deduplicates rendered image references, keeps captions and surrounding Markdown', async () => {
     const result = await prepareChatReplyImages(`**Done**\n![Front](${url})\n![Again][photo]\n\n[photo]: ${url}`, 'lane', vi.fn());
@@ -33,11 +35,39 @@ describe('ordinary group reply image delivery', () => {
     expect(result.text).toBe('**Done**\nFront\nAgain\n\n');
     expect(f.canRead).toHaveBeenCalledExactlyOnceWith(hash, 'lane', f.db);
   });
-  it('does not collect code examples, arbitrary paths, external images or unused definitions', async () => {
-    const text = `\`![example](${url})\`\n\n\`\`\`md\n![example](${url})\n\`\`\`\n![web](https://example.test/p.png)\n![local](/private/image.png)\n\n[unused]: ${url}`;
+  it('does not collect code examples, external images or unused definitions', async () => {
+    const text = `\`![example](${url})\`\n\n\`\`\`md\n![example](${url})\n\`\`\`\n![web](https://example.test/p.png)\n\n[unused]: ${url}`;
     expect(await prepareChatReplyImages(text, 'lane', vi.fn())).toEqual({ text, attachments: [] });
     expect(f.canRead).not.toHaveBeenCalled();
     expect(f.stat).not.toHaveBeenCalled();
+    expect(f.materialize).not.toHaveBeenCalled();
+  });
+  it.each(['xdt-image:///task/image.png', path.resolve('task', 'image.png')])('imports task-scoped images before checking ownership: %s', async source => {
+    const text = `Done\n![Preview](${source})`;
+    f.materialize.mockResolvedValue({ text: `Done\n![Preview](${url})`, failures: [], replacements: new Map([[source, url]]) });
+    const result = await prepareChatReplyImages(text, 'lane', vi.fn());
+    expect(f.materialize).toHaveBeenCalledExactlyOnceWith('lane', text);
+    expect(result.attachments).toHaveLength(1);
+    expect(result.attachments[0]).toMatchObject({ url, path: null });
+    expect(result.text).toBe('Done\nPreview');
+    expect(f.canRead).toHaveBeenCalledExactlyOnceWith(hash, 'lane', f.db);
+    expect(f.legacy).not.toHaveBeenCalled();
+  });
+  it.each(['xdt-image:///outside/image.png', path.resolve('outside', 'image.png')])('rejects local images the task importer cannot authorize: %s', async source => {
+    await expect(prepareChatReplyImages(`![private](${source})`, 'lane', vi.fn())).rejects.toThrow('ATTACHMENT_UNAVAILABLE');
+    expect(f.legacy).not.toHaveBeenCalled();
+    expect(f.stat).not.toHaveBeenCalled();
+  });
+  it('stops before media authorization when execution changes during import', async () => {
+    let active = true;
+    f.materialize.mockImplementation(async () => {
+      active = false;
+      return { text: `![Preview](${url})`, failures: [], replacements: new Map() };
+    });
+    await expect(prepareChatReplyImages('![Preview](xdt-image:///task/image.png)', 'lane', () => {
+      if (!active) throw new Error('STALE_EXECUTOR');
+    })).rejects.toThrow('STALE_EXECUTOR');
+    expect(f.canRead).not.toHaveBeenCalled();
   });
   it('does not read an image belonging to another task', async () => {
     f.canRead.mockResolvedValue(false);

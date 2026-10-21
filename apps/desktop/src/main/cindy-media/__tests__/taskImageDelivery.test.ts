@@ -21,6 +21,7 @@ import {
   taskImageRoots,
 } from '../taskImageDelivery';
 import { resolveSafe } from '../blobStore';
+import { prepareChatReplyImages } from '../../maker-ipc/chatServerReplyImages';
 import * as ledger from '../ledger';
 import { commitMessageMediaRefs } from '../chatAttachments';
 import { createHash } from 'node:crypto';
@@ -386,6 +387,30 @@ describe('task image delivery', () => {
     expect(results[0]).toBe(results[1]);
     expect(results[0]).toContain('cindy-media://');
     expect(raw.prepare('SELECT count(*) AS n FROM media_refs').get()).toEqual({ n: 1 });
+  });
+
+  it.each(['hostless', 'path'])('delivers raw %s task images to a group before a durable row exists', async kind => {
+    const source = path.join(work, 'group-image.png');
+    await fs.writeFile(source, PNG);
+    const target = kind === 'hostless' ? pathToFileURL(source).href.replace(/^file:/, 'xdt-image:') : source;
+    const text = `Done\n![Preview](${target})`;
+    const reply = await prepareChatReplyImages(text, 's', vi.fn());
+    expect(reply.text).toBe('Done\nPreview');
+    expect(reply.attachments).toHaveLength(1);
+    const attachment = reply.attachments[0];
+    expect(attachment).toMatchObject({ path: null, category: 'image', size: PNG.length });
+    expect(attachment.url).toMatch(/^cindy-media:\/\/blobs\//);
+    await fs.rm(source);
+    expect(await fs.readFile(resolveSafe(attachment.url!).absPath)).toEqual(PNG);
+    expect(raw.prepare('SELECT count(*) AS n FROM messages').get()).toEqual({ n: 0 });
+    expect(raw.prepare('SELECT count(*) AS n FROM media_refs').get()).toEqual({ n: 1 });
+  });
+
+  it('does not publish a group reply with an image outside its task directory', async () => {
+    const source = path.join(state.root, 'private.png');
+    await fs.writeFile(source, PNG);
+    await expect(prepareChatReplyImages(`![private](${source})`, 's', vi.fn())).rejects.toThrow('ATTACHMENT_UNAVAILABLE');
+    expect(raw.prepare('SELECT count(*) AS n FROM media_refs').get()).toEqual({ n: 0 });
   });
 
   it.each(['clear', 'remote', 'sdk', 'owner'])(

@@ -515,6 +515,49 @@ describe('Chat Server result delivery and refresh', () => {
     expect(deliveries()).toHaveLength(0);
   });
 
+  it.each([
+    ['UPLOAD_QUOTA', 413], ['UPLOAD_MISMATCH', 409], ['MEDIA_NOT_FOUND', 404],
+    ['UPLOAD_EXPIRED', 410], ['INVALID_INPUT', 400], ['REQUEST_FAILED', 422], ['OPERATION_CONFLICT', 409],
+  ])('settles a permanent media rejection %s as failure without retrying uploads', async (code, status) => {
+    fixture.upload.mockRejectedValue(new ChatResponseError(code, status));
+    await start();
+    await service.settleLaneTurn(terminal);
+    expect(deliveries()).toHaveLength(0);
+    const failures = () => fixture.handle.mock.calls.filter(([, , body]) => body?.action === 'fail');
+    expect(failures()).toHaveLength(1);
+    expect(failures()[0][2]).toMatchObject({ detail: 'cindy-runtime-error:RUNTIME_ERROR' });
+    await vi.advanceTimersByTimeAsync(16000);
+    expect(failures()).toHaveLength(1);
+    expect(fixture.upload).toHaveBeenCalledOnce();
+    expect(deps.dispatch).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ['ROLE_REQUIRED', 403], ['STALE_EXECUTOR', 409], ['STALE_EXECUTION', 409],
+    ['EXECUTION_EXPIRED', 410], ['ACCOUNT_UNAVAILABLE', 401], ['CONVERSATION_NOT_FOUND', 404],
+  ])('drops revoked media deliveries after %s without posting a new terminal result', async (code, status) => {
+    fixture.upload.mockRejectedValue(new ChatResponseError(code, status));
+    await start();
+    await service.settleLaneTurn(terminal);
+    await vi.advanceTimersByTimeAsync(16000);
+    expect(deliveries()).toHaveLength(0);
+    expect(fixture.handle.mock.calls.filter(([, , body]) => body?.action === 'fail')).toHaveLength(0);
+    expect(fixture.upload).toHaveBeenCalledOnce();
+    expect(deps.dispatch).toHaveBeenCalledOnce();
+  });
+
+  it.each([408, 429, 503])('retries transient media HTTP %s without failing or rerunning the Agent', async status => {
+    fixture.upload.mockRejectedValueOnce(new ChatResponseError('REQUEST_FAILED', status)).mockResolvedValue([]);
+    await start();
+    await service.settleLaneTurn(terminal);
+    expect(deliveries()).toHaveLength(0);
+    expect(fixture.handle.mock.calls.filter(([, , body]) => body?.action === 'fail')).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(status === 429 ? 61000 : 16000);
+    expect(deliveries()).toHaveLength(1);
+    expect(fixture.upload).toHaveBeenCalledTimes(2);
+    expect(deps.dispatch).toHaveBeenCalledOnce();
+  });
+
   it('fails a missing or unauthorized image through the existing group failure path without endless retries', async () => {
     replyImages.mockRejectedValue(new ChatReplyImageUnavailableError());
     await start();

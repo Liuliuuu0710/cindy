@@ -1328,7 +1328,15 @@ function createChatServer(local: BotGroupChatService, deps: BotGroupChatServiceD
             try {
               files = await media.upload(run.execution.conversation_id, `step:${run.execution.id}:${run.execution.epoch}`, produced, run.execution.bot_id, assertDeliveryCurrent);
             } catch (error) {
-              if (run.plan || !(error instanceof ChatMediaSourceUnavailableError)) throw error;
+              // Media endpoints have no execution ID: a permanent upload refusal
+              // must explicitly fail this execution. Auth/lease refusals still drop
+              // the old run; temporary responses retain the existing retry path.
+              const mediaRejected = error instanceof ChatResponseError && !retryableResponse(error)
+                && error.status >= 400 && error.status < 500
+                && !['AUTH_REQUIRED', 'PERMISSION_DENIED', 'NOT_FOUND', 'GROUP_DISSOLVED', 'GROUP_ARCHIVED']
+                  .includes(chatGroupFailure(error).errorCode)
+                && !['STALE_EXECUTOR', 'STALE_EXECUTION', 'EXECUTION_EXPIRED'].includes(error.message);
+              if (run.plan || !(error instanceof ChatMediaSourceUnavailableError) && !mediaRejected) throw error;
               terminal = pending.terminal = { ...terminal, outcome: 'error', failureCode: 'RUNTIME_ERROR' };
             }
           }

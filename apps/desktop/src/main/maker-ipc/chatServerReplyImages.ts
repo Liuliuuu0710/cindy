@@ -2,7 +2,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { parseBlobUrl, resolveSafe } from '../cindy-media/blobStore.js';
 import { sessionCanRead } from '../cindy-media/ledger.js';
-import { taskImageReferences, rewriteTaskImageReferences } from '../cindy-media/taskImageMarkdown.js';
+import { hasLocalTaskImages, taskImageReferences, rewriteTaskImageReferences } from '../cindy-media/taskImageMarkdown.js';
+import { materializeTaskImageTextResult } from '../cindy-media/taskImageDelivery.js';
 import { resolveSafe as resolveLegacyImage } from '../imageCacheStore.js';
 import { getDbClient } from '../localDb/client/current.js';
 import type { BotGroupAttachment } from '../../shared/botGroupChat.js';
@@ -17,6 +18,15 @@ export class ChatReplyImageUnavailableError extends Error {
  * The returned text is publishable only AFTER these attachments have uploaded successfully.
  */
 export async function prepareChatReplyImages(text: string, sessionId: string, assertCurrent: () => void) {
+  assertCurrent();
+  if (hasLocalTaskImages(text)) {
+    // Terminal SDK text can arrive before its durable row has been normalized.
+    // Reuse the task-scoped importer, including its realpath and owner fences.
+    const imported = await materializeTaskImageTextResult(sessionId, text);
+    assertCurrent();
+    if (imported.failures.length || hasLocalTaskImages(imported.text)) throw new ChatReplyImageUnavailableError();
+    text = imported.text;
+  }
   const attachments: BotGroupAttachment[] = [];
   const replacements = new Map<string, string>();
   for (const ref of taskImageReferences(text)) {
