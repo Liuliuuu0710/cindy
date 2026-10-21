@@ -3,6 +3,9 @@ const fixture = vi.hoisted(() => ({ upload: vi.fn(async (): Promise<unknown[]> =
 vi.mock('../../authManager.js', () => ({ getAccessToken: () => fixture.token, refresh: fixture.refresh }));
 vi.mock('../../clientEndpointsService.js', () => ({ getClientEndpoint: () => 'https://chat.cindy.app' }));
 vi.mock('../chatServerMedia.js', () => ({ createChatMedia: () => ({ upload: fixture.upload, download: fixture.download }) }));
+const replyImages = vi.hoisted(() => vi.fn(async (text: string): Promise<{ text: string; attachments: import('../../../shared/botGroupChat.js').BotGroupAttachment[] }> => ({ text, attachments: [] })));
+vi.mock('../chatServerReplyImages.js', () => ({ prepareChatReplyImages: replyImages,
+  ChatReplyImageUnavailableError: class extends Error {} }));
 // Persists across adapter recreation; the SQLite implementation has its own persistence tests.
 const taskPosts = vi.hoisted(() => new Map<string, unknown>());
 vi.mock('../botGroupTaskPostSnapshot.js', () => ({ prepareBotGroupTaskPost: async (taskId: string, scope: unknown, prepare: () => Promise<unknown>) => {
@@ -60,6 +63,7 @@ vi.mock('ws', async () => {
   } };
 });
 import { ChatResponseError, REACTION_REVISION_MESSAGE_LIMIT, splitChatMessageText, withChatServer } from '../chatServer.js';
+import { ChatReplyImageUnavailableError } from '../chatServerReplyImages.js';
 import { t } from '../../i18n.js';
 import { projectBotGroupExecutionFailures } from '@cindy/maker-shared/botGroupPresentation';
 import { botGroupRuntimeFailureCode, settleUndispatchedBotGroupTurn } from '../botGroupRuntimeFailure.js';
@@ -146,6 +150,8 @@ describe('Chat Server result delivery and refresh', () => {
     fixture.handle.mockImplementation(response);
     fixture.token = 'isolated-test-token';
     fixture.refresh.mockReset().mockResolvedValue(true);
+    replyImages.mockReset().mockImplementation(async text => ({ text, attachments: [] }));
+    fixture.upload.mockReset().mockResolvedValue([]);
     migration.read.mockReset().mockReturnValue(null);
     taskPosts.clear();
     deps = { ensureLane: vi.fn(async () => ({ ok: true, sessionId: 'lane' })), abortLane: vi.fn(async () => {}),
@@ -451,6 +457,62 @@ describe('Chat Server result delivery and refresh', () => {
   }
   const terminal = { sessionId: 'lane', activeInputClientId: null, outcome: 'done' as const, resultText: 'Finished reply' };
   const deliveries = () => fixture.handle.mock.calls.filter(([, , body]) => body?.action === 'complete');
+
+  it('uploads ordinary reply images before completion and reuses the media blocks after a lost receipt', async () => {
+    const url = `cindy-media://blobs/${'a'.repeat(64)}.png`;
+    const image = { id: url, name: 'image.png', category: 'image' as const, mimeType: 'image/png', size: 3, url, path: null };
+    replyImages.mockResolvedValue({ text: 'Here is the image\nPreview', attachments: [image] });
+    const media = { type: 'media', mediaId: '60000000-0000-4000-8000-000000000001', caption: 'image.png' };
+    fixture.upload.mockResolvedValue([media]);
+    let attempts = 0;
+    fixture.handle.mockImplementation((route, method, body) => {
+      if (body?.action === 'complete' && attempts++ === 0) throw new Error('lost receipt');
+      return response(route);
+    });
+    await start();
+    await service.settleLaneTurn({ ...terminal, resultText: `Here is the image\n![Preview](${url})` });
+    expect(replyImages).toHaveBeenCalledWith(`Here is the image\n![Preview](${url})`, 'lane', expect.any(Function));
+    expect(fixture.upload).toHaveBeenCalledWith(roomId, expect.any(String), [image], botId, expect.any(Function));
+    expect(deliveries()[0][2].content).toEqual([{ type: 'text', text: 'Here is the image\nPreview' }, media]);
+    await vi.advanceTimersByTimeAsync(16000);
+    expect(deliveries()).toHaveLength(2);
+    expect(deliveries()[1][2]).toEqual(deliveries()[0][2]);
+    expect(fixture.upload).toHaveBeenCalledOnce();
+    expect(replyImages).toHaveBeenCalledOnce();
+    expect(deps.dispatch).toHaveBeenCalledOnce();
+  });
+
+  it('never completes a text-only reply when its image upload fails, then retries without rerunning the Agent', async () => {
+    const image = { id: 'image', name: 'image.png', category: 'image' as const, mimeType: 'image/png', size: 3, url: 'cindy-media://image', path: null };
+    replyImages.mockResolvedValue({ text: 'Preview', attachments: [image] });
+    fixture.upload.mockRejectedValueOnce(new Error('MEDIA_UPLOAD_FAILED'))
+      .mockResolvedValue([{ type: 'media', mediaId: '60000000-0000-4000-8000-000000000001' }]);
+    await start();
+    await service.settleLaneTurn(terminal);
+    expect(deliveries()).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(16000);
+    expect(deliveries()).toHaveLength(1);
+    expect(deliveries()[0][2].content[1]).toMatchObject({ type: 'media' });
+    expect(deps.dispatch).toHaveBeenCalledOnce();
+  });
+
+  it('does not deliver generated images for a failed turn', async () => {
+    await start();
+    await service.settleLaneTurn({ ...terminal, outcome: 'error', resultText: '![partial](cindy-media://partial)' });
+    expect(replyImages).not.toHaveBeenCalled();
+    expect(deliveries()).toHaveLength(0);
+  });
+
+  it('fails a missing or unauthorized image through the existing group failure path without endless retries', async () => {
+    replyImages.mockRejectedValue(new ChatReplyImageUnavailableError());
+    await start();
+    await service.settleLaneTurn(terminal);
+    expect(deliveries()).toHaveLength(0);
+    expect(fixture.handle.mock.calls.filter(([, , body]) => body?.action === 'fail')).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(16000);
+    expect(replyImages).toHaveBeenCalledOnce();
+    expect(fixture.handle.mock.calls.filter(([, , body]) => body?.action === 'fail')).toHaveLength(1);
+  });
 
   it.each([{ codexErrorInfo: 'serverOverloaded' }, { reason: 'upstream-overload' }, { errorStatus: 529 }])
     ('submits only the capacity category after the SDK terminal %j', async signals => {

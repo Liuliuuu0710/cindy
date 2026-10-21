@@ -16,6 +16,7 @@ import { request as httpsRequest } from 'node:https';
 import { migrateLocalGroups, type ChatContentBlock } from './chatServerMigration.js';
 import { chatErrorDiagnostic, chatGroupFailure, missingGroupCode } from './chatServerErrors.js';
 import { createChatMedia } from './chatServerMedia.js';
+import { ChatReplyImageUnavailableError, prepareChatReplyImages } from './chatServerReplyImages.js';
 import { chatServerWorkspaces } from './chatServerWorkspaces.js';
 import { buildPlanStepBrief } from './botGroupDivision.js';
 import { chatMigrationReceipts } from './chatMigrationReceipts.js';
@@ -1295,10 +1296,23 @@ function createChatServer(local: BotGroupChatService, deps: BotGroupChatServiceD
     run.delivery = (async () => {
       try {
         if (!pending.payload) {
-          const terminal = pending.terminal;
+          let terminal = pending.terminal;
           let text = terminal.resultText;
           if (!text.trim() && terminal.resultMessageClientId) text = (await readPersistedReplyText(terminal.sessionId, terminal.resultMessageClientId)) ?? '';
-          const produced: BotGroupAttachment[] = [];
+          const assertDeliveryCurrent = () => {
+            if (!current() || running.get(run.execution.bot_id) !== run) throw new Error('STALE_EXECUTOR');
+          };
+          let reply: { text: string; attachments: BotGroupAttachment[] } = { text, attachments: [] };
+          if (terminal.outcome !== 'error' && !run.plan) {
+            try { reply = await prepareChatReplyImages(text, run.sessionId, assertDeliveryCurrent); }
+            catch (error) {
+              if (!(error instanceof ChatReplyImageUnavailableError)) throw error;
+              // Fail through the existing group notice instead of renewing forever
+              // or silently publishing a success whose image is unavailable.
+              terminal = pending.terminal = { ...terminal, outcome: 'error', failureCode: 'RUNTIME_ERROR' };
+            }
+          }
+          const produced: BotGroupAttachment[] = [...reply.attachments];
           if (terminal.outcome !== 'error' && run.workspace && run.beforeFiles && deps.workDir) {
             const files = await deps.workDir.changedFiles(run.workspace.workDir, run.beforeFiles);
             for (const name of files) {
@@ -1308,7 +1322,9 @@ function createChatServer(local: BotGroupChatService, deps: BotGroupChatServiceD
               if (stat.isFile()) produced.push({ id: name, name: path.basename(name), category: 'file', mimeType: 'application/octet-stream', size: stat.size, path: fullPath, url: null });
             }
           }
-          const files = await media.upload(run.execution.conversation_id, `step:${run.execution.id}:${run.execution.epoch}`, produced, run.execution.bot_id);
+          assertDeliveryCurrent();
+          const files = await media.upload(run.execution.conversation_id, `step:${run.execution.id}:${run.execution.epoch}`, produced, run.execution.bot_id, assertDeliveryCurrent);
+          text = reply.text;
           if (terminal.outcome === 'error') {
             failureCodes.set(`${run.execution.id}:${run.execution.epoch}`, terminal.failureCode ?? 'RUNTIME_ERROR');
             if (failureCodes.size > 1000) failureCodes.delete(failureCodes.keys().next().value!);

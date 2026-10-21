@@ -12,6 +12,49 @@ import type { BotGroupAttachment } from '../../../shared/botGroupChat.js';
 const attachment: BotGroupAttachment = { id: 'file', name: 'picture.png', category: 'image', mimeType: 'image/png', size: 3, url: 'cindy-media://test', path: null };
 
 describe('chat private media', () => {
+  it('lets an independent recipient download and reopen the uploaded image without the sender cache', async () => {
+    const bytes = Buffer.from('generated-image-fixture');
+    let stored: Uint8Array | undefined;
+    let sealed = false;
+    let joined = true;
+    f.read.mockResolvedValue({ buffer: bytes });
+    f.fetch.mockImplementation(async (_url, options) => {
+      if (options?.method === 'PUT') { stored = options.body; return new Response(''); }
+      if (!sealed || !stored) throw new Error('NOT_SEALED');
+      return new Response(new Uint8Array(stored));
+    });
+    f.ingest.mockImplementation(async input => {
+      expect(input.buffer).toEqual(bytes);
+      return { url: 'cindy-media://recipient-copy' };
+    });
+    const senderApi = vi.fn(async (route: string) => {
+      if (route.endsWith('/complete')) { sealed = true; return {}; }
+      return { id: 'shared-image', uploadUrl: 'https://objects.example.test/upload' };
+    }) as unknown as ChatApi;
+    const receiverApi = vi.fn(async () => {
+      if (!joined) throw new Error('CONVERSATION_NOT_FOUND');
+      return { name: 'picture.png', type: 'image/png', size: bytes.length, url: 'https://objects.example.test/download' };
+    }) as unknown as ChatApi;
+    const blocks = await createChatMedia(senderApi, () => true).upload('room', 'reply', [{ ...attachment, size: bytes.length }], 'sender-bot');
+    expect(blocks).toEqual([{ type: 'media', mediaId: 'shared-image', caption: 'picture.png' }]);
+    f.read.mockRejectedValue(new Error('sender is offline'));
+    const reader = createChatMedia(receiverApi, () => true);
+    expect(await reader.download('room', blocks[0].mediaId!)).toMatchObject({ category: 'image', url: 'cindy-media://recipient-copy', size: bytes.length });
+    // A fresh recipient adapter has no process cache, as after reopening the app.
+    expect(await createChatMedia(receiverApi, () => true).download('room', blocks[0].mediaId!)).toMatchObject({ category: 'image', url: 'cindy-media://recipient-copy' });
+    joined = false;
+    await expect(reader.download('room', blocks[0].mediaId!)).rejects.toThrow('CONVERSATION_NOT_FOUND');
+  });
+  it('stops uploading a completed reply when its execution is revoked during prepare', async () => {
+    f.read.mockResolvedValue({ buffer: Buffer.from('png') });
+    f.fetch.mockClear();
+    let active = true;
+    const api = vi.fn(async () => { active = false; return { id: 'media', uploadUrl: 'https://upload.example.test/signed' }; }) as unknown as ChatApi;
+    await expect(createChatMedia(api, () => true).upload('room', 'op', [attachment], 'actor', () => {
+      if (!active) throw new Error('STALE_EXECUTOR');
+    })).rejects.toThrow('STALE_EXECUTOR');
+    expect(f.fetch).not.toHaveBeenCalled();
+  });
   it('uploads the bytes without a Cindy token and seals before returning the message reference', async () => {
     f.read.mockResolvedValue({ buffer: Buffer.from('png'), mimeType: 'image/png' });
     f.fetch.mockResolvedValue(new Response('', { status: 200 }));
