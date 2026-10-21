@@ -25,6 +25,7 @@ vi.mock('@/theme', () => ({
 }));
 
 import { BotGroupMarkdownText, BotGroupUserText } from '@/session/BotGroupMessageText';
+import { buildBotGroupQuoteCard, buildBotGroupThreadShareCard } from '@cindy/maker-shared/botGroupChat';
 
 const fence = String.fromCharCode(96).repeat(3);
 const answer = [
@@ -134,4 +135,16 @@ it('群聊不打开链接:强调里的链接只保留强调样式,不加下划�
   expect(styleOf('https://b.example/y').textDecorationLine).toBe('line-through');
   // 强调里的行内代码照常套代码样式。
   expect(styleOf('a.ts')).toMatchObject({ fontFamily: 'Menlo' });
+});
+
+
+it.each(['quote', 'share'])('renders unfamiliar %s card fallback as literal summary text', async kind => {
+  const messageId = '10000000-0000-4000-8000-000000000001';
+  const text = 'Readable <name> *literal* &lt;';
+  const card = kind === 'quote'
+    ? buildBotGroupQuoteCard({ messageId, authorName: 'Bot', authorKind: 'bot', excerpt: text, attachmentCount: 0, attachmentName: null, sequence: 1 })
+    : buildBotGroupThreadShareCard({ messageId, threadRootId: '10000000-0000-4000-8000-000000000002', authorName: 'Bot', text });
+  await act(async () => root.render(createElement(BotGroupMarkdownText, { content: card.fallback })));
+  expect(node.textContent).toContain('Bot: ' + text);
+  expect(node.textContent).not.toContain('&#');
 });

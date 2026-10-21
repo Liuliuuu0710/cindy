@@ -3,6 +3,7 @@
  * Product rules: docs/product-rules/bot-group-chat.md.
  */
 import type { BotGroupQuoteInput, BotGroupQuoteView } from './botGroupQuote';
+import { botGroupFallbackText } from './botGroupFallback';
 import type { BotGroupTaskCardView } from './botGroupTask';
 
 export * from './botGroupQuote';
@@ -226,11 +227,12 @@ export function botGroupThreadShareOperationId(messageId: string): string {
 
 export function buildBotGroupThreadShareCard(input: { messageId: string; threadRootId: string; authorName: string; text: string }) {
   const text = input.text.replace(/\s+/g, ' ').trim();
-  const clipped = text.length > THREAD_SHARE_FALLBACK_TEXT_MAX ? `${text.slice(0, THREAD_SHARE_FALLBACK_TEXT_MAX)}…` : text;
+  const characters = Array.from(text);
+  const clipped = characters.length > THREAD_SHARE_FALLBACK_TEXT_MAX ? `${characters.slice(0, THREAD_SHARE_FALLBACK_TEXT_MAX).join('')}…` : text;
   const author = input.authorName.trim() || '…';
   return {
     type: 'card' as const, namespace: BOT_GROUP_THREAD_SHARE_NAMESPACE, schemaRevision: THREAD_SHARE_REVISION,
-    fallback: clipped ? `↪ ${author}: ${clipped}` : `↪ ${author}`,
+    fallback: `↪ ${botGroupFallbackText(clipped ? `${author}: ${clipped}` : author, 3998)}`,
     data: { messageId: input.messageId, threadRootId: input.threadRootId },
   };
 }

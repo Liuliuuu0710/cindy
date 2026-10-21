@@ -2685,7 +2685,10 @@ describe('Chat Server result delivery and refresh', () => {
       expect(result.group.lastMessage!.preview).toBe(kind === 'human' ? content.trim().slice(0, 80) : ('Readable <name> ' + 'x'.repeat(300)).slice(0, 80));
       expect((await service.chatServer!.shareToMain({ groupId: roomId, messageId: botReply })).ok).toBe(true);
       const posted = fixture.handle.mock.calls.find(([route, method]) => route === '/conversations/' + roomId + '/messages' && method === 'POST')![2];
-      expect(posted.content[0].fallback).toBe('↪ Bot (Me): ' + expected);
+      // The persisted fallback is Markdown; the preview above remains plain text.
+      expect(posted.content[0].fallback).not.toContain('<name>');
+      expect(posted.content[0].fallback.replace(/&#([0-9]+);/g, (_match: string, code: string) => String.fromCodePoint(Number(code))))
+        .toBe('↪ Bot (Me): ' + expected);
       expect(source.content).toEqual([{ type: 'text', text: content }]);
     });
 

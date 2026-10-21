@@ -12,6 +12,7 @@
  */
 import { botGroupMessageSummaryText } from './botGroupTask';
 import { botGroupDisplayText } from './botGroupDisplayText';
+import { botGroupFallbackText } from './botGroupFallback';
 import type { BotGroupAttachment, BotGroupAuthorKind, BotGroupMessageView } from './botGroupChat';
 
 export const BOT_GROUP_QUOTE_NAMESPACE = 'cindy.quote';
@@ -113,7 +114,7 @@ function fallbackText(quote: BotGroupQuoteView): string {
     ? `📎 ${quote.attachmentName}${quote.attachmentCount > 1 ? ` +${quote.attachmentCount - 1}` : ''}`
     : '';
   const body = [quote.excerpt, attached].filter(Boolean).join(' ') || '…';
-  return clip(`> ${quote.authorName}: ${body}`, FALLBACK_MAX);
+  return `> ${botGroupFallbackText(`${quote.authorName}: ${body}`, FALLBACK_MAX - 2)}`;
 }
 
 export function buildBotGroupQuoteCard(quote: BotGroupQuoteView): BotGroupQuoteCard {
