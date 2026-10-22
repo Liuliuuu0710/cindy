@@ -68,6 +68,7 @@ interface ScheduledModelTarget {
   agentKind: AgentKind;
   status: string;
   remoteHostId?: string | null;
+  agentDeviceId?: string | null;
   orcaRole?: string | null;
 }
 
@@ -109,6 +110,8 @@ export async function applyScheduledModelSelection(
     getTarget: () => Promise<ScheduledModelTarget | null>;
     isBusy: () => boolean;
     resolveSelection: (selection: ScheduledModelSelection) => Promise<ScheduledModelSelection>;
+    /** Read and admit the route on its execution computer, never the controller catalog. */
+    readRemoteProviders?: (deviceId: string, selection: ScheduledModelSelection) => Promise<ProviderView[]>;
     switchHarness: (selection: ScheduledModelSelection) => Promise<{ engineReady: boolean; retryPending?: boolean }>;
     applyModel: (selection: ScheduledModelSelection) => Promise<void>;
   },
@@ -120,7 +123,15 @@ export async function applyScheduledModelSelection(
   }
   if (deps.isBusy()) throw new ScheduledModelSelectionBusyError('Scheduled model selection waits for the current turn');
   assertScheduledHarnessSupported(target, selection.agentKind);
-  const resolved = await deps.resolveSelection(selection);
+  let resolved: ScheduledModelSelection;
+  if (target.agentDeviceId && !target.remoteHostId) {
+    if (!deps.readRemoteProviders) throw new Error('Scheduled remote model selection is unavailable');
+    resolved = resolveScheduledModelSelection(
+      selection, await deps.readRemoteProviders(target.agentDeviceId, selection),
+    );
+  } else {
+    resolved = await deps.resolveSelection(selection);
+  }
   if (target.agentKind !== resolved.agentKind) {
     const result = await deps.switchHarness(resolved);
     if (!result.engineReady || result.retryPending) throw new Error('Scheduled Harness switch did not become ready');
