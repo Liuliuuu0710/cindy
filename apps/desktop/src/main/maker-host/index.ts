@@ -1,3 +1,4 @@
+import { configureSessionModelInterfaceStorage, sessionModelInterface } from './session-model-interface.js';
 import { readGeneratedImageEpoch } from '../cindy-media/generatedImageStorage';
 import { readAgentCapabilityCatalog, RUNTIME_MCP_NAMES_KEY, type AgentCapabilityQuery } from './agentCapabilityCatalog.js';
 import { listCindyManagedSkills, prepareCindyCodexSkills } from './managed-skills.js';
@@ -128,6 +129,7 @@ import {
 } from '../maker-ipc/register.js';
 import { MAKER_PUSH } from '../maker-ipc/channels.js';
 import { readProviderGroupBinding } from '../provider-group/bindings.js';
+import { createSubscriptionFastPolicy } from './subscription-fast-policy.js';
 import { getProviderGroupGuestSwitch } from '../provider-group/guestSwitch.js';
 import { tapWindowBroadcast } from '../device-link/broadcast-tap.js';
 import { remoteBackgroundInvoke, remoteInvoke } from '../device-link/index.js';
@@ -1387,7 +1389,8 @@ export function getMaker(): Maker {
         beforeKnownFileWrite: captureKnownFileBefore,
         noteOpaqueWrite: noteOpaqueTurnChange,
       },
-      registerLocalAgentProcess: ({ pid, kind, role }) => registerAgentProcess(pid, kind, role),
+      registerLocalAgentProcess: ({ pid, kind, role, sessionId }) =>
+        registerAgentProcess(pid, kind, role, sessionId),
       reviewAutoPermissionAction,
       toolLoopReviewer: reviewToolLoop,
       // 每个 session 的 cc 子进程 debug 写到 sessions/<id>/cc-debug.raw.log (logger 拼路径
@@ -2522,7 +2525,8 @@ export function getMaker(): Maker {
         beforeKnownFileWrite: captureKnownFileBefore,
         noteOpaqueWrite: noteOpaqueTurnChange,
       },
-      registerLocalAgentProcess: ({ pid, kind, role }) => registerAgentProcess(pid, kind, role),
+      registerLocalAgentProcess: ({ pid, kind, role, sessionId }) =>
+        registerAgentProcess(pid, kind, role, sessionId),
       reviewAutoPermissionAction,
       capabilityAdditions: {
         availableModels: deriveAvailableModels(getDesktopSelectableCatalog(), 'pi'),
@@ -2950,6 +2954,16 @@ export function getMaker(): Maker {
           }
           // 所有创建路径共用的派发边界,opts.providerId 此刻已是本次启动的终值。
           freezeSessionProviderAtStart(sessionId, opts.providerId);
+          const interfaceProvider = getActiveCatalog().providers.find(p => p.id === opts.providerId);
+          const interfaceModel = interfaceProvider?.models[opts.agentKind]?.find(m => m.id === opts.model);
+          if (interfaceProvider && interfaceModel) sessionModelInterface(sessionId, interfaceProvider.id, opts.agentKind,
+            interfaceModel, getActiveCatalog().modelRegistry,
+            opts.resumeSessionId ? interfaceProvider.routing[opts.agentKind]?.wireProtocol : undefined);
+
+          if (!opts.remoteHostId && !opts.agentDeviceId) {
+            opts.fastModePolicy = createSubscriptionFastPolicy(sessionId, () => getSessionProvider(sessionId)
+              ?? resolveDesktopModelContextProviderId(getDesktopSelectableCatalog(), opts.agentKind, null, opts.model));
+          }
           await preparePersistedOrcaSessionStart(sessionId, opts as MakerSessionCreateOpts);
           if (opts.agentKind === 'pi' && opts.thinkingEnabled === undefined) {
             const thinkingEnabled = getThinkingEnabledFromMemory(
@@ -3670,3 +3684,6 @@ export async function shutdownLspServerPool(): Promise<void> {
 
 // re-exports for IPC layer
 export { desktopClaudeAuthAdapter, desktopCodexAuthAdapter };
+
+// Lazy path lookup follows owner changes; installing the reader performs no IO.
+configureSessionModelInterfaceStorage(() => ownerScopedUserDataPath('model-interface-snapshots'));

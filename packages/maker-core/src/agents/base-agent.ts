@@ -448,6 +448,11 @@ export interface LocalAgentProcessRegistration {
   pid: number;
   kind: 'claude' | 'pi';
   role: 'task-host' | 'control-plane-service';
+  /**
+   * 承载本进程的宿主 session id,供资源监视器显示归属任务。远端 transport
+   * 不触发登记,宿主可忽略。
+   */
+  sessionId?: string | null;
 }
 
 export interface CodexLocalCredentialModeSwitchContext {
@@ -867,6 +872,7 @@ export interface AgentDeps {
       resumeSessionId?: string;
       /** Preview must not prepare global skills or start a local model service. */
       purpose?: 'startup' | 'preview' | 'live-refresh';
+      sessionId?: string;
     },
   ) => Promise<PiNativeProvidersResult | null>;
 
@@ -1564,6 +1570,7 @@ export interface AgentDeps {
    * 「远端恒用网关」行为。
    */
   resolveRemoteClaudeRoute?: (opts: {
+    sessionId?: string;
     providerId?: string | null;
     model: string;
   }) => Promise<RemoteClaudeRoute | null>;
@@ -1940,6 +1947,8 @@ export interface StartSessionOptions {
    * Undefined means do not override the agent/server default.
    */
   fastMode?: boolean | 'ultrafast';
+  /** Trusted host restriction for this subscription run, including live policy changes. */
+  fastModePolicy?: import('./shared/fast-mode-policy.js').FastModePolicy;
   /**
    * Host-owned live pricing variant for request-level usage segments.
    * Pi reads this at each provider request boundary so a mid-turn Fast toggle
