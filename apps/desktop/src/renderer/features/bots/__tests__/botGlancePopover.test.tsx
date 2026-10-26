@@ -31,7 +31,8 @@ const h = vi.hoisted(() => ({
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, options?: Record<string, unknown>) =>
-      options && 'count' in options ? `${key}:${String(options.count)}` : key,
+      options && 'count' in options ? `${key}:${String(options.count)}`
+        : options && 'step' in options ? `${key}:${String(options.step)}` : key,
     i18n: { language: 'en' },
   }),
 }));
@@ -84,6 +85,7 @@ let items: TeammateTodo[] = [];
 const list = vi.fn(async () => ({ items, version: 1 as const }));
 const update = vi.fn(async (_botId: string, patch: { id: string }) => ({ ...todo(patch.id), revision: 4 }));
 const openPath = vi.fn(async () => ({ ok: true }));
+const openExternal = vi.fn(async () => ({ success: true }));
 let dailyOn = false;
 let routinesChanged: (() => void) | null = null;
 const dailyCheck = vi.fn(async (_botId: string, enabled?: boolean) => (dailyOn = enabled ?? dailyOn));
@@ -102,6 +104,7 @@ beforeEach(() => {
     routines: { onChanged: (listener: () => void) => { routinesChanged = listener; return () => { routinesChanged = null; }; } },
     deviceLink: { invoke: vi.fn(), onRemotePush: () => () => undefined },
     openPath,
+    openExternal,
   };
 });
 afterEach(() => {
@@ -119,6 +122,41 @@ async function openGlance(target = bot) {
 }
 
 describe('BotGlanceButton', () => {
+  // #6966: the old row hides progress/evidence. Exercise the real list through refreshes;
+  // a CI-success record remains open, and its evidence date is not its update date (unit).
+  it('keeps one affair visible through local, pushed and CI stages, with pending acceptance and evidence', async () => {
+    const stages = ['Local changes ready', 'Pushed; CI queued', 'CI running', 'CI passed; phone acceptance pending'];
+    const at = '2026-10-26T02:24:00Z';
+    items = [todo('tracked', { progress: stages[0], updatedAt: at })];
+    await openGlance();
+    expect((await screen.findAllByText(stages[0])).length).toBeGreaterThan(0);
+    for (const progress of stages.slice(1)) {
+      items = [todo('tracked', {
+        progress, updatedAt: at,
+        next: { label: 'Check the report on a phone', kind: 'advance', instruction: 'MODEL ONLY' },
+        sources: [{ kind: 'github', id: 'ci', label: 'CI run for commit abc', ref: 'https://example.test/ci/1', observedAt: '2026-10-26T02:23:00Z' }],
+        associations: [{ kind: 'pr', id: 'opaque', label: 'Report reading PR' }],
+      })];
+      fireEvent.focus(window);
+      expect((await screen.findAllByText(progress)).length).toBeGreaterThan(0);
+      expect(screen.getAllByTestId('bot-glance-todo')).toHaveLength(1);
+    }
+    expect(screen.getByText(/Check the report on a phone/)).toBeTruthy();
+    fireEvent.click(screen.getByText('bots.glance.progressDetails'));
+    expect(screen.getByRole('link', { name: 'CI run for commit abc' }).getAttribute('href')).toBe('https://example.test/ci/1');
+    expect(screen.getByText('Report reading PR')).toBeTruthy();
+    expect(screen.queryByText('MODEL ONLY')).toBeNull();
+    expect(screen.queryByText(/bots.glance.doneCount/)).toBeNull();
+    fireEvent.click(screen.getByRole('link', { name: 'CI run for commit abc' }));
+    expect(openExternal).toHaveBeenCalledWith('https://example.test/ci/1');
+    expect(h.insert).not.toHaveBeenCalled();
+    list.mockRejectedValueOnce(new Error('offline'));
+    fireEvent.focus(window);
+    expect(await screen.findByText('bots.glance.staleRecords')).toBeTruthy();
+    expect(screen.getAllByText(stages[3]).length).toBeGreaterThan(0);
+    expect(update).not.toHaveBeenCalled();
+  });
+
   it('quotes a todo into the composer instead of acting on it, and offers only an undoable delete', async () => {
     items = [todo('t1')];
     await openGlance();

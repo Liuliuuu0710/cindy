@@ -15,9 +15,22 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { todoDateLabel, todoLocalDate, type TeammateTodo } from '@cindy/maker-shared/teammate-todo';
 
-const h = vi.hoisted(() => ({ items: [] as unknown[], reads: [] as Array<Record<string, unknown>> }));
-vi.mock('react-native', () => ({ AppState: { addEventListener: () => ({ remove: () => undefined }) } }));
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (s: string) => s, i18n: { language: 'en' } }) }));
+const h = vi.hoisted(() => ({ items: [] as unknown[], reads: [] as Array<Record<string, unknown>>, openURL: vi.fn(async () => undefined) }));
+vi.mock('react-native', async () => {
+  const { createElement } = await import('react');
+  return {
+    AppState: { addEventListener: () => ({ remove: () => undefined }) },
+    View: ({ children }: { children: React.ReactNode }) => createElement('div', {}, children),
+    Pressable: ({ children, onPress, accessibilityRole }: { children: React.ReactNode; onPress(): void; accessibilityRole: string }) => createElement('button', { onClick: onPress, role: accessibilityRole }, children),
+    Linking: { openURL: h.openURL }, StyleSheet: { create: (value: unknown) => value },
+  };
+});
+vi.mock('@/components/AppText', () => ({ Text: ({ children }: { children: React.ReactNode }) => createElement('span', {}, children) }));
+vi.mock('@/theme', () => ({
+  useThemedStyles: (factory: (colors: unknown) => unknown) => factory({ textPrimary: 'black', textSecondary: 'gray', textTertiary: 'gray' }),
+  spacing: { lg: 16, sm: 8, xs: 4 }, typeScale: { footnote: 13, caption: 12, body: 16 }, lineHeight: { caption: 18, body: 22 },
+}));
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (s: string, values?: Record<string, string>) => `${s}${values?.step ?? values?.time ?? ''}`, i18n: { language: 'en' } }) }));
 vi.mock('@react-native-async-storage/async-storage', () => ({ default: { getItem: async () => null, setItem: async () => undefined } }));
 vi.mock('@/auth/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u' }, accountGeneration: 1 }) }));
 // Stable like the real context: new functions per render would re-run the read effect forever.
@@ -36,13 +49,36 @@ vi.mock('@/session/useRemoteCompanionQuery', () => ({ useRemoteCompanionQuery: (
 
 const { useCompanionGlanceTodos } = await import('@/session/useCompanionGlanceTodos');
 const { companionGlanceOutputs } = await import('@/session/companionProfileData');
+const { CompanionTodoProgress } = await import('@/session/CompanionTodoProgress');
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 let root: Root;
-beforeEach(() => { h.items = []; h.reads = []; root = createRoot(document.createElement('div')); });
+let container: HTMLDivElement;
+beforeEach(() => { h.items = []; h.reads = []; container = document.createElement('div'); root = createRoot(container); });
 afterEach(() => act(() => root.unmount()));
 
 const todo = (id: string, status = 'open') => ({ id, status, title: id, revision: 1, sources: [], history: [] }) as unknown as TeammateTodo;
+
+// #6966: the real mobile disclosure must reveal recorded evidence without quoting/sending,
+// and surface a link-open failure. Existing tests covered reads only, not this UI (unit).
+it('shows pending acceptance and opens only recorded HTTPS evidence, with a visible link failure', async () => {
+  const item = { ...todo('reading'), progress: 'CI passed; phone acceptance pending',
+    next: { label: 'Check on a phone', kind: 'advance', instruction: 'MODEL ONLY' },
+    updatedAt: '2026-10-26T02:24:00Z', associations: [{ kind: 'pr', id: 'opaque', label: 'Reading PR' }],
+    sources: [{ kind: 'github', id: 'opaque', label: 'CI evidence', ref: 'https://example.test/ci', observedAt: '2026-10-26T02:23:00Z' }],
+  } as TeammateTodo;
+  await act(async () => root.render(createElement(CompanionTodoProgress, { todo: item })));
+  expect(container.textContent).toContain('Check on a phone');
+  expect(container.querySelector('[role="link"]')).toBeNull();
+  await act(async () => container.querySelector('button')!.click());
+  expect(container.textContent).toContain('CI evidence');
+  expect(container.textContent).toContain('Reading PR');
+  expect(container.textContent).not.toContain('MODEL ONLY');
+  h.openURL.mockRejectedValueOnce(new Error('offline'));
+  await act(async () => container.querySelector<HTMLButtonElement>('[role="link"]')!.click());
+  expect(h.openURL).toHaveBeenCalledWith('https://example.test/ci');
+  expect(container.textContent).toContain('devices.glance.openLinkFailed');
+});
 
 it('reads every page of open todos, not just the host first page of 25', async () => {
   h.items = Array.from({ length: 30 }, (_, index) => todo(`o${index}`));

@@ -80,6 +80,36 @@ export interface TodoPatch {
   completion?: { summary: string; ref?: string };
   resolvedActionRequestId?: string;
 }
+
+/** Read-only glance projection. Never infer a stage or acceptance from task/PR lifecycle. */
+export function todoProgressView(todo: TeammateTodo, locale: string) {
+  let formatter: Intl.DateTimeFormat | undefined;
+  const date = (value?: string): string | undefined => {
+    if (!value) return undefined;
+    try { validateTodoTimestamp(value); } catch { return undefined; }
+    formatter ??= new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'short' });
+    return formatter.format(new Date(value));
+  };
+  const href = (value?: string): string | undefined => {
+    if (!value || !/^https:\/\/\S+$/i.test(value)) return undefined;
+    try {
+      const url = new URL(value);
+      return url.protocol === 'https:' && !url.username && !url.password ? url.href : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+  // Reopening retains history, but an old completion is not the current result.
+  const completion = todo.status === 'done' ? todo.history.at(-1) : undefined;
+  return {
+    progress: todo.progress?.trim() ?? '',
+    next: todo.status === 'open' ? todo.next?.label.trim() : undefined,
+    updatedAt: date(todo.updatedAt),
+    sources: todo.sources.map(source => ({ label: source.label, href: href(source.ref), observedAt: date(source.observedAt) })),
+    associations: todo.associations.map(association => association.label),
+    completion: completion ? { summary: completion.summary, href: href(completion.ref), at: date(completion.at) } : undefined,
+  };
+}
 export interface TodoState {
   version: 1;
   items: TeammateTodo[];

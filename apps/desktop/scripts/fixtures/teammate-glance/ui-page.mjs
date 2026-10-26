@@ -29,6 +29,8 @@ export default {
   },
   cases: {
     default: { about: 'Cindy on several computers, todos with one due today, finished deliverables' },
+    progress: { about: 'Recorded CI success and outstanding phone acceptance with separate evidence time' },
+    narrow: { about: 'Long progress and evidence at 320px', viewport: { width: 320, height: 900 } },
     menu: { about: 'Right-clicking a todo offers only Delete' },
     new: { about: 'A new teammate: Computers, and the todo block with only 帮我查查 and the daily switch; no outputs' },
   },
@@ -37,7 +39,7 @@ export default {
   },
   async check(page, ui) {
     const button = page.getByTestId('bot-glance-button');
-    if (ui.case !== 'new') {
+    if (!['new', 'progress', 'narrow'].includes(ui.case)) {
       await page.waitForFunction(() =>
         document.querySelector('[data-testid="bot-glance-button"] span[aria-hidden]') !== null,
       );
@@ -46,6 +48,18 @@ export default {
     await button.click();
     const popover = page.getByTestId('bot-glance-popover');
     await popover.waitFor();
+    if (ui.case === 'progress' || ui.case === 'narrow') {
+      assert.equal(await page.getByTestId('bot-glance-todo').count(), 1);
+      await page.getByText(await ui.t('bots.glance.progressDetails'), { exact: true }).click();
+      const content = await popover.textContent();
+      assert.ok(content.includes('自动检查通过，仍待手机实机验收（演示）'));
+      assert.ok(content.includes('在手机上核对长报告、表格与附件'));
+      assert.ok(!content.includes('MODEL-ONLY-INSTRUCTION'));
+      assert.equal(await page.getByRole('link', { name: 'CI · demo-a' }).getAttribute('href'), 'https://example.test/ci/demo-a');
+      assert.equal(await page.getByText(await ui.t('bots.glance.doneCount', { count: 1 }), { exact: true }).count(), 0);
+      await ui.capture('evidence');
+      return;
+    }
     if (ui.case === 'new') {
       assert.equal(await page.getByTestId('bot-glance-todo').count(), 0, 'no todo rows');
       assert.equal(await page.getByTestId('bot-glance-check').count(), 1, '帮我查查 even without todos');

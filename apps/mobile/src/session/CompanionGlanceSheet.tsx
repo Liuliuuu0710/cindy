@@ -10,7 +10,7 @@ import { Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { Check, ChevronDown, ChevronUp, Monitor, ScanSearch } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import type { BotDelegationListResult } from '@cindy/maker-shared/botDelegation';
-import { todoDateLabel, todoDue, type TeammateTodo } from '@cindy/maker-shared/teammate-todo';
+import { todoDateLabel, todoDue, todoProgressView, type TeammateTodo } from '@cindy/maker-shared/teammate-todo';
 import type { RemoteResource } from '@cindy/device-link';
 import { useAuth } from '@/auth/AuthContext';
 import { Text } from '@/components/AppText';
@@ -22,6 +22,7 @@ import { readRemoteCollectionCache, remoteResourceConnectionState } from '@/devi
 import { NativePullDownMenu } from '@/platform/chrome/NativePullDownMenu';
 import { fontWeight, iconSize, iconStroke, lineHeight, radius, spacing, typeScale, useTheme, useThemedStyles, type ThemeColors } from '@/theme';
 import { CompanionSheet } from './CompanionSheet';
+import { CompanionTodoProgress } from './CompanionTodoProgress';
 import { companionGlanceOutputs } from './companionProfileData';
 import { useRemoteCompanionQuery } from './useRemoteCompanionQuery';
 import type { useCompanionGlanceTodos } from './useCompanionGlanceTodos';
@@ -110,15 +111,15 @@ function joinRows(rows: ReactNode[], inset: boolean, styles: ReturnType<typeof m
     : [<View key={`divider-${index}`} style={[styles.divider, inset && styles.dividerInset]} />, row]);
 }
 
-function Row({ icon, title, meta, trailing, muted = false, onPress, testID }: {
-  icon?: ReactNode; title: string; meta?: string; trailing?: ReactNode; muted?: boolean; onPress?(): void; testID?: string;
+function Row({ icon, title, meta, wrapMeta = false, trailing, muted = false, onPress, testID }: {
+  icon?: ReactNode; title: string; meta?: string; wrapMeta?: boolean; trailing?: ReactNode; muted?: boolean; onPress?(): void; testID?: string;
 }) {
   const styles = useThemedStyles(makeStyles);
   const body = <>
     {icon ? <View style={styles.icon}>{icon}</View> : null}
     <View style={styles.rowText}>
       <Text numberOfLines={1} style={[styles.rowTitle, muted && styles.rowTitleMuted]}>{title}</Text>
-      {meta ? <Text numberOfLines={1} style={styles.rowMeta}>{meta}</Text> : null}
+      {meta ? <Text numberOfLines={wrapMeta ? 2 : 1} style={wrapMeta ? styles.progressText : styles.rowMeta}>{meta}</Text> : null}
     </View>
     {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
   </>;
@@ -182,15 +183,6 @@ function Computers({ botId, deviceId, deviceName, online, cloudHome, onOpenCindy
 
 // ---------------------------------------------------------------- 待办
 
-function sourceText(todo: TeammateTodo, t: (key: string) => string): string {
-  const source = todo.sources[0];
-  if (!source || source.kind === 'conversation') return t('devices.glance.source.conversation');
-  const kind = t(`devices.glance.source.${source.kind}`);
-  const label = source.label?.trim();
-  // 来源名已含标签（「来自 GitHub」+「GitHub」）时不再重复。
-  return label && !kind.toLowerCase().includes(label.toLowerCase()) ? `${kind} · ${label}` : kind;
-}
-
 function Todos({ todos, online, onQuote, onCheck }: {
   todos: GlanceTodoState; online: boolean; onQuote(todo: TeammateTodo): void; onCheck?(): void;
 }) {
@@ -253,17 +245,17 @@ function Todos({ todos, online, onQuote, onCheck }: {
   const row = (todo: TeammateTodo, isDone: boolean) => {
     const due = !isDone && todoDue(todo);
     const date = isDone ? '' : todoDateLabel(todo, i18n.language);
-    const completion = isDone ? todo.history[todo.history.length - 1]?.summary : undefined;
-    const content = <Row title={todo.title} meta={completion || sourceText(todo, t)} muted={isDone}
+    const view = todoProgressView(todo, i18n.language);
+    const content = <Row title={todo.title} meta={view.completion?.summary || view.progress || t('devices.glance.noProgress')} wrapMeta muted={isDone}
       trailing={date ? <View style={styles.date}>
         {due ? <View style={styles.dueDot} accessibilityLabel={t('devices.glance.dueUnseen')} /> : null}
         <Text style={[styles.dateText, due && styles.dateDue]}>{date}</Text>
       </View> : undefined}
       onPress={() => onQuote(todo)} testID={isDone ? 'companion.glance.todo.done' : 'companion.glance.todo'} />;
     // 长按：系统上下文菜单（行浮起、背景模糊），只有「删除」。
-    return <NativePullDownMenu key={todo.id} longPress disabled={!online} accessibilityLabel={todo.title}
+    return <View key={todo.id}><NativePullDownMenu longPress disabled={!online} accessibilityLabel={todo.title}
       actions={[{ id: 'delete', title: t('devices.glance.delete'), destructive: true, image: 'trash' }]}
-      onAction={() => void remove(todo)} onPress={() => onQuote(todo)}>{content}</NativePullDownMenu>;
+      onAction={() => void remove(todo)} onPress={() => onQuote(todo)}>{content}</NativePullDownMenu><CompanionTodoProgress todo={todo} /></View>;
   };
   const rows: ReactNode[] = [];
   if (deleted) rows.push(<Pressable key="undo" accessibilityRole="button" onPress={() => void undo()}
@@ -279,6 +271,7 @@ function Todos({ todos, online, onQuote, onCheck }: {
   if (showDone) rows.push(...done.map(todo => row(todo, true)));
   return <View>
     <Section label={t('devices.glance.todos')}>
+      {todos.failed || !online ? <Text accessibilityRole="alert" style={styles.progressText}>{t('devices.glance.staleRecords')}</Text> : null}
       {joinRows(head, true, styles)}
       {rows.length > 0 ? <><View style={styles.divider} />{joinRows(rows, false, styles)}</> : null}
     </Section>
@@ -332,6 +325,7 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   rowTitle: { color: colors.textPrimary, fontSize: typeScale.body, lineHeight: lineHeight.body, fontWeight: fontWeight.medium },
   rowTitleMuted: { color: colors.textSecondary, fontWeight: fontWeight.regular },
   rowMeta: { color: colors.textTertiary, fontSize: typeScale.caption, lineHeight: lineHeight.caption },
+  progressText: { color: colors.textSecondary, fontSize: typeScale.footnote, lineHeight: lineHeight.caption },
   trailing: { flexShrink: 0, alignItems: 'flex-end' },
   date: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs + 2 },
   dueDot: { width: DUE_DOT, height: DUE_DOT, borderRadius: radius.pill, backgroundColor: colors.statusError },

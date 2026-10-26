@@ -13,7 +13,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { buildTodoReferenceHref } from '@cindy/maker-shared/agent-input-projection';
-import { todoDateLabel, todoDue, type TeammateTodo } from '@cindy/maker-shared/teammate-todo';
+import { todoDateLabel, todoDue, todoProgressView, type TeammateTodo } from '@cindy/maker-shared/teammate-todo';
 
 import { WINDOW_NO_DRAG_STYLE } from '@/components/layout/windowDrag';
 import { FileTypeIcon } from '@/components/ui/file-type-icon';
@@ -80,6 +80,7 @@ function Row({
   icon,
   title,
   meta,
+  wrapMeta = false,
   trailing,
   muted = false,
   onClick,
@@ -90,6 +91,7 @@ function Row({
   icon?: ReactNode;
   title: string;
   meta?: string;
+  wrapMeta?: boolean;
   trailing?: ReactNode;
   muted?: boolean;
   onClick?: () => void;
@@ -112,7 +114,7 @@ function Row({
         >
           {title}
         </span>
-        {meta ? <span title={meta} className="block truncate text-12 text-[var(--text-tertiary)]">{meta}</span> : null}
+        {meta ? <span title={meta} className={cn('block', wrapMeta ? 'line-clamp-2 whitespace-pre-wrap break-words text-13 text-[var(--text-secondary)]' : 'truncate text-12 text-[var(--text-tertiary)]')}>{meta}</span> : null}
       </span>
       {trailing ? <span className="flex shrink-0 items-center gap-1.5 pl-2 text-12 text-[var(--text-secondary)]">{trailing}</span> : null}
     </>
@@ -338,33 +340,66 @@ function TodoRow({
   const { t, i18n } = useTranslation();
   const due = !done && todoDue(todo);
   const date = done ? '' : todoDateLabel(todo, i18n.language);
-  const completion = done ? todo.history[todo.history.length - 1]?.summary : undefined;
+  const view = todoProgressView(todo, i18n.language);
+  const openEvidence = (url: string) => {
+    void window.electronAPI.openExternal(url)
+      .then(result => { if (!result.success) toast.error(t('bots.glance.openLinkFailed')); })
+      .catch(() => toast.error(t('bots.glance.openLinkFailed')));
+  };
+  const evidenceLink = (label: string, href?: string) => href
+    ? <a href={href} target="_blank" rel="noopener noreferrer" onClick={event => { event.preventDefault(); openEvidence(href); }}
+        className="underline underline-offset-2 focus-visible:outline-[var(--focus-ring)]">{label}</a>
+    : label;
   return (
-    <Row
-      testId="bot-glance-todo"
-      title={todo.title}
-      muted={done}
-      meta={completion ? completion : sourceText(todo, t)}
-      trailing={
-        date ? (
-          <>
-            {due ? <TodoDueDot /> : null}
-            <span className={due ? 'text-[var(--text-primary)]' : undefined}>{date}</span>
-          </>
-        ) : null
-      }
-      onClick={() => onOpen(todo)}
-      onContextMenu={(event) => {
-        event.preventDefault();
-        onMenu(todo, event.clientX, event.clientY, event.currentTarget);
-      }}
-      onKeyDown={(event) => {
-        if (event.key !== 'ContextMenu' && !(event.key === 'F10' && event.shiftKey)) return;
-        event.preventDefault();
-        const rect = event.currentTarget.getBoundingClientRect();
-        onMenu(todo, rect.left + 10, rect.bottom, event.currentTarget);
-      }}
-    />
+    <div className="min-w-0">
+      <Row
+        testId="bot-glance-todo"
+        title={todo.title}
+        muted={done}
+        meta={view.completion?.summary || view.progress || t('bots.glance.noProgress')}
+        wrapMeta
+        trailing={
+          date ? (
+            <>
+              {due ? <TodoDueDot /> : null}
+              <span className={due ? 'text-[var(--text-primary)]' : undefined}>{date}</span>
+            </>
+          ) : null
+        }
+        onClick={() => onOpen(todo)}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          onMenu(todo, event.clientX, event.clientY, event.currentTarget);
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== 'ContextMenu' && !(event.key === 'F10' && event.shiftKey)) return;
+          event.preventDefault();
+          const rect = event.currentTarget.getBoundingClientRect();
+          onMenu(todo, rect.left + 10, rect.bottom, event.currentTarget);
+        }}
+      />
+      <div className="space-y-1 px-2 pb-2 text-13 text-[var(--text-secondary)]">
+        {!done ? <p className="whitespace-pre-wrap break-words">{view.next ? t('bots.glance.nextStep', { step: view.next }) : t('bots.glance.noNext')}</p> : null}
+        <p className="break-words text-12 text-[var(--text-tertiary)]">{view.updatedAt ? t('bots.glance.recordUpdated', { time: view.updatedAt }) : t('bots.glance.unknownTime')} · {sourceText(todo, t)}</p>
+        <details>
+          <summary className="min-h-9 cursor-pointer select-none py-2 text-12 focus-visible:outline-[var(--focus-ring)]">{t('bots.glance.progressDetails')}</summary>
+          <div className="space-y-2 whitespace-pre-wrap break-words pb-2 select-text">
+            {view.progress ? <p>{view.progress}</p> : null}
+            {view.completion ? <div>
+              <p>{t('bots.glance.completionBasis')}</p>
+              <p>{evidenceLink(view.completion.summary, view.completion.href)}</p>
+              <p className="text-[var(--text-tertiary)]">{view.completion.at ? t('bots.glance.completedAt', { time: view.completion.at }) : t('bots.glance.unknownTime')}</p>
+            </div> : null}
+            {view.sources.map((source, index) => <div key={index}>
+              <p>{evidenceLink(source.label, source.href)}</p>
+              <p className="text-[var(--text-tertiary)]">{source.observedAt ? t('bots.glance.observedAt', { time: source.observedAt }) : t('bots.glance.unknownTime')}</p>
+            </div>)}
+            {view.associations.length ? <div><p>{t('bots.glance.related')}</p>{view.associations.map((label, index) => <p key={index}>{label}</p>)}</div> : null}
+            {!view.completion && !view.sources.length ? <p>{t('bots.glance.noEvidence')}</p> : null}
+          </div>
+        </details>
+      </div>
+    </div>
   );
 }
 
@@ -478,6 +513,7 @@ function Todos({
   const hiddenCount = Math.max(0, openTotal - TODO_PREVIEW);
   return (
     <Section label={t('bots.glance.todos')}>
+      {todos.failed ? <p role="status" className="px-2 pb-2 text-13 text-[var(--text-secondary)]">{t('bots.glance.staleRecords')}</p> : null}
       <Row
         testId="bot-glance-check"
         icon={<ScanSearch size={16} />}

@@ -20,6 +20,13 @@ const friday = new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10);
 
 function items(caseName: string): TeammateTodo[] {
   if (caseName === 'new') return [];
+  if (caseName === 'progress' || caseName === 'narrow') return [todo('reading', '手机阅读交付检查（演示）', 'github', 'CI · demo-a', {
+    progress: '自动检查通过，仍待手机实机验收（演示）。'.repeat(caseName === 'narrow' ? 18 : 1),
+    next: { label: '在手机上核对长报告、表格与附件', instruction: 'MODEL-ONLY-INSTRUCTION', kind: 'advance' },
+    updatedAt: '2026-10-26T02:24:00Z',
+    sources: [{ kind: 'github', id: 'ci', label: 'CI · demo-a', ref: 'https://example.test/ci/demo-a', observedAt: '2026-10-26T02:23:00Z' }],
+    associations: [{ kind: 'task', id: 'source-task', label: '原执行任务' }, { kind: 'pr', id: 'opaque', label: '阅读体验 PR（演示）' }],
+  })];
   return [
     todo('t1', 'Reply to MagicLizi about the release date 回 MagicLizi 的邮件，确认发版时间', 'mail', 'MagicLizi', {
       sourceDeadline: { kind: 'date', date: today, timeZone: zone },

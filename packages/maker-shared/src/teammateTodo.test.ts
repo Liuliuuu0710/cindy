@@ -9,6 +9,7 @@ import {
   createTodoDueComparator,
   todoOverdue,
   todoVisible,
+  todoProgressView,
   validateTodoDeadline,
   type TodoPatch,
 } from './teammateTodo';
@@ -25,6 +26,38 @@ const patch: TodoPatch = {
     instruction: '按已授权范围排查并准备修复',
   },
 };
+
+// #6966, unit: shared production presentation must not expose model instructions/internal IDs,
+// turn reopened history into current completion, or make unsafe evidence references actionable.
+it('projects recorded progress and source times without promoting historical completion or exposing instructions', () => {
+  const state = emptyTodoState();
+  const item = applyTodoPatch(state, { ...patch, progress: 'CI passed; phone acceptance pending',
+    sources: [{ kind: 'github', id: 'private-source-id', label: 'CI evidence', ref: 'https://example.test/run/1', observedAt: '2026-10-10T11:00:00Z' }],
+    associations: [{ kind: 'pr', id: 'private-pr-id', label: 'Reading PR' }],
+  }, 'one', now);
+  item.history = [{ summary: 'Previous acceptance', at: '2026-10-09T12:00:00Z', ref: 'https://example.test/old' }];
+  const view = todoProgressView(item, 'en');
+  expect(view.progress).toBe('CI passed; phone acceptance pending');
+  expect(view.next).toBe('准备修复');
+  expect(view.completion).toBeUndefined();
+  expect(view.sources.find(source => source.label === 'CI evidence')?.observedAt).not.toBe(view.updatedAt);
+  expect(view.associations).toEqual(['Reading PR']);
+  expect(JSON.stringify(view)).not.toMatch(/instruction|private-source-id|private-pr-id/);
+  expect(item.status).toBe('open');
+});
+
+it('only makes credential-free HTTPS evidence actionable and preserves unknown times', () => {
+  const item = applyTodoPatch(emptyTodoState(), patch, 'one', now);
+  item.updatedAt = '';
+  item.status = 'done';
+  item.history = [{ summary: 'Explicit completion', ref: 'file:///host/acceptance.txt', at: 'invalid' }];
+  item.sources = ['https://example.test/proof', 'https://user:pass@example.test/private', 'javascript:alert(1)', 'https://', 'https://example.test/bad link'].map((ref, index) => ({ kind: 'github', id: String(index), label: 'Evidence', ref }));
+  const view = todoProgressView(item, 'en');
+  expect(view.sources.map(source => source.href)).toEqual(['https://example.test/proof', undefined, undefined, undefined, undefined]);
+  expect(view.updatedAt).toBeUndefined();
+  expect(view.next).toBeUndefined();
+  expect(view.completion).toEqual({ summary: 'Explicit completion', href: undefined, at: undefined });
+});
 describe('teammate affairs contract', () => {
   it('works without projects and merges source evidence into the same affair', () => {
     const s = emptyTodoState(),
