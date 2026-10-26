@@ -1,0 +1,78 @@
+{
+  "date": "2026-10-26",
+  "scope": "actual companion B reads ordinary task A not created by B; no companion write continuation tested",
+  "B": {
+    "bot_id": "bot_1792489377679_nldt77",
+    "name": "实现和验收助手",
+    "session_id": "d270fdf7-9866-4598-8cba-4eb21b2608d2",
+    "identity_basis": "Host-attributed incoming companion messages"
+  },
+  "A": {
+    "session_id": "109c8d73-9587-435a-8412-e56254b7cd48",
+    "creator_bot_id": null
+  },
+  "receipts": [
+    {
+      "call": {
+        "id": "p1ve7bvkxn1vy4omoz4hozp3",
+        "at": "2026-10-26T06:22:12.205Z",
+        "tool": "get_task_digest",
+        "args": {
+          "session_id": "109c8d73-9587-435a-8412-e56254b7cd48"
+        }
+      },
+      "result": {
+        "id": "lyjmfohjwixeadb3inlt8201",
+        "at": "2026-10-26T06:22:16.827Z",
+        "ok": true,
+        "source_message_ids": []
+      }
+    },
+    {
+      "call": {
+        "id": "cyciaxusocdij2r4f9ub9n1p",
+        "at": "2026-10-26T06:22:16.828Z",
+        "tool": "get_chat_history",
+        "args": {
+          "session_ids": [
+            "109c8d73-9587-435a-8412-e56254b7cd48"
+          ],
+          "roles": [
+            "user",
+            "assistant"
+          ],
+          "order": "asc",
+          "limit": 20
+        }
+      },
+      "result": {
+        "id": "fjqz73qse9guw7wdivu3jfe1",
+        "at": "2026-10-26T06:22:23.961Z",
+        "ok": true,
+        "source_message_ids": [
+          "boqfrehud77mhgrpa1xbmi0y",
+          "hsukzzxj14erxbiv0b5l6l73",
+          "01a176d6-9fc0-7490-99ff-2ee5d7c87229",
+          "r8uy4mzpg1dpe790c1snjra6",
+          "r3r9qovwhqb5lddp2w315u9m",
+          "01a176d8-dd41-7840-9bec-f35403d62e72",
+          "jjxg4fqr9k5andydbt02m482",
+          "e0w9u10xhc3gwx16p97fo5ql",
+          "ktudes27y6fhh027t49a3x86",
+          "01a176da-3f66-7e92-8bc0-e5299859b3a1",
+          "as2lnbyaf6cxgerr8uu5yixs",
+          "tc567vwqftmwiukz4d3qdqz7",
+          "01a176db-13f5-7652-a5bc-07ff0df589c6",
+          "z0vggr3v8hlhp38q5sy7y7jf",
+          "a26imou6fdhw02k93xc9zugd"
+        ]
+      }
+    }
+  ],
+  "final": {
+    "id": "uys3jxk0nmwni0nfea6mynof",
+    "at": "2026-10-26T06:22:27.169Z",
+    "content": "本次以伙伴 **「实现和验收助手」作为 B** 只读核验；伙伴身份由当前宿主上下文确定，未把普通 Session 冒充伙伴。\n\n宿主 `get_task_digest`、`get_chat_history` 均返回 `ok=true`，历史读取完整（`hasMore=false`）。A 为任务 `109c8d73-9587-435a-8412-e56254b7cd48`，**不是我创建的任务**。\n\n以下时间均为 UTC，日期均为 2026-10-26：\n\n| 核对项 | 从 A 原始历史读到的内容 | 消息 ID／时间 |\n|---|---|---|\n| 原目标 | 用“手机阅读交付说明”合成业务，留下部分成果、独有标记、决策及余项，供接续者读取 | `boqfrehud77mhgrpa1xbmi0y`／06:12:17.923 |\n| A 自行生成的标记 | `MOBREAD-青鹭-7429-KQ`；未出现在初始输入中 | `hsukzzxj14erxbiv0b5l6l73`／06:12:36.892 |\n| 方案与理由 | 单栏、短段落 Markdown，每段先说结论；方便手机纵向阅读和接续者修改 | `hsukzzxj14erxbiv0b5l6l73`／06:12:36.892 |\n| 最初完成内容 | “阅读方式”“交付范围”两条初稿 | `hsukzzxj14erxbiv0b5l6l73`／06:12:36.892 |\n| 后续已做操作 | 补写第三条“如何验收”，之后将长段落拆成检查清单；仅修改回复文字 | `r3r9qovwhqb5lddp2w315u9m`／06:14:54.175；`ktudes27y6fhh027t49a3x86`／06:16:35.624 |\n| 未完成事项 | 手机实机排版检查、依据实测修订及修改后复查均未完成 | `ktudes27y6fhh027t49a3x86`／06:16:35.624 |\n| 当前下一步 | 由原 #6963 任务核对跨任务读取结果；手机实机检查不计入本次接续验收 | `a26imou6fdhw02k93xc9zugd`／06:18:13.154 |\n\n**本次证明：实际伙伴 B 能通过宿主工具读取非自己创建的普通任务 A，并找回标记、决策和最新余项。** 不证明手机实机验收完成，也不代表 #6963 全部验收通过。\n\n本轮只调用上述两个只读工具，未读其他任务、发消息、创建任务或改变负责人。"
+  },
+  "notes": "Only relevant receipt fields retained. No unrelated companion messages or raw agentMeta."
+}

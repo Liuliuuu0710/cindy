@@ -1,0 +1,17 @@
+{
+  "date": "2026-10-26",
+  "tools": {"node": "22.22.3", "pnpm": "10.33.2", "git-lfs": "3.7.1", "vitest": "3.2.7"},
+  "tool_scope": "Existing repair assistant wrapper adds PATH to child processes only. Session workingDir was not migrated.",
+  "git_status": "?? issue-6963/",
+  "tests": [
+    {"package": "@cindy/mcps", "files": ["src/__tests__/botHistoryScope.test.ts", "src/__tests__/getChatHistoryTool.test.ts"], "passed": 7, "duration_seconds": 0.881},
+    {"package": "desktop", "files": ["src/main/maker-ipc/__tests__/botWorkbenchAccess.test.ts", "src/main/mcp-integrations/__tests__/taskDigest.test.ts"], "passed": 37, "duration_seconds": 0.282},
+    {"package": "@cindy/mcps", "files": ["src/__tests__/getTaskDigestTool.test.ts"], "passed": 6, "duration_seconds": 0.219}
+  ],
+  "existing_tests_passed": 50,
+  "new_tests_added": 0,
+  "production_code_changed": false,
+  "ordinary_session_continuation": "passed; live-session-evidence.json",
+  "actual_companion_read_non_created_task": "passed; live-companion-evidence.json",
+  "not_tested": ["actual companion write continuation", "group/member/guest live boundary", "cross-device live boundary", "mobile UI", "production build", "full typecheck"]
+}

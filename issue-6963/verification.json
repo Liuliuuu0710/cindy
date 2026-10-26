@@ -1,0 +1,51 @@
+{
+  "kind": "synthetic-prototype-only",
+  "checks": [
+    {
+      "scenario": "五项背景与原记录引用",
+      "result": "passed"
+    },
+    {
+      "scenario": "后续目标修订保留出处",
+      "result": "passed"
+    },
+    {
+      "scenario": "外部操作确认与不确定分开，读取不更改责任",
+      "result": "passed"
+    },
+    {
+      "scenario": "分页与缺失依据明确呈现",
+      "result": "passed"
+    },
+    {
+      "scenario": "新记录要求刷新",
+      "result": "passed"
+    },
+    {
+      "scenario": "无法核对最新状态不冒充新鲜",
+      "result": "passed"
+    },
+    {
+      "scenario": "无出处事实不展示",
+      "result": "passed"
+    },
+    {
+      "scenario": "HISTORY_SCOPE_DENIED 不泄露背景",
+      "result": "passed"
+    },
+    {
+      "scenario": "REMOTE_UNAVAILABLE 不泄露背景",
+      "result": "passed"
+    },
+    {
+      "scenario": "NOT_FOUND 不泄露背景",
+      "result": "passed"
+    }
+  ],
+  "production_integration_verified": false,
+  "model_extraction_verified": false,
+  "external_writes": 0,
+  "duration_seconds": 0.0272,
+  "runtime": "Python 3.9.6",
+  "command": "python3 issue-6963/prototype.py --verify"
+}

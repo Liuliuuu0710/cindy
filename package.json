@@ -150,6 +150,7 @@
     "test:guard": "node scripts/test-workspaces.mjs --tier guard",
     "test:device-link": "node apps/mobile/scripts/device-link-reconnect-smoke.mjs",
     "test:peer-transfer": "node scripts/peer-transfer-acceptance.mjs",
+    "test:toolchain-release": "python3 issue-6963/test_toolchain_release.py",
     "ci:scheduler-guard": "node scripts/scheduler-ci-guard.mjs",
     "pctx": "node packages/project-context/dist/cli.js",
     "pctx:build": "pnpm --filter project-context build"

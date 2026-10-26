@@ -1,0 +1,30 @@
+{
+  "synthetic": true,
+  "task_id": "synthetic-task-a",
+  "title": "群附件交付说明",
+  "access": "allowed",
+  "scope": "仅指定的合成普通任务；不包含私聊、附件字节或其它任务",
+  "read_through": "2026-10-26T02:20:00Z",
+  "latest_source_at": "2026-10-26T02:20:00Z",
+  "has_more": false,
+  "messages": [
+    {"id":"m1","at":"2026-10-26T02:00:00Z","role":"user","text":"整理群附件交付说明，先给桌面版，暂不发布。"},
+    {"id":"m2","at":"2026-10-26T02:05:00Z","role":"assistant","text":"已整理说明初稿。选择现有文件链接，避免重复上传。"},
+    {"id":"m3","at":"2026-10-26T02:06:00Z","role":"user","text":"沿用已有链接；手机上也要能看懂。先补手机阅读说明，仍不要发布。"},
+    {"id":"m4","at":"2026-10-26T02:10:00Z","role":"tool_result","text":"合成回执：发送评审邀请成功，外部记录 synthetic-send-1。"},
+    {"id":"m5","at":"2026-10-26T02:15:00Z","role":"assistant","text":"第二封邀请已请求发送，但连接中断，未拿到回执。手机说明尚未补齐。"},
+    {"id":"m6","at":"2026-10-26T02:20:00Z","role":"user","text":"让 B 接着补手机说明，保留初稿，别重发邀请，也不要发布。"}
+  ],
+  "annotations_note": "下列事实由样本作者人工标注，原型不会从自然语言自动抽取事实或判断授权。",
+  "facts": {
+    "goal": [{"text":"在现有初稿上补手机阅读说明；后续修订替代原来的仅桌面范围，暂不发布。","refs":["m1","m3","m6"]}],
+    "done": [{"text":"A 自述已整理初稿；本样本未提供文件回读证据。","refs":["m2"]}],
+    "decisions": [{"text":"沿用已有文件链接，理由是避免重复上传；用户随后明确同意。","refs":["m2","m3"]}],
+    "remaining": [{"text":"手机阅读说明尚未补齐。","refs":["m5","m6"]}],
+    "next": [{"text":"先核对初稿与已有链接，在当前授权允许的范围补手机说明；不发布、不重发邀请。","refs":["m3","m6"]}]
+  },
+  "external_operations": [
+    {"text":"第一封评审邀请","receipt":"synthetic-send-1","refs":["m4"]},
+    {"text":"第二封评审邀请","receipt":null,"refs":["m5"]}
+  ]
+}
