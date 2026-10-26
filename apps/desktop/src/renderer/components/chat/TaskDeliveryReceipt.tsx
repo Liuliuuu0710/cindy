@@ -39,9 +39,18 @@ export function TaskDeliveryReceipt({ toolName, input, result, running }: {
   let state: ReceiptState = 'unknown';
   const responsibility = name === 'set_workbench_task_responsibility';
   const returnedTask = responsibility || name === 'continue_workbench_task' ? data?.task_id : data?.target_session_id;
+  // Match the request as the tool resolves it: send_to_session strips only its
+  // local:: alias, while workbench tools trim outer whitespace. Keep remote
+  // device prefixes intact and require the Host's returned canonical ID exactly.
+  const localPrefix = 'local::';
+  const expectedTask = name === 'send_to_session'
+    ? requestedTask.startsWith(localPrefix) && requestedTask.length > localPrefix.length
+      ? requestedTask.slice(localPrefix.length)
+      : requestedTask
+    : requestedTask.trim();
   // Do not attach a success acknowledgement for a different target to this request.
   if (data?.ok === false) state = 'failed';
-  else if (data?.ok === true && returnedTask === requestedTask) {
+  else if (data?.ok === true && returnedTask === expectedTask) {
     if (responsibility && data.responsible === args?.responsible
       && (data.role === undefined || args?.role === undefined || data.role === args.role)) {
       if (data.responsible === false) state = 'released';

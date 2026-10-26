@@ -603,10 +603,22 @@ it.each(['local', 'device'] as const)('retries image delivery through the %s tas
 
 // #6967, unit/jsdom: render the production tool row. Existing tool rows expose raw
 // results only; queued/started must not become a role claim, even inside an MCP envelope.
+// PR #7232 regression, unit/jsdom: the real row must recognize send_to_session's
+// local:: alias and workbench's trimmed IDs. Exact-ID cases missed these successes.
+// Keep device identity and each tool's distinct normalization rules when rejecting mismatches.
 it.each([
   ['continue_workbench_task', { task_id: 'one' }, { ok: true, task_id: 'one', delivery: 'queued' }, 'queued'],
   ['continue_workbench_task', { task_id: 'one' }, { ok: true, task_id: 'one', delivery: 'started' }, 'started'],
   ['send_to_session', { target_session_id: 'one' }, { ok: true, target_session_id: 'one', wake_kind: 'already-active' }, 'sent'],
+  ['send_to_session', { target_session_id: 'local::one' }, { ok: true, target_session_id: 'one', wake_kind: 'queued' }, 'queued'],
+  ['continue_workbench_task', { task_id: ' one ' }, { ok: true, task_id: 'one', delivery: 'started' }, 'started'],
+  ['set_workbench_task_responsibility', { task_id: ' one ', responsible: true, role: 'verify' }, { ok: true, task_id: 'one', responsible: true, role: 'verify' }, 'verify'],
+  ['continue_workbench_task', { task_id: ' device-a::one ' }, { ok: true, task_id: 'device-a::one', delivery: 'queued' }, 'queued'],
+  ['send_to_session', { target_session_id: 'device-a::one' }, { ok: true, target_session_id: 'device-b::one', wake_kind: 'queued' }, 'unknown'],
+  ['continue_workbench_task', { task_id: ' device-a::one ' }, { ok: true, task_id: 'one', delivery: 'started' }, 'unknown'],
+  ['send_to_session', { target_session_id: 'local::one' }, { ok: true, target_session_id: 'another', wake_kind: 'queued' }, 'unknown'],
+  ['continue_workbench_task', { task_id: 'local::one' }, { ok: true, task_id: 'one', delivery: 'started' }, 'unknown'],
+  ['send_to_session', { target_session_id: ' one ' }, { ok: true, target_session_id: 'one', wake_kind: 'queued' }, 'unknown'],
   ['set_workbench_task_responsibility', { task_id: 'one', responsible: true, role: 'modify' }, { ok: true, task_id: 'one', responsible: true }, 'claimed'],
   ['set_workbench_task_responsibility', { task_id: 'one', responsible: true }, { ok: true, task_id: 'one', responsible: true, role: 'verify' }, 'verify'],
   ['set_workbench_task_responsibility', { task_id: 'one', responsible: true }, { ok: true, task_id: 'one', responsible: false }, 'unknown'],
