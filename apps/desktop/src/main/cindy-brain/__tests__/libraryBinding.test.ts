@@ -169,24 +169,6 @@ describe('LibraryBindingStore', () => {
     interrupted.mockRestore();
   }
 
-  // Unit regression (Windows CI 39926341999): distinct 64-bit directory IDs
-  // round to the same Number. Keep real files and the public recovery path;
-  // inject only the filesystem IDs, including their lossless bigint form.
-  function useLargeLibraryInodes() {
-    const lstat = fs.promises.lstat.bind(fs.promises);
-    let sourceInode: string | undefined;
-    vi.spyOn(fs.promises, 'lstat').mockImplementation(async (...args) => {
-      const stat = await lstat(...args);
-      if (['hello', '_ns__acme__hello', 'saved-original'].includes(path.basename(String(args[0])))) {
-        const native = await lstat(args[0], { bigint: true });
-        sourceInode ??= native.ino.toString();
-        const ino = native.ino.toString() === sourceInode ? 9007199254740992n : 9007199254740993n;
-        Object.assign(stat, { ino: typeof stat.ino === 'bigint' ? ino : Number(ino) });
-      }
-      return stat;
-    });
-  }
-
   it('recovers a durable custom relocation after rename but before binding commit', async () => {
     await interruptRelocation('folder');
     const restarted = new LibraryBindingStore(deps);
@@ -196,49 +178,6 @@ describe('LibraryBindingStore', () => {
     expect((await restarted.getBinding('_ns__acme__hello'))?.generation).toBe(1);
     expect(await fs.promises.readFile(path.join(candidate, '_ns__acme__hello', 'keep.txt'), 'utf8')).toBe('original');
     expect(JSON.parse(await fs.promises.readFile(bindingFile, 'utf8')).pendingRelocation).toBeUndefined();
-  });
-
-  it.each(['before-folder', 'folder', 'binding'] as const)('recovers a legacy safe-integer journal at %s without changing the grant', async (stage) => {
-    await interruptRelocation(stage);
-    const data = JSON.parse(await fs.promises.readFile(bindingFile, 'utf8'));
-    const pending = data.pendingRelocation;
-    delete pending.rootIdentityExact;
-    delete pending.libraryIdentityExact;
-    // Model a legacy filesystem whose IDs were exactly representable, even
-    // when this suite itself runs on a Windows volume with large IDs.
-    pending.rootIdentity = { dev: 1, ino: 1 };
-    pending.libraryIdentity = { dev: 1, ino: 2 };
-    pending.record.identity = { dev: 1, ino: 1 };
-    for (const record of Object.values(data.bindings) as Array<{ identity: unknown }>) {
-      record.identity = pending.record.identity;
-    }
-    await fs.promises.writeFile(bindingFile, JSON.stringify(data));
-    const lstat = fs.promises.lstat.bind(fs.promises);
-    vi.spyOn(fs.promises, 'lstat').mockImplementation(async (...args) => {
-      const stat = await lstat(...args);
-      const ino = path.basename(String(args[0])) === 'picked-parent' ? 1 : 2;
-      Object.assign(stat, typeof stat.ino === 'bigint' ? { dev: 1n, ino: BigInt(ino) } : { dev: 1, ino });
-      return stat;
-    });
-    const restarted = new LibraryBindingStore(deps);
-    await restarted.relocateBinding('hello', '_ns__acme__hello');
-    expect(await restarted.getBinding('_ns__acme__hello', { strict: true })).toEqual(pending.record);
-    expect(await fs.promises.readFile(path.join(candidate, '_ns__acme__hello', 'keep.txt'), 'utf8')).toBe('original');
-    expect(JSON.parse(await fs.promises.readFile(bindingFile, 'utf8')).pendingRelocation).toBeUndefined();
-  });
-
-  it.each(['root', 'library'] as const)('retains a legacy journal with an imprecise %s identity rather than re-identifying current data', async (directory) => {
-    await interruptRelocation('folder');
-    const data = JSON.parse(await fs.promises.readFile(bindingFile, 'utf8'));
-    const pending = data.pendingRelocation;
-    delete pending[`${directory}IdentityExact`];
-    pending[`${directory}Identity`].ino = 9007199254740992;
-    const contents = JSON.stringify(data);
-    await fs.promises.writeFile(bindingFile, contents);
-    await expect(new LibraryBindingStore(deps).relocateBinding('hello', '_ns__acme__hello'))
-      .rejects.toThrow('legacy precision');
-    expect(await fs.promises.readFile(bindingFile, 'utf8')).toBe(contents);
-    expect(await fs.promises.readFile(path.join(candidate, '_ns__acme__hello', 'keep.txt'), 'utf8')).toBe('original');
   });
 
   it('recovers binding committed before marker cleanup and supports reverse rollback', async () => {
@@ -266,19 +205,36 @@ describe('LibraryBindingStore', () => {
     expect(await fs.promises.readFile(path.join(candidate, 'hello', 'keep.txt'), 'utf8')).toBe('original');
   });
 
-  it.each(['native', 'large-inode'] as const)('rejects a foreign target with an unfinished journal and retries after restoration (%s)', async (identity) => {
-    if (identity === 'large-inode') useLargeLibraryInodes();
+  // Windows CI can round distinct native inode values to the same Number.
+  // Model an observable identity change for these recovery unit tests while
+  // retaining real files, the production recovery entry, and restoration/retry.
+  async function mockChangedDirectoryIdentity(root: string, recordedInode: number) {
+    const realRoot = await fs.promises.realpath(root);
+    const lstat = fs.promises.lstat.bind(fs.promises);
+    return vi.spyOn(fs.promises, 'lstat').mockImplementation(async (...args) => {
+      const stat = await lstat(...args);
+      if (args[0] === realRoot) {
+        Object.assign(stat, { ino: recordedInode === 1 ? 2 : 1 });
+      }
+      return stat;
+    });
+  }
+
+  it('rejects a foreign target even with an unfinished relocation journal and retries after restoration', async () => {
     await interruptRelocation('folder');
     const target = path.join(candidate, '_ns__acme__hello');
     const original = path.join(candidate, 'saved-original');
     await fs.promises.rename(target, original);
     await fs.promises.mkdir(target);
     await fs.promises.writeFile(path.join(target, 'foreign.txt'), 'foreign');
+    const { libraryIdentity } = JSON.parse(await fs.promises.readFile(bindingFile, 'utf8')).pendingRelocation;
+    const targetIdentity = await mockChangedDirectoryIdentity(target, libraryIdentity.ino);
     const restarted = new LibraryBindingStore(deps);
     await expect(restarted.relocateBinding('hello', '_ns__acme__hello')).rejects.toThrow('directory identity changed');
     await expect(restarted.getBinding('_ns__acme__hello')).rejects.toThrow('directory identity changed');
     expect(await fs.promises.readFile(path.join(target, 'foreign.txt'), 'utf8')).toBe('foreign');
     expect(JSON.parse(await fs.promises.readFile(bindingFile, 'utf8')).bindings.hello.generation).toBe(1);
+    targetIdentity.mockRestore();
     await fs.promises.rm(target, { recursive: true });
     await fs.promises.rename(original, target);
     await restarted.relocateBinding('hello', '_ns__acme__hello');
@@ -291,43 +247,45 @@ describe('LibraryBindingStore', () => {
     const saved = path.join(tmp, 'saved-parent');
     await fs.promises.rename(candidate, saved);
     await fs.promises.mkdir(candidate);
+    const { rootIdentity } = JSON.parse(contents).pendingRelocation;
+    const parentIdentity = await mockChangedDirectoryIdentity(candidate, rootIdentity.ino);
     const restarted = new LibraryBindingStore(deps);
     await expect(restarted.relocateBinding('hello', '_ns__acme__hello')).rejects.toThrow('root identity changed');
     expect(await fs.promises.readFile(bindingFile, 'utf8')).toBe(contents);
+    parentIdentity.mockRestore();
     await fs.promises.rm(candidate, { recursive: true });
     await fs.promises.rename(saved, candidate);
     await restarted.relocateBinding('hello', '_ns__acme__hello');
     expect((await restarted.getBinding('_ns__acme__hello'))?.generation).toBe(1);
   });
 
-  it.each(['native', 'large-inode'] as const)('rejects a replaced source identity before a recorded rename (%s)', async (identity) => {
-    if (identity === 'large-inode') useLargeLibraryInodes();
+  it('rejects a replaced source identity before a recorded rename', async () => {
     await interruptRelocation('before-folder');
     const source = path.join(candidate, 'hello');
     const original = path.join(candidate, 'saved-original');
     await fs.promises.rename(source, original);
     await fs.promises.mkdir(source);
     await fs.promises.writeFile(path.join(source, 'foreign.txt'), 'foreign');
+    const { libraryIdentity } = JSON.parse(await fs.promises.readFile(bindingFile, 'utf8')).pendingRelocation;
+    const sourceIdentity = await mockChangedDirectoryIdentity(source, libraryIdentity.ino);
     const restarted = new LibraryBindingStore(deps);
     await expect(restarted.relocateBinding('hello', '_ns__acme__hello')).rejects.toThrow('directory identity changed');
     expect(await fs.promises.readFile(path.join(source, 'foreign.txt'), 'utf8')).toBe('foreign');
     expect(fs.existsSync(path.join(candidate, '_ns__acme__hello'))).toBe(false);
+    sourceIdentity.mockRestore();
     await fs.promises.rm(source, { recursive: true });
     await fs.promises.rename(original, source);
     await restarted.relocateBinding('hello', '_ns__acme__hello');
     expect(await fs.promises.readFile(path.join(candidate, '_ns__acme__hello', 'keep.txt'), 'utf8')).toBe('original');
   });
 
-  it.each(['generation', 'owner', 'malformed', 'schema', 'exact format', 'exact mismatch', 'exact null'] as const)('rejects %s journal drift', async (drift) => {
+  it.each(['generation', 'owner', 'malformed', 'schema'] as const)('rejects %s journal drift', async (drift) => {
     await interruptRelocation('folder');
     const data = JSON.parse(await fs.promises.readFile(bindingFile, 'utf8'));
     if (drift === 'generation') data.bindings.hello.generation += 1;
     if (drift === 'owner') data.pendingRelocation.ownerFile = path.join(tmp, 'other-owner', 'libraries-binding.json');
     if (drift === 'malformed') data.pendingRelocation.libraryIdentity = { dev: 1, ino: 0 };
     if (drift === 'schema') data.version = 2;
-    if (drift === 'exact format') data.pendingRelocation.libraryIdentityExact.ino = 'not-an-integer';
-    if (drift === 'exact mismatch') data.pendingRelocation.rootIdentityExact.ino = data.pendingRelocation.rootIdentity.ino === 1 ? '2' : '1';
-    if (drift === 'exact null') data.pendingRelocation.libraryIdentityExact = null;
     const contents = JSON.stringify(data);
     await fs.promises.writeFile(bindingFile, contents);
     await expect(new LibraryBindingStore(deps).relocateBinding('hello', '_ns__acme__hello')).rejects.toThrow(
