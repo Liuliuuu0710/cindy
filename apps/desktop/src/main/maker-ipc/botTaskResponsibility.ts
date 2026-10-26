@@ -8,7 +8,8 @@ import { signalBotAutonomyBotsChanged } from '../bot-autonomy/botsChangedSignal.
 /** Per-task responsibility, independent of directories and Todo.
  * Releases override creation evidence; nothing is inferred from conversation text.
  */
-export type TaskResponsibilities = Record<string, { responsible: boolean; updatedAt: string }>;
+export type TaskResponsibilityRole = 'modify' | 'verify';
+export type TaskResponsibilities = Record<string, { responsible: boolean; updatedAt: string; role?: TaskResponsibilityRole }>;
 const MAX_RECORDS = 10_000;
 const MAX_BYTES = 4 * 1024 * 1024;
 
@@ -28,6 +29,7 @@ export async function readTaskResponsibilities(root: string, botId: string): Pro
     if (entries.length > MAX_RECORDS || entries.some(([id, value]) => {
       const entry = value as TaskResponsibilities[string] | null;
       return !id || id.length > 256 || !entry || typeof entry.responsible !== 'boolean'
+        || (entry.role !== undefined && entry.role !== 'modify' && entry.role !== 'verify')
         || typeof entry.updatedAt !== 'string' || !Number.isFinite(Date.parse(entry.updatedAt));
     })) throw new Error('Invalid task responsibility record');
     return Object.fromEntries(entries) as TaskResponsibilities;
@@ -48,9 +50,10 @@ export function responsibleSessionIds(createdIds: Iterable<string>, records: Tas
 
 /** Atomic, cross-process update; preserve tombstones and reject capacity overflow. */
 export async function setTaskResponsibility(
-  root: string, botId: string, sessionId: string, responsible: boolean, assertCurrent: () => void,
+  root: string, botId: string, sessionId: string, responsible: boolean, assertCurrent: () => void, role?: TaskResponsibilityRole,
 ): Promise<void> {
   if (!sessionId || sessionId.length > 256 || typeof responsible !== 'boolean') throw new Error('Invalid task responsibility');
+  if (role !== undefined && ((role !== 'modify' && role !== 'verify') || !responsible)) throw new Error('Invalid responsibility role');
   const file = filePath(root, botId);
   assertCurrent();
   await fs.mkdir(path.dirname(file), { recursive: true });
@@ -59,7 +62,9 @@ export async function setTaskResponsibility(
     assertCurrent();
     const tasks = await readTaskResponsibilities(root, botId);
     if (!Object.hasOwn(tasks, sessionId) && Object.keys(tasks).length >= MAX_RECORDS) throw new Error('Task responsibility store full');
-    const next = { ...tasks, [sessionId]: { responsible, updatedAt: new Date().toISOString() } };
+    // A legacy boolean-only take preserves an explicit role; a release clears it.
+    const nextRole = responsible ? role ?? tasks[sessionId]?.role : undefined;
+    const next = { ...tasks, [sessionId]: { responsible, updatedAt: new Date().toISOString(), ...(nextRole ? { role: nextRole } : {}) } };
     const temp = file + '.' + randomUUID() + '.tmp';
     try {
       await fs.writeFile(temp, JSON.stringify({ version: 1, tasks: next }) + '\n', { encoding: 'utf8', mode: 0o600 });
@@ -81,17 +86,22 @@ export interface TaskResponsibilityScope {
   sessionIds: string[];
   /** Only the background tasks this Bot started itself (delegation children). */
   delegatedSessionIds: string[];
+  responsibilityRoles?: Record<string, TaskResponsibilityRole>;
 }
 
 /** Fail closed for a damaged companion, without removing other companions' marks. */
 export async function collectTaskResponsibilityScopes(
   botIds: readonly string[],
-  readScope: (botId: string) => Promise<{ sessionIds: string[]; delegatedSessionIds?: string[] }>,
+  readScope: (botId: string) => Promise<{ sessionIds: string[]; delegatedSessionIds?: string[]; responsibilityRoles?: Record<string, TaskResponsibilityRole> }>,
 ): Promise<TaskResponsibilityScope[]> {
   const scopes = await Promise.all(botIds.map(async (botId): Promise<TaskResponsibilityScope> => {
     try {
       const scope = await readScope(botId);
-      return { botId, directories: [], sessionIds: scope.sessionIds, delegatedSessionIds: scope.delegatedSessionIds ?? [] };
+      return {
+        botId, directories: [], sessionIds: scope.sessionIds,
+        delegatedSessionIds: scope.delegatedSessionIds ?? [],
+        ...(scope.responsibilityRoles ? { responsibilityRoles: scope.responsibilityRoles } : {}),
+      };
     } catch {
       // Do not fall back to creation evidence: a damaged file may contain releases.
       return { botId, directories: [], sessionIds: [], delegatedSessionIds: [] };

@@ -14,6 +14,7 @@ const log = createLogger('BotFollowScopes');
 
 export interface BotFollowScope {
   botId: string;
+  responsibilityRoles?: Readonly<Record<string, 'modify' | 'verify'>>;
   /** Every task the Bot is responsible for: its own background tasks and the ones it took over. */
   sessionIds?: readonly string[];
   /** Only the background tasks the Bot started itself; older hosts omit it. */
@@ -177,3 +178,13 @@ export const __testing = {
     listeners.clear();
   },
 };
+
+/** Explicit roles only. Creation and delivery never imply modification ownership. */
+export function useSessionResponsibilities(session: Session) {
+  const followScopes = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const followers = useSessionFollowers(session);
+  return useMemo(() => followers.map((bot) => ({
+    bot,
+    role: followScopes.find((scope) => scope.botId === bot.id)?.responsibilityRoles?.[session.id],
+  })), [followers, followScopes, session.id]);
+}

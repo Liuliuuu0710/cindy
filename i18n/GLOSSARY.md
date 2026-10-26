@@ -451,6 +451,10 @@ issue #882：模型管理/新对话选择器的分类标签，对应 Gateway mod
 
 模型目录维护的权威协议；独立于各 Harness 的实际接入配置。设置面板用于简短对比原生支持与兼容模式。
 
+### Modification owner
+
+#6967：已有任务中显式认领的职责标签，不从创建者或投递回执推断，不改变工具权限，也不代表跨伙伴改派已完成。
+
 ### Nightly learning
 
 伙伴的内置例行任务：到点（默认每天 3:30，可改每周一 3:30）回看上次之后和主人的对话，整理伙伴自己的记忆与技能（合并、拆分、停用、把反复出现的做法转正为技能），每条改动可撤销；没有新对话时不调用模型（docs/product-rules/bot-routines.md「内置夜间学习」）。英文句中小写 nightly learning，故 checkCase 为 false。只出现过一次、等待再次出现的做法叫「在观察的做法 / approaches being watched」，不叫候选技能。先登记为 proposed，等 UI 走查后再定。
@@ -684,6 +688,10 @@ Codex 模型的第三档速度；与推理深度 Ultra 独立。标准、快速�
 ### Use my browser logins
 
 设置 → 自动操作里，把系统 Chrome / Edge / Brave 当前 profile 的 cookie 与保存的密码快照到 Agent 专用浏览器。不是接管日常窗口。不要译成 real profile / 真实配置文件。
+
+### Verification collaborator
+
+#6967：已有任务中显式认领的职责标签，不从创建者或投递回执推断，不改变工具权限，也不代表跨伙伴改派已完成。
 
 ### Vision Bridge
 

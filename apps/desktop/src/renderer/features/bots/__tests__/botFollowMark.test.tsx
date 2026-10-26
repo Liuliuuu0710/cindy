@@ -22,7 +22,7 @@ vi.mock('../botStore', () => ({
 }));
 
 import { BotFollowMark, useSessionFollowers } from '../BotFollowMark';
-import { __testing, useSessionDelegatingBot } from '../botFollowScopes';
+import { __testing, useSessionDelegatingBot, useSessionResponsibilities } from '../botFollowScopes';
 import { setDataOwnerGeneration } from '@/contexts/dataOwnerGeneration';
 
 function Row({ session: value }: { session: Session }) {
@@ -37,7 +37,7 @@ const session = (patch: Partial<Session> = {}) => ({
 }) as Session;
 
 let changed: (() => void) | null = null;
-const followScopes = vi.fn(async (): Promise<Array<{ botId: string; sessionIds?: string[]; delegatedSessionIds?: string[] }>> =>
+const followScopes = vi.fn(async (): Promise<Array<{ botId: string; sessionIds?: string[]; delegatedSessionIds?: string[]; responsibilityRoles?: Record<string, 'modify' | 'verify'> }>> =>
   [{ botId: 'bot-1', sessionIds: ['s1', 's2'] }]);
 
 beforeEach(() => {
@@ -170,4 +170,21 @@ it('ignores a late responsibility snapshot after switching owners', async () => 
   followScopes.mockResolvedValueOnce([]);
   await act(async () => { finish([{ botId: 'bot-1', sessionIds: ['s1'] }]); changed?.(); });
   expect(screen.queryByTestId('bot-follow-mark')).toBeNull();
+});
+
+// #6967, unit/jsdom: public role hook consumes the real shared scope cache. Existing
+// mark tests only prove following; creation without a role must not imply modify.
+it('shows explicit roles without inferring a role for legacy followers, then refreshes releases', async () => {
+  function Roles() {
+    return <div>{useSessionResponsibilities(session()).map(({ bot: profile, role }) => `${profile.name}:${role ?? 'unknown'}`).join('|')}</div>;
+  }
+  followScopes.mockResolvedValueOnce([
+    { botId: 'bot-1', sessionIds: ['s1'], responsibilityRoles: { s1: 'verify' } },
+    { botId: 'bot-2', sessionIds: ['s1'], delegatedSessionIds: ['s1'] },
+  ]);
+  await act(async () => { render(<Roles />); });
+  expect(screen.getByText('Dash:verify|Lizi:unknown')).toBeTruthy();
+  followScopes.mockResolvedValueOnce([{ botId: 'bot-2', sessionIds: ['s1'], responsibilityRoles: { s1: 'modify' } }]);
+  await act(async () => { changed?.(); });
+  expect(screen.getByText('Lizi:modify')).toBeTruthy();
 });

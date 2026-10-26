@@ -3539,3 +3539,13 @@ worker 的任务，按最近更新取前 200 条；伙伴行 `revision` 追加�
 旧控制端按未知 rel 忽略，`conversation` 仍是第一条链接，打开聊天不变；新控制端连接旧 Host
 时没有该链接，任务行不显示标记。Mobile 读取的链接上限由 64 放宽到 256 以容纳这组链接。
 不增加 IPC channel、请求参数、数据库字段、push 类型或 Mobile 原生配置。
+
+## Desktop 任务职责角色与回执（#6967）
+
+现有 `set_workbench_task_responsibility` 输入和成功返回可选增加 `role: modify | verify`，
+既有 `task-responsibility.v1.json` 及 `follow-scopes` 投影增量保存／返回职责角色。
+无 role 的旧记录和旧宿主保持原意，新 Renderer 不推断角色；旧 Renderer 忽略新字段。
+工具只有在宿主成功返回 role 时才回显，旧宿主忽略输入时不伪造角色认领回执。
+旧版重新写入可能丢失新标签，回滚后不承诺保留职责区分，但负责／解除布尔语义保持兼容。
+不新增 IPC、数据库 migration、权限或跨电脑写入口；本轮手机仍只有原来的跟进关系。
+回执按已有关联工具结果展示历史状态，不持久化另一套交接状态，不把 queued / started 当作接受。

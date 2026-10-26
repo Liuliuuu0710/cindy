@@ -9083,6 +9083,15 @@
     }
   },
   "bots": {
+    "taskCollaboration": {
+      "title": "任务职责",
+      "modify": "修改负责人",
+      "verify": "验证协作者",
+      "unclassified": "职责未确认",
+      "unconfirmed": "未确认",
+      "note": "仅展示明确记录的职责；投递不代表接手。",
+      "conflict": "多位伙伴认领了修改职责，请主人确认归属。"
+    },
     "workbench": {
       "followingMark": "{{names}}在跟进这个任务"
     },
@@ -11508,6 +11517,21 @@
     "verificationFailed": "暂时无法确认 ChatGPT 登录是否已恢复，请重新检测。"
   },
   "chat": {
+    "taskDeliveryReceipt": {
+      "title": "回执",
+      "queued": "排队中 · 未确认接手",
+      "started": "执行已启动 · 未确认接手",
+      "sent": "消息已送达 · 未确认接手",
+      "failed": "操作失败 · 请核对职责",
+      "unknown": "结果未确认 · 重试前请核对",
+      "modify": "已认领修改职责",
+      "verify": "已认领验证职责",
+      "claimed": "已认领 · 职责未区分",
+      "released": "已解除职责",
+      "task": "任务：{{id}}",
+      "deliveryNote": "本回执仅确认投递，不代表接手或完成工作。",
+      "responsibilityNote": "这是调用伙伴自身的职责记录，不代表已从其他伙伴完成改派。"
+    },
     "imageDelivery": {
       "stored": "图片已交付",
       "failed": "图片交付失败，可重试传输已有图片。",

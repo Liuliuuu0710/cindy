@@ -88,3 +88,17 @@ it('keeps a Bot that released its only background task as that task\'s origin', 
   // Nothing followed any more, but the owner chip still names the Bot; a Bot with nothing at all stays out.
   expect(scopes).toEqual([{ botId: 'origin', directories: [], sessionIds: [], delegatedSessionIds: ['child'] }]);
 });
+
+// #6967, unit: public store writes previously lost explicit roles. A role followed by a
+// legacy take and a release is the minimal persistence/compatibility regression.
+it('preserves an explicit role across legacy takes, clears it on release, and rejects invalid roles', async () => {
+  await setTaskResponsibility(root, 'one', 'task', true, () => {}, 'modify');
+  await setTaskResponsibility(root, 'one', 'task', true, () => {});
+  expect((await readTaskResponsibilities(root, 'one')).task).toMatchObject({ responsible: true, role: 'modify' });
+  await expect(setTaskResponsibility(root, 'one', 'task', false, () => {}, 'verify')).rejects.toThrow('Invalid responsibility role');
+  expect((await readTaskResponsibilities(root, 'one')).task?.role).toBe('modify');
+  await setTaskResponsibility(root, 'one', 'task', false, () => {});
+  expect((await readTaskResponsibilities(root, 'one')).task).toEqual({ responsible: false, updatedAt: expect.any(String) });
+  await setTaskResponsibility(root, 'one', 'task', true, () => {});
+  expect((await readTaskResponsibilities(root, 'one')).task?.role).toBeUndefined();
+});

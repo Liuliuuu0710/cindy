@@ -209,3 +209,14 @@ it('exposes project discovery and changes using caller identity without claiming
   registerBotWorkbenchTools(unbound, { callbacks, getSessionContext: () => ({ agentKind: 'codex', workingDir: '/home' }) });
   expect(parse(await unbound.call('list_teammate_projects', {}))).toMatchObject({ ok: false, errorCode: 'NOT_A_BOT_SESSION' });
 });
+
+// #6967, unit: registry.call is the production protocol entry. Existing boolean
+// tests omit roles. An older Host ignoring role must never fabricate acceptance.
+it('returns a role only when acknowledged by the Host, and rejects unknown roles', async () => {
+  const { reg, callbacks } = setup();
+  const input = { task_id: 'one', responsible: true, role: 'modify' };
+  expect(parse(await reg.call('set_workbench_task_responsibility', input))).not.toHaveProperty('role');
+  vi.mocked(callbacks.setResponsibility!).mockImplementationOnce(async ({ taskId, responsible, role }) => ({ ok: true, taskId, responsible, role }));
+  expect(parse(await reg.call('set_workbench_task_responsibility', input))).toMatchObject({ ok: true, role: 'modify' });
+  expect(parse(await reg.call('set_workbench_task_responsibility', { ...input, role: 'owner' })).ok).toBe(false);
+});

@@ -600,3 +600,37 @@ it.each(['local', 'device'] as const)('retries image delivery through the %s tas
     }
   } finally { window.electronAPI = previous; }
 });
+
+// #6967, unit/jsdom: render the production tool row. Existing tool rows expose raw
+// results only; queued/started must not become a role claim, even inside an MCP envelope.
+it.each([
+  ['continue_workbench_task', { task_id: 'one' }, { ok: true, task_id: 'one', delivery: 'queued' }, 'queued'],
+  ['continue_workbench_task', { task_id: 'one' }, { ok: true, task_id: 'one', delivery: 'started' }, 'started'],
+  ['send_to_session', { target_session_id: 'one' }, { ok: true, target_session_id: 'one', wake_kind: 'already-active' }, 'sent'],
+  ['set_workbench_task_responsibility', { task_id: 'one', responsible: true, role: 'modify' }, { ok: true, task_id: 'one', responsible: true }, 'claimed'],
+  ['set_workbench_task_responsibility', { task_id: 'one', responsible: true }, { ok: true, task_id: 'one', responsible: true, role: 'verify' }, 'verify'],
+  ['set_workbench_task_responsibility', { task_id: 'one', responsible: true }, { ok: true, task_id: 'one', responsible: false }, 'unknown'],
+  ['continue_workbench_task', { task_id: 'one' }, 'accepted one', 'unknown'],
+  ['set_workbench_task_responsibility', { task_id: 'one', responsible: false }, { ok: true, task_id: 'one', responsible: false }, 'released'],
+  ['continue_workbench_task', { task_id: 'one' }, { ok: false, errorCode: 'HOST_NOT_READY' }, 'failed'],
+  ['continue_workbench_task', { task_id: 'one' }, { ok: true, task_id: 'another', delivery: 'started' }, 'unknown'],
+] as const)('renders a truthful %s receipt (%s)', (name, args, result, state) => {
+  const view = render(createElement(AgentActionRow, {
+    message: mkTool('receipt', 'mcp__cindy_helper__call_tool', { name, args }),
+    toolResult: JSON.stringify({ content: [{ type: 'text', text: JSON.stringify(result) }] }),
+  }));
+  expect(view.container.querySelector('[data-task-delivery-receipt]')?.getAttribute('data-task-delivery-receipt')).toBe(state);
+  expect(view.container.textContent).toContain(`chat.taskDeliveryReceipt.${state}`);
+});
+
+it.each([
+  ['mcp__another_plugin__call_tool', { name: 'continue_workbench_task', args: { task_id: 'one' } }, false],
+  ['mcp__cindy_helper__call_tool', { name: 'send_to_session', args: {} }, false],
+  ['mcp__cindy_helper__call_tool', { name: 'continue_workbench_task', args: { task_id: 'one' } }, true],
+] as const)('does not fabricate receipts for an unrelated tool, creation, or a running call', (toolName, toolInput, running) => {
+  const view = render(createElement(AgentActionRow, {
+    message: mkTool('no-receipt', toolName, toolInput), status: running ? 'running' : 'done',
+    toolResult: JSON.stringify({ ok: true, task_id: 'one', delivery: 'started' }),
+  }));
+  expect(view.container.querySelector('[data-task-delivery-receipt]')).toBeNull();
+});

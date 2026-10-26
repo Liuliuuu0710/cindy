@@ -166,7 +166,7 @@ export interface BotWorkbenchAccessDeps {
   /** 观察层状态表的一行(本机裸 id / 远程 deviceId::sessionId);读不到返回 null。 */
   readWatched(taskKey: string): Pick<WatchedSession, 'creatorBotId' | 'followerBotId' | 'shared'> | null;
   readResponsibleSessionIds(botId: string): Promise<string[]>;
-  saveResponsibility(botId: string, sessionId: string, responsible: boolean): Promise<void>;
+  saveResponsibility(botId: string, sessionId: string, responsible: boolean, role?: 'modify' | 'verify'): Promise<void>;
   /** 该伙伴自己的后台任务:执行任务 id → 状态。 */
   listDelegations(botId: string): Promise<Map<string, WorkbenchDelegationStatus>>;
   readTarget(sessionId: string): Promise<WorkbenchTargetFacts | null>;
@@ -269,8 +269,11 @@ export function createBotWorkbenchAccess(deps: BotWorkbenchAccessDeps) {
   };
 
   return {
-    async setResponsibility(params: { callerSessionId: string; taskId: string; responsible: boolean }) {
+    async setResponsibility(params: { callerSessionId: string; taskId: string; responsible: boolean; role?: 'modify' | 'verify' }) {
       if (typeof params.responsible !== 'boolean') return { ok: false as const, errorCode: 'INVALID_ARGS', message: 'Invalid responsibility' };
+      if (params.role !== undefined && (!params.responsible || (params.role !== 'modify' && params.role !== 'verify'))) {
+        return { ok: false as const, errorCode: 'INVALID_ARGS', message: 'Invalid responsibility role' };
+      }
       const caller = await deps.resolveCaller(params.callerSessionId);
       if (!caller.ok) return caller;
       const ref = parseWorkbenchTaskRef(params.taskId);
@@ -286,9 +289,10 @@ export function createBotWorkbenchAccess(deps: BotWorkbenchAccessDeps) {
         return { ok: false as const, errorCode: 'TASK_NOT_RESPONSIBLE', message: 'You do not own this responsibility' };
       }
       if (!scopeCurrent()) return scopeChanged;
-      await deps.saveResponsibility(caller.botId, ref.sessionId, params.responsible);
+      if (params.role === undefined) await deps.saveResponsibility(caller.botId, ref.sessionId, params.responsible);
+      else await deps.saveResponsibility(caller.botId, ref.sessionId, params.responsible, params.role);
       deps.notifyChanged(caller.botId);
-      return { ok: true as const, taskId: ref.sessionId, responsible: params.responsible };
+      return { ok: true as const, taskId: ref.sessionId, responsible: params.responsible, ...(params.role ? { role: params.role } : {}) };
     },
 
     async get(params: { callerSessionId: string }) {

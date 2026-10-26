@@ -1,3 +1,4 @@
+import { TaskDeliveryReceipt } from './TaskDeliveryReceipt';
 import { readFailedImageDelivery, readToolProcessMedia, readToolProcessText } from '@cindy/maker-shared/tool-process-media';
 import { isSharedTaskPeer } from '@cindy/device-link';
 import { Button } from '@/components/ui/button';
@@ -1170,6 +1171,7 @@ export function AgentActionRow({
           {isInlineExpand && expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
         </span>
       </button>
+      <TaskDeliveryReceipt toolName={toolName} input={inp} result={resultText ?? ''} running={status === 'running'} />
       {rawCommand && !expanded && (
         <div
           data-agent-action-raw-command="true"

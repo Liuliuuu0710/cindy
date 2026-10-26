@@ -60,6 +60,7 @@ import { isOrcaLeadSession, resolveSessionRoute } from '@/lib/orcaSessionIdentit
 import { revalidateWorkersProjection } from './hooks/workerProjectionStore';
 import { GitContextBadge } from './GitContextBadge';
 import { OrcaRemoteLeadBadge } from './OrcaRemoteLeadBadge';
+import { BotTaskCollaboration } from '@/features/bots/BotTaskCollaboration';
 import { BotTaskOwnerChip } from '@/features/bots/BotTaskOwnerChip';
 import { SessionRenameInput } from './SessionRenameInput';
 import { useSessionBoundSchedules } from '@/features/scheduler/lib/scheduleSessionBinding';
@@ -693,6 +694,7 @@ export function SessionContentHeader({
       {!isEditing && <OrcaRemoteLeadBadge session={session} />}
 
       {!isEditing && <BotTaskOwnerChip session={session} />}
+      {!isEditing && <BotTaskCollaboration session={session} />}
 
       {!isEditing && !readOnly && (!sharedGuest || session.status === 'active') && (
         // 菜单打开就把归档/删除的 dirty 预检发出去:用户从展开菜单到点条目至少

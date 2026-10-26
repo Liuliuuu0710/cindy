@@ -51,7 +51,7 @@ export interface WorkbenchTranscriptWire {
 
 export interface BotWorkbenchCallbacks {
   projects?: (params: { callerSessionId: string; projectId?: string; linked?: boolean; includeAvailable?: boolean }) => Promise<ControlResult<{ projects: Array<Record<string, unknown>> }, string>>;
-  setResponsibility?: (params: { callerSessionId: string; taskId: string; responsible: boolean }) => Promise<ControlResult<{ taskId: string; responsible: boolean }, string>>;
+  setResponsibility?: (params: { callerSessionId: string; taskId: string; responsible: boolean; role?: 'modify' | 'verify' }) => Promise<ControlResult<{ taskId: string; responsible: boolean; role?: 'modify' | 'verify' }, string>>;
   todos?: (
     callerSessionId: string,
     operation: 'list' | 'update' | 'preflight' | 'ingest',
@@ -156,13 +156,13 @@ export function registerBotWorkbenchTools(
     registry.register({
       name: 'set_workbench_task_responsibility',
       category: 'bots',
-      description: 'Explicitly take or release responsibility for one Cindy task on this computer. Taking needs the owner\'s request in this turn; you may release on your own. Tasks you start yourself are recorded by the host. Release only changes your responsibility; it does not stop, move, archive or delete the task, and does not affect Todo. Taking responsibility alone does not start execution; the host then wakes you when the task gets stuck, waits, errors or finishes.',
-      inputShape: { task_id: z.string().min(1).max(256), responsible: z.boolean() },
-      handler: async ({ task_id, responsible }) => {
+      description: 'Explicitly take or release responsibility for one Cindy task on this computer. Taking needs the owner\'s request in this turn; you may release on your own. Tasks you start yourself are recorded by the host. Release only changes your responsibility; it does not stop, move, archive or delete the task, and does not affect Todo. Optionally specify role modify (modification owner) or verify (verification collaborator) when taking responsibility. This labels your own responsibility, does not transfer another Bot\'s responsibility, and does not restrict tool permissions. Taking responsibility alone does not start execution; the host then wakes you when the task gets stuck, waits, errors or finishes.',
+      inputShape: { task_id: z.string().min(1).max(256), responsible: z.boolean(), role: z.enum(['modify', 'verify']).optional() },
+      handler: async ({ task_id, responsible, role }) => {
         const id = callerSessionId();
         if (!id) return missingSession();
-        const result = await change({ callerSessionId: id, taskId: task_id, responsible });
-        return result.ok ? okPayload({ task_id: result.taskId, responsible: result.responsible }) : errorPayload(result.errorCode, result.message);
+        const result = await change({ callerSessionId: id, taskId: task_id, responsible, ...(role ? { role } : {}) });
+        return result.ok ? okPayload({ task_id: result.taskId, responsible: result.responsible, ...(result.role ? { role: result.role } : {}) }) : errorPayload(result.errorCode, result.message);
       },
     });
   }

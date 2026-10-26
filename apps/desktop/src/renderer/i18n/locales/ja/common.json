@@ -9083,6 +9083,15 @@
     }
   },
   "bots": {
+    "taskCollaboration": {
+      "title": "タスクの担当",
+      "modify": "変更担当者",
+      "verify": "検証協力者",
+      "unclassified": "役割未確認",
+      "unconfirmed": "未確認",
+      "note": "明示的に記録された役割のみ表示します。配信は引き受けを意味しません。",
+      "conflict": "複数の仲間が変更を担当しています。オーナーに担当の確認を依頼してください。"
+    },
     "workbench": {
       "followingMark": "このセッションの担当: {{names}}"
     },
@@ -11508,6 +11517,21 @@
     "verificationFailed": "ChatGPT ログインが復旧したか確認できませんでした。再確認してください。"
   },
   "chat": {
+    "taskDeliveryReceipt": {
+      "title": "受付結果",
+      "queued": "待機中 · 引き受け未確認",
+      "started": "実行開始 · 引き受け未確認",
+      "sent": "メッセージ配信済み · 引き受け未確認",
+      "failed": "操作失敗 · 担当を確認",
+      "unknown": "結果未確認 · 再試行前に確認",
+      "modify": "変更担当を引き受け済み",
+      "verify": "検証担当を引き受け済み",
+      "claimed": "引き受け済み · 役割未指定",
+      "released": "担当解除済み",
+      "task": "タスク：{{id}}",
+      "deliveryNote": "配信のみを確認する結果です。引き受けや作業完了を意味しません。",
+      "responsibilityNote": "呼び出した仲間自身の担当記録であり、他の仲間からの引き継ぎ完了を意味しません。"
+    },
     "imageDelivery": {
       "stored": "画像を受け取りました",
       "failed": "画像の転送に失敗しました。既存の画像の転送を再試行できます。",

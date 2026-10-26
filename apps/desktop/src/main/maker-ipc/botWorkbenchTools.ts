@@ -23,7 +23,7 @@ import { broadcastBotWorkbenchChanged } from './botWorkbenchService.js';
 import { broadcastBotRemoteResourceChanged } from './botRemoteResourceInvalidation.js';
 import { botLinkedProjectAccess } from './botLinkedProjects.js';
 import { boundTranscript, readSessionTranscript } from './botWorkbenchTranscripts.js';
-import { readTaskResponsibilities, responsibleSessionIds, setTaskResponsibility } from './botTaskResponsibility.js';
+import { readTaskResponsibilities, responsibleSessionIds, setTaskResponsibility, type TaskResponsibilityRole } from './botTaskResponsibility.js';
 import { readBotGlance, readSchedulerBotId, readWatchedSession } from './botWorkbenchAutonomyBridge.js';
 import {
   createBotWorkbenchAccess,
@@ -158,10 +158,12 @@ export async function readBotResponsibleSessionIds(userDataDir: string, botId: s
  */
 export async function readBotResponsibilityScope(
   userDataDir: string, botId: string,
-): Promise<{ sessionIds: string[]; delegatedSessionIds: string[] }> {
+): Promise<{ sessionIds: string[]; delegatedSessionIds: string[]; responsibilityRoles: Record<string, TaskResponsibilityRole> }> {
   const delegated = [...(await listBotDelegationChildren(botId)).keys()].sort();
+  const records = await readTaskResponsibilities(userDataDir, botId);
   return {
-    sessionIds: responsibleSessionIds(delegated, await readTaskResponsibilities(userDataDir, botId)),
+    responsibilityRoles: Object.fromEntries(Object.entries(records).flatMap(([id, entry]) => entry.responsible && entry.role ? [[id, entry.role]] : [])),
+    sessionIds: responsibleSessionIds(delegated, records),
     delegatedSessionIds: delegated,
   };
 }
@@ -249,10 +251,10 @@ function createDesktopBotWorkbenchAccess(host: BotWorkbenchHostDeps): BotWorkben
     notifyChanged: broadcastResponsibilityChanged,
     listDelegations: listBotDelegationChildren,
     readResponsibleSessionIds: (botId) => readBotResponsibleSessionIds(userDataDir, botId),
-    saveResponsibility: (botId, sessionId, responsible) => setTaskResponsibility(
+    saveResponsibility: (botId, sessionId, responsible, role) => setTaskResponsibility(
       userDataDir, botId, sessionId, responsible, () => {
         if (isAppSessionBoundaryPending() || activeOwnerScopeKey() !== scopeKey) throw new Error('OWNER_SCOPE_CHANGED');
-      },
+      }, role,
     ),
     sendToSession: async params => { await assertTaskActionCurrent(); return host.sendToSession(params); },
     sendToRemoteSession: async params => { await assertTaskActionCurrent(); return host.sendToRemoteSession(params); },

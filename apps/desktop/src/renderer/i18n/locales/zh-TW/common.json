@@ -9083,6 +9083,15 @@
     }
   },
   "bots": {
+    "taskCollaboration": {
+      "title": "任務職責",
+      "modify": "修改負責人",
+      "verify": "驗證協作者",
+      "unclassified": "職責未確認",
+      "unconfirmed": "未確認",
+      "note": "僅顯示明確記錄的職責；投遞不代表接手。",
+      "conflict": "多位夥伴認領了修改職責，請主人確認歸屬。"
+    },
     "workbench": {
       "followingMark": "{{names}}在跟進這個任務"
     },
@@ -11508,6 +11517,21 @@
     "verificationFailed": "暫時無法確認 ChatGPT 登入是否已恢復，請重新檢測。"
   },
   "chat": {
+    "taskDeliveryReceipt": {
+      "title": "回執",
+      "queued": "排隊中 · 未確認接手",
+      "started": "執行已啟動 · 未確認接手",
+      "sent": "訊息已送達 · 未確認接手",
+      "failed": "操作失敗 · 請核對職責",
+      "unknown": "結果未確認 · 重試前請核對",
+      "modify": "已認領修改職責",
+      "verify": "已認領驗證職責",
+      "claimed": "已認領 · 職責未區分",
+      "released": "已解除職責",
+      "task": "任務：{{id}}",
+      "deliveryNote": "本回執僅確認投遞，不代表接手或完成工作。",
+      "responsibilityNote": "這是呼叫夥伴自身的職責記錄，不代表已從其他夥伴完成改派。"
+    },
     "imageDelivery": {
       "stored": "圖片已交付",
       "failed": "圖片交付失敗，可重試傳輸已有圖片。",

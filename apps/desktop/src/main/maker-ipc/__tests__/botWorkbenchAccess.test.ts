@@ -173,3 +173,15 @@ describe('workbench authorization matrix', () => {
     for (const bad of ['', 'a::b::c', '::s', 'claude:abc', 'pr:o/r#1', 42]) expect(parseWorkbenchTaskRef(bad)).toBeNull();
   });
 });
+
+// #6967, unit: exercise the Host public entry. Boolean-only tests cannot catch a
+// lost role or a contradictory release+role acknowledgement (minimum input below).
+it('acknowledges only validated roles after saving through the existing caller identity', async () => {
+  const { access, deps } = setup();
+  expect(await access.setResponsibility({ callerSessionId: 'main-other', taskId: 'owner-task', responsible: true, role: 'verify' }))
+    .toEqual({ ok: true, taskId: 'owner-task', responsible: true, role: 'verify' });
+  expect(deps.saveResponsibility).toHaveBeenCalledWith('other', 'owner-task', true, 'verify');
+  vi.mocked(deps.saveResponsibility).mockClear();
+  expect(code(await access.setResponsibility({ callerSessionId: 'main-other', taskId: 'owner-task', responsible: false, role: 'verify' }))).toBe('INVALID_ARGS');
+  expect(deps.saveResponsibility).not.toHaveBeenCalled();
+});

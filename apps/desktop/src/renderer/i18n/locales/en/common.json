@@ -9115,6 +9115,15 @@
     }
   },
   "bots": {
+    "taskCollaboration": {
+      "title": "Task responsibilities",
+      "modify": "Modification owner",
+      "verify": "Verification collaborator",
+      "unclassified": "Role unconfirmed",
+      "unconfirmed": "Unconfirmed",
+      "note": "Explicit responsibility records only. Delivery does not confirm acceptance.",
+      "conflict": "Multiple modification owners have claimed this task. Ask the owner to confirm responsibility."
+    },
     "workbench": {
       "followingMark": "This task is looked after by {{names}}"
     },
@@ -11549,6 +11558,21 @@
     "verificationFailed": "Cindy couldn’t confirm whether the ChatGPT sign-in has recovered. Check again."
   },
   "chat": {
+    "taskDeliveryReceipt": {
+      "title": "Receipt",
+      "queued": "Queued · acceptance unconfirmed",
+      "started": "Execution started · acceptance unconfirmed",
+      "sent": "Message delivered · acceptance unconfirmed",
+      "failed": "Operation failed · verify responsibility",
+      "unknown": "Result unconfirmed · check before retrying",
+      "modify": "Modification responsibility claimed",
+      "verify": "Verification responsibility claimed",
+      "claimed": "Responsibility claimed · role unspecified",
+      "released": "Responsibility released",
+      "task": "Task: {{id}}",
+      "deliveryNote": "This receipt confirms delivery only, not acceptance or completed work.",
+      "responsibilityNote": "This records the calling teammate’s own responsibility, not a transfer from another teammate."
+    },
     "imageDelivery": {
       "stored": "Image delivered",
       "failed": "Image delivery failed. Retry transferring the existing image.",
