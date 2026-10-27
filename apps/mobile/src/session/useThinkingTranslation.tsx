@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import {
@@ -35,7 +35,7 @@ export function useThinkingTranslation(
   const { invoke } = useDeviceLink();
   const styles = useThemedStyles(makeStyles);
   const locale = resolveSystemLocale(i18n?.resolvedLanguage ?? i18n?.language);
-  const binding = JSON.stringify([
+  const bindingKey = JSON.stringify([
     accountGeneration,
     deviceId,
     sessionId,
@@ -44,11 +44,13 @@ export function useThinkingTranslation(
     running,
     text,
   ]);
-  const current = useRef(binding);
+  // A → B → A must not revive state or replies from the first A.
+  const binding = useMemo(() => ({ key: bindingKey }), [bindingKey]);
+  const current = useRef<typeof binding | null>(binding);
   current.current = binding;
-  const pending = useRef<string | null>(null);
+  const pending = useRef<typeof binding | null>(null);
   const [state, setState] = useState<{
-    binding: string;
+    binding: typeof binding;
     text?: string;
     translated?: boolean;
     loading?: boolean;
@@ -57,7 +59,7 @@ export function useThinkingTranslation(
   useEffect(() => {
     current.current = binding;
     return () => {
-      current.current = "";
+      current.current = null;
     };
   }, [binding]);
   const active = state?.binding === binding ? state : undefined;

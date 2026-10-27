@@ -2,7 +2,7 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-const h = vi.hoisted(() => ({ invoke: vi.fn(), owner: 1 }));
+const h = vi.hoisted(() => ({ invoke: vi.fn(), owner: 1, locale: "zh-CN" }));
 vi.mock("react-native", async () => {
   const { createElement } = await import("react");
   return {
@@ -41,7 +41,7 @@ vi.mock("@/device-link/DeviceLinkContext", () => ({
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string) => key,
-    i18n: { language: "zh-CN" },
+    i18n: { language: h.locale },
   }),
 }));
 import { useThinkingTranslation } from "../session/useThinkingTranslation";
@@ -72,6 +72,7 @@ function Harness({
 beforeEach(() => {
   vi.clearAllMocks();
   h.owner = 1;
+  h.locale = "zh-CN";
   h.invoke.mockResolvedValue({ text: "检查文件。" });
   container = document.createElement("div");
   root = createRoot(container);
@@ -126,3 +127,38 @@ it("does not offer translation while the source is streaming", () => {
   expect(container.querySelector("button")).toBeNull();
   expect(h.invoke).not.toHaveBeenCalled();
 });
+
+it.each([true, false])(
+  "allows manual retry after a language round trip (old reply first: %s)",
+  async (oldReplyFirst) => {
+    let finishOld!: (value: unknown) => void;
+    let finishNew!: (value: unknown) => void;
+    h.invoke.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishOld = resolve;
+      }),
+    );
+    act(() => root.render(createElement(Harness)));
+    act(() => container.querySelector("button")!.click());
+    h.locale = "en";
+    act(() => root.render(createElement(Harness)));
+    if (oldReplyFirst) await act(async () => finishOld({ text: "失效译文" }));
+    h.locale = "zh-CN";
+    act(() => root.render(createElement(Harness)));
+    expect(container.querySelector("button")!.disabled).toBe(false);
+    expect(h.invoke).toHaveBeenCalledTimes(1);
+    h.invoke.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishNew = resolve;
+      }),
+    );
+    act(() => container.querySelector("button")!.click());
+    expect(h.invoke).toHaveBeenCalledTimes(2);
+    if (!oldReplyFirst) await act(async () => finishOld({ text: "失效译文" }));
+    expect(container.textContent).not.toContain("失效译文");
+    expect(container.querySelector("button")!.disabled).toBe(true);
+    await act(async () => finishNew({ text: "新译文" }));
+    expect(container.textContent).toContain("新译文");
+    expect(h.invoke).toHaveBeenCalledTimes(2);
+  },
+);

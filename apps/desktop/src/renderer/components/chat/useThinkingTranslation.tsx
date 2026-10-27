@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,7 +15,7 @@ export function useThinkingTranslation(content: string, blockKey?: string, isStr
   const { sessionId, origin } = useChatSessionFile();
   const owner = getDataOwnerGeneration();
   const locale = resolveSystemLocale(i18n?.resolvedLanguage ?? i18n?.language);
-  const binding = JSON.stringify([
+  const bindingKey = JSON.stringify([
     sessionId,
     origin,
     blockKey,
@@ -25,11 +25,13 @@ export function useThinkingTranslation(content: string, blockKey?: string, isStr
     isStreaming,
     content,
   ]);
-  const current = useRef(binding);
+  // A → B → A must not revive state or replies from the first A.
+  const binding = useMemo(() => ({ key: bindingKey }), [bindingKey]);
+  const current = useRef<typeof binding | null>(binding);
   current.current = binding;
-  const pending = useRef<string | null>(null);
+  const pending = useRef<typeof binding | null>(null);
   const [state, setState] = useState<{
-    binding: string;
+    binding: typeof binding;
     text?: string;
     translated?: boolean;
     loading?: boolean;
@@ -38,7 +40,7 @@ export function useThinkingTranslation(content: string, blockKey?: string, isStr
   useEffect(() => {
     current.current = binding;
     return () => {
-      current.current = '';
+      current.current = null;
     };
   }, [binding]);
   const active = state?.binding === binding ? state : undefined;

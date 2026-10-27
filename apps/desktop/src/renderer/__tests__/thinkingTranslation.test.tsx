@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { createElement, StrictMode } from 'react';
+import { act, createElement, StrictMode } from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
@@ -107,3 +107,46 @@ it('drops a late translation after the source or account changes', async () => {
   await waitFor(() => expect(screen.getByText('Different source.')).toBeTruthy());
   expect(screen.queryByText('旧译文')).toBeNull();
 });
+
+it.each([true, false])(
+  'allows manual retry after a language round trip (old reply first: %s)',
+  async (oldReplyFirst) => {
+    let finishOld!: (value: unknown) => void;
+    let finishNew!: (value: unknown) => void;
+    h.request.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishOld = resolve;
+      }),
+    );
+    const view = render(card());
+    await open();
+    fireEvent.click(translate());
+    await waitFor(() => expect(h.request).toHaveBeenCalledTimes(1));
+    h.locale = 'en';
+    view.rerender(card());
+    if (oldReplyFirst) await act(async () => finishOld({ text: '失效译文' }));
+    h.locale = 'zh-CN';
+    view.rerender(card());
+    expect((translate() as HTMLButtonElement).disabled).toBe(false);
+    expect(h.request).toHaveBeenCalledTimes(1);
+    h.request.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishNew = resolve;
+      }),
+    );
+    fireEvent.click(translate());
+    await waitFor(() => expect(h.request).toHaveBeenCalledTimes(2));
+    if (!oldReplyFirst) await act(async () => finishOld({ text: '失效译文' }));
+    expect(screen.queryByText('失效译文')).toBeNull();
+    expect(
+      (
+        screen.getByRole('button', {
+          name: 'chat.thinking.translation.loading',
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    await act(async () => finishNew({ text: '新译文' }));
+    expect(screen.getByText('新译文')).toBeTruthy();
+    expect(h.request).toHaveBeenCalledTimes(2);
+  },
+);
