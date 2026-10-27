@@ -960,6 +960,7 @@ import {
   setChatEmbeddingEnabled,
   resetCacheForNewDb as resetChatEmbedderCache,
 } from './embedders/chat-history-embedder.js';
+import { registerThinkingTranslationIpc } from './maker-ipc/thinkingTranslation.js';
 import { registerWorkingStatusIpc } from './maker-ipc/workingStatus.js';
 import { registerMakerTitleIpc } from './maker-ipc/title.js';
 import { registerAuxiliaryModelSettingsIpc } from './maker-ipc/auxiliary-model-settings.js';
@@ -6399,6 +6400,7 @@ const registerIpcHandlers = () => {
       });
       registerMakerTitleIpc({ isSessionTurnPendingCompletion });
       registerWorkingStatusIpc();
+      registerThinkingTranslationIpc();
       registerAuxiliaryModelSettingsIpc();
       registerMakerHelpIpc(ipcMaker);
       registerHelpFeedbackIpc();
