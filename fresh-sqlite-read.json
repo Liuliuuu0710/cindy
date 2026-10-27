@@ -1,0 +1,14 @@
+[
+  {
+    "id": "qa-follow",
+    "name": "待跟进",
+    "sort_order": 0,
+    "revision": 6
+  },
+  {
+    "id": "qa-ideas",
+    "name": "灵感",
+    "sort_order": 1,
+    "revision": 5
+  }
+]

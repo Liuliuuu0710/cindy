@@ -1,0 +1,22 @@
+{
+  "healthy": true,
+  "source": "fix/6947-ios-task-tags@d47990cf3+84aae8c626",
+  "expectedSource": "fix/6947-ios-task-tags@d47990cf3+84aae8c626",
+  "expectedPort": 8081,
+  "uiMock": true,
+  "bundleId": "com.xd.cindy",
+  "installed": {
+    "version": "0.1.0",
+    "buildNumber": "2026072301"
+  },
+  "native": {
+    "healthy": true,
+    "code": "native-matched",
+    "installedFingerprint": "cee3bb8bd1228b1fc9b0ce56a4e1d2eed59bbfa9",
+    "expectedFingerprint": "cee3bb8bd1228b1fc9b0ce56a4e1d2eed59bbfa9"
+  },
+  "currentSourceOnExpectedPort": true,
+  "worktree": ".cindy-worktrees/fix-6947-ios-task-tags",
+  "simulator": "iPhone 17 Pro, iOS 26.5",
+  "udid": "675261E8-3AAC-4E03-A97A-641F474C64F6"
+}

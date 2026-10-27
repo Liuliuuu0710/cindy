@@ -1,0 +1,20 @@
+diff --git a/apps/mobile/src/debug/visualMock.ts b/apps/mobile/src/debug/visualMock.ts
+index a3235615c1..8d5032f794 100644
+--- a/apps/mobile/src/debug/visualMock.ts
++++ b/apps/mobile/src/debug/visualMock.ts
+@@ -252,6 +252,15 @@ async function visualMockInvoke<T = unknown>(
+   if (pluginResult !== undefined) return pluginResult as T;
+   const teammateResult = realData ? undefined : teammateVisualFixture(channel, args);
+   if (teammateResult !== undefined) return teammateResult as T;
++  if (channel === 'local-db:task-tags:execute') {
++    // Local acceptance fixture only; not included in the PR.
++    const response = await fetch('http://127.0.0.1:64105/invoke', {
++      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(args[0]),
++    });
++    const result = await response.json();
++    if (!response.ok) throw new Error(result.error);
++    return result as T;
++  }
+   if (channel === 'local-db:task-tags:execute') {
+     const request = args[0] as TaskTagRequest;
+     if (request.action !== 'list' && request.action !== 'get') {
