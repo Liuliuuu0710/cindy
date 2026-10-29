@@ -22,6 +22,7 @@ vi.mock('react-native', async () => {
     Platform: { OS: 'ios', select: (s: any) => s.ios ?? s.default },
   };
 });
+vi.mock('react-native-uitextview', async () => ({ UITextView: (await import('react-native')).Text }));
 vi.mock('@/components/AppText', async () => ({ Text: (await import('react-native')).Text }));
 vi.mock('@/theme', () => ({
   fontWeight: { regular: '400', medium: '500', semibold: '600', bold: '700' },

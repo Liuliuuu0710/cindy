@@ -5,10 +5,11 @@
  */
 import { botGroupBodyParts } from '@cindy/maker-shared/botGroupPresentation';
 import type { BotGroupAuthorKind } from '@cindy/maker-shared/botGroupChat';
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
-import { ScrollView, StyleSheet, View, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
+import { useCallback, useMemo, useState, type ComponentProps, type ReactNode } from 'react';
+import { Platform, ScrollView, StyleSheet, View, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
+import { UITextView } from 'react-native-uitextview';
 import { splitBotGroupMentionSegments } from '@cindy/maker-shared/botGroupMentions';
-import { Text } from '@/components/AppText';
+import { MAX_FONT_SIZE_MULTIPLIER, Text } from '@/components/AppText';
 import { fontWeight, monoFont, useThemedStyles, type ThemeColors } from '@/theme';
 import { lineHeight, radius, spacing, typeScale } from '@/theme/tokens';
 import { parseMobileMarkdown, type MobileMarkdownBlock, type MobileMarkdownInline } from './messageMarkdown';
@@ -17,6 +18,24 @@ import { buildMobileMarkdownTableColumnWidths } from './messageTableLayout';
 
 type Styles = ReturnType<typeof makeStyles>;
 
+/**
+ * Match the ordinary session's selectable message body. RN Text on iOS is a
+ * UILabel, so `selectable` only offers whole-block copying; UITextView keeps
+ * the native selection handles for partial selection in long replies.
+ */
+function GroupSelectableText({ selectable = true, children, ...props }: ComponentProps<typeof Text> & { selectable?: boolean }) {
+  if (selectable && Platform.OS === 'ios') {
+    return <UITextView maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER} selectable uiTextView {...props}>{children}</UITextView>;
+  }
+  return <Text selectable={selectable} {...props}>{children}</Text>;
+}
+
+function GroupSelectableSpan(props: ComponentProps<typeof Text>) {
+  return Platform.OS === 'ios'
+    ? <UITextView maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER} {...props} />
+    : <Text {...props} />;
+}
+
 function renderInlines(inlines: readonly MobileMarkdownInline[], styles: Styles): ReactNode[] {
   return inlines.map((inline, index) => {
     // 强调里的代码等:外层套一层带强调样式的 Text,嵌套 Text 继承样式。强调里的链接按强调
@@ -24,19 +43,19 @@ function renderInlines(inlines: readonly MobileMarkdownInline[], styles: Styles)
     if (inline.marks?.length) {
       const markStyles = { strong: styles.strong, emphasis: styles.emphasis, strikethrough: styles.strike };
       return (
-        <Text key={index} style={inline.marks.map((mark) => markStyles[mark])}>
+        <GroupSelectableSpan key={index} style={inline.marks.map((mark) => markStyles[mark])}>
           {inline.type === 'link' ? inline.text : renderInlines([{ ...inline, marks: undefined }], styles)}
-        </Text>
+        </GroupSelectableSpan>
       );
     }
     switch (inline.type) {
-      case 'strong': return <Text key={index} style={styles.strong}>{inline.text}</Text>;
-      case 'emphasis': return <Text key={index} style={styles.emphasis}>{inline.text}</Text>;
-      case 'strikethrough': return <Text key={index} style={styles.strike}>{inline.text}</Text>;
-      case 'code': return <Text key={index} style={styles.inlineCode}>{inline.text}</Text>;
-      case 'link': return <Text key={index}>{inline.text}</Text>;
-      case 'image': return <Text key={index}>{inline.alt ? `[${inline.alt}]` : ''}</Text>;
-      default: return <Text key={index}>{inline.text}</Text>;
+      case 'strong': return <GroupSelectableSpan key={index} style={styles.strong}>{inline.text}</GroupSelectableSpan>;
+      case 'emphasis': return <GroupSelectableSpan key={index} style={styles.emphasis}>{inline.text}</GroupSelectableSpan>;
+      case 'strikethrough': return <GroupSelectableSpan key={index} style={styles.strike}>{inline.text}</GroupSelectableSpan>;
+      case 'code': return <GroupSelectableSpan key={index} style={styles.inlineCode}>{inline.text}</GroupSelectableSpan>;
+      case 'link': return <GroupSelectableSpan key={index}>{inline.text}</GroupSelectableSpan>;
+      case 'image': return <GroupSelectableSpan key={index}>{inline.alt ? `[${inline.alt}]` : ''}</GroupSelectableSpan>;
+      default: return <GroupSelectableSpan key={index}>{inline.text}</GroupSelectableSpan>;
     }
   });
 }
@@ -64,9 +83,9 @@ function BotGroupMarkdownTable({ block, styles }: {
     <View key={key} style={[styles.tableRow, header && styles.tableHeaderRow]}>
       {widths.map((width, index) => (
         <View key={index} style={[styles.tableCell, { width }]}>
-          <Text selectable style={[styles.tableText, header && styles.tableHeaderText]}>
+          <GroupSelectableText style={[styles.tableText, header && styles.tableHeaderText]}>
             {renderInlines(cells[index] ?? [], styles)}
-          </Text>
+          </GroupSelectableText>
         </View>
       ))}
     </View>
@@ -82,26 +101,26 @@ function BotGroupMarkdownTable({ block, styles }: {
 function renderBlock(block: MobileMarkdownBlock, styles: Styles): ReactNode {
   switch (block.type) {
     case 'heading':
-      return <Text key={block.key} selectable style={[styles.text, styles.heading]}>{renderInlines(block.inlines, styles)}</Text>;
+      return <GroupSelectableText key={block.key} style={[styles.text, styles.heading]}>{renderInlines(block.inlines, styles)}</GroupSelectableText>;
     case 'blockquote':
       return <View key={block.key} style={styles.quote}>
-        <Text selectable style={[styles.text, styles.quoteText]}>{renderInlines(block.inlines, styles)}</Text>
+        <GroupSelectableText style={[styles.text, styles.quoteText]}>{renderInlines(block.inlines, styles)}</GroupSelectableText>
       </View>;
     case 'list_item':
       return <View key={block.key} style={styles.listItem}>
         <Text style={styles.text}>{block.checked === undefined ? (block.ordered ? block.marker : '•') : block.checked ? '☑' : '☐'}</Text>
-        <Text selectable style={[styles.text, styles.listText]}>{renderInlines(block.inlines, styles)}</Text>
+        <GroupSelectableText style={[styles.text, styles.listText]}>{renderInlines(block.inlines, styles)}</GroupSelectableText>
       </View>;
     case 'code':
     case 'mermaid':
     case 'math':
       return <View key={block.key} style={styles.codeBlock}>
-        <Text selectable style={styles.codeText}>{block.text}</Text>
+        <GroupSelectableText style={styles.codeText}>{block.text}</GroupSelectableText>
       </View>;
     case 'table':
       return <BotGroupMarkdownTable key={block.key} block={block} styles={styles} />;
     default:
-      return <Text key={block.key} selectable style={styles.text}>{renderInlines(block.inlines, styles)}</Text>;
+      return <GroupSelectableText key={block.key} style={styles.text}>{renderInlines(block.inlines, styles)}</GroupSelectableText>;
   }
 }
 
@@ -117,11 +136,11 @@ export function BotGroupMarkdownText({ content, authorKind }: { content: string;
 export function BotGroupUserText({ content, mentionLabels }: { content: string; mentionLabels: readonly string[] }) {
   const styles = useThemedStyles(makeStyles);
   const segments = useMemo(() => splitBotGroupMentionSegments(content, mentionLabels), [content, mentionLabels]);
-  return <Text selectable style={styles.text}>
+  return <GroupSelectableText style={styles.text}>
     {segments.map((segment, index) => segment.mention
-      ? <Text key={index} style={styles.mention}>{segment.text}</Text>
-      : <Text key={index}>{segment.text}</Text>)}
-  </Text>;
+      ? <GroupSelectableSpan key={index} style={styles.mention}>{segment.text}</GroupSelectableSpan>
+      : <GroupSelectableSpan key={index}>{segment.text}</GroupSelectableSpan>)}
+  </GroupSelectableText>;
 }
 
 const makeStyles = (colors: ThemeColors) => StyleSheet.create({
@@ -150,5 +169,6 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     paddingHorizontal: spacing.sm, paddingVertical: spacing.xs },
   tableText: { color: colors.textPrimary, fontSize: typeScale.bodySmall, lineHeight: lineHeight.bodySmall },
   tableHeaderText: { color: colors.textSecondary, fontWeight: fontWeight.medium },
-  mention: { fontWeight: fontWeight.medium, backgroundColor: colors.surfaceChip },
+  // Match desktop's text-only mention highlight: emphasis comes from the link color, not a chip fill.
+  mention: { color: colors.linkText, fontWeight: fontWeight.medium },
 });
