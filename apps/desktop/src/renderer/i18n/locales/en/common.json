@@ -12291,6 +12291,10 @@
     "verificationFailed": "Cindy couldn’t confirm whether the ChatGPT sign-in has recovered. Check again."
   },
   "chat": {
+    "adviceCard": {
+      "collapseExplanation": "Collapse explanation",
+      "expandExplanation": "Expand explanation"
+    },
     "imageDelivery": {
       "stored": "Image delivered",
       "failed": "Image delivery failed. Retry transferring the existing image.",
