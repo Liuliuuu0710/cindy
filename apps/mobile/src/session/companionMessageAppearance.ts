@@ -1,14 +1,6 @@
-import { StyleSheet } from 'react-native';
-import { iconSize, radius, spacing, type ThemeColors } from '@/theme';
+import { radius, spacing, type ThemeColors } from '@/theme';
 
-/** Shared geometry for private and group companion messages. */
-export const companionMessageActionSize = iconSize.sm;
-export const companionMessageActionHitSlop = { top: 4, bottom: 4, left: 2, right: 2 };
-export const companionMessageActionStyles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch', minHeight: 44, paddingVertical: 4, paddingHorizontal: 2 },
-  button: { width: 40, height: 36, alignItems: 'center', justifyContent: 'center' },
-});
-
+/** Shared bubble geometry for private and group companion messages. */
 export const companionMessageBubble = (colors: ThemeColors) => ({
   alignSelf: 'flex-start' as const,
   maxWidth: '100%' as const,

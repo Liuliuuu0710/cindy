@@ -16,7 +16,6 @@ const h = vi.hoisted(() => ({
   appState: 'active',
   appStateListeners: new Set<(state: string) => void>(),
   closeSettings: null as null | (() => void),
-  messageSheet: null as any,
   row: null as any,
   inputFocus: vi.fn(),
   inputBlur: vi.fn(),
@@ -39,10 +38,7 @@ const h = vi.hoisted(() => ({
 
 // Keep the real attachment components; only replace native reader and filesystem surfaces for jsdom.
 vi.mock('react-native-webview', () => ({ WebView: () => null }));
-vi.mock('expo-modules-core', () => ({
-  requireOptionalNativeModule: () => null,
-  requireNativeViewManager: () => ({ children }: any) => el('div', null, children),
-}));
+vi.mock('expo-modules-core', () => ({ requireOptionalNativeModule: () => null }));
 vi.mock('expo-file-system', () => ({ Directory: class {}, File: class {}, Paths: { cache: 'file:///test-cache' } }));
 vi.mock('expo-web-browser', () => ({ openBrowserAsync: vi.fn(async () => ({})) }));
 vi.mock('@/components/ChatReplyIcon', () => ({ ChatReplyIcon: () => null }));
@@ -88,10 +84,6 @@ vi.mock('expo-router', () => ({
 }));
 vi.mock('expo-router/react-navigation', () => ({ useHeaderHeight: () => 72 }));
 vi.mock('react-native-safe-area-context', () => ({ SafeAreaView: ({ children }: any) => el('main', null, children), useSafeAreaInsets: () => ({ top: 59, bottom: 34, left: 0, right: 0 }) }));
-vi.mock('@/session/SheetModal', () => ({ SheetModal: (props: any) => {
-  h.messageSheet = props;
-  return props.visible ? el('div', { 'data-testid': 'sheet-modal' }, props.children) : null;
-} }));
 vi.mock('@/session/SessionHeaderNativeControls', () => ({ SessionHeaderNativeBlur: ({ height, fadeInside }: any) => { h.headerBlur.push(height); h.headerFade.push(fadeInside); return null; } }));
 vi.mock('react-i18next', async (importOriginal) => ({
   ...await importOriginal<typeof import('react-i18next')>(),
@@ -105,7 +97,7 @@ vi.mock('react-i18next', async (importOriginal) => ({
 vi.mock('expo-crypto', () => ({ randomUUID: () => `uuid-${++h.uuid}` }));
 vi.mock('lucide-react-native', () => Object.fromEntries(
   ['ChevronLeft', 'Settings2', 'Plus', 'Square', 'Users', 'X', 'Check', 'CircleAlert', 'CircleCheck', 'CircleDashed', 'FileText', 'Sparkles', 'Folder', 'Camera', 'Image',
-    'Layers', 'ListChecks', 'ListTodo', 'Ellipsis', 'ChevronRight', 'ChevronDown', 'Copy', 'MessageSquarePlus', 'MoreHorizontal']
+    'Layers', 'ListChecks', 'ListTodo', 'Ellipsis', 'ChevronRight', 'ChevronDown']
     .map((name) => [name, () => null]),
 ));
 vi.mock('@/theme', async () => ({
@@ -719,7 +711,7 @@ describe('group composer', () => {
     await render(group({ serverBacked: true, openPlan: null, messages: [
       message(originalId, 1, { authorName: '咪咪', authorBotId: 'mimi', content: '请回复这条' }),
     ] }));
-    await click('botGroup.messageAction.reply');
+    await click(`botGroup.reply.${originalId}`);
     await type('引用回复');
     h.chat.act.mockRejectedValueOnce(new Error('QUOTE_UNAVAILABLE'));
     await click('botGroup.composer.send');
@@ -746,39 +738,12 @@ describe('group composer', () => {
     await render(group({ serverBacked: true, openPlan: null, messages: [
       message(originalId, 1, { authorName: '咪咪', authorBotId: 'mimi', content: '请回复这条' }),
     ] }));
-    await click('botGroup.messageAction.more');
-    await click('botGroup.messageActions.reply');
-    await act(async () => { h.messageSheet.onClosed?.(); });
+    await click(`botGroup.reply.${originalId}`);
     h.inputFocus.mockClear(); h.inputBlur.mockClear();
     h.inputFocused = focused; h.keyboardVisible = keyboard;
-    await click('botGroup.messageAction.more');
-    await click('botGroup.messageActions.reply');
-    // PR #7840 review: requesting focus while the native sheet still owns its window loses
-    // the keyboard. The existing test did not model exit completion. A repeated quote is
-    // the minimal unit input; dispatch the real reply only after the native onClosed signal.
-    expect(h.inputFocus).not.toHaveBeenCalled();
-    expect(h.inputBlur).not.toHaveBeenCalled();
-    await act(async () => { h.messageSheet.onClosed?.(); });
+    await click(`botGroup.reply.${originalId}`);
     expect(h.inputBlur).toHaveBeenCalledTimes(blurs);
     expect(h.inputFocus).toHaveBeenCalledTimes(1);
-    await act(async () => { h.messageSheet.onClosed?.(); });
-    expect(h.inputFocus).toHaveBeenCalledTimes(1);
-  });
-
-  // Same close-lifecycle regression: reopening interrupts an exit and must discard the old
-  // pending reply. Exercise the real group + action sheet rather than native animation timing.
-  it('discards a pending menu reply when the sheet is reopened and cancelled', async () => {
-    await render(group({ serverBacked: true, openPlan: null, messages: [
-      message('22222222-2222-4222-8222-222222222222', 1, { content: '请回复这条' }),
-    ] }));
-    h.inputFocus.mockClear();
-    await click('botGroup.messageAction.more');
-    await click('botGroup.messageActions.reply');
-    await click('botGroup.messageAction.more');
-    await click('botGroup.messageActions.cancel');
-    await act(async () => { h.messageSheet.onClosed?.(); });
-    expect(h.inputFocus).not.toHaveBeenCalled();
-    expect(byId('botGroup.cancelReply')).toBeNull();
   });
 
   it.each([true, false])('locks an existing draft when dissolved without being archived (direct server %s)', async server => {

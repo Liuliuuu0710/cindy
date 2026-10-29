@@ -106,7 +106,7 @@ export function teammateVisualFixture(channel: string, args: unknown[], now = FI
   if (channel === REMOTE_RESOURCE_LIST_CHANNEL && request?.collectionId === BOT_GROUP_REMOTE_COLLECTION_ID) return {
     collectionId: BOT_GROUP_REMOTE_COLLECTION_ID, revision: 'visual-comparison-1',
     items: [{ ref: { collectionId: BOT_GROUP_REMOTE_COLLECTION_ID, kind: BOT_GROUP_REMOTE_RESOURCE_KIND, id: COMPARISON_GROUP_ID },
-      display: { title: COMPARISON_GROUP_NAME, preview: '与 Cindy 单聊使用同一份示例，比较消息气泡和操作行。', timestamp: now - MINUTE },
+      display: { title: COMPARISON_GROUP_NAME, preview: '与 Cindy 单聊使用同一份示例，比较消息气泡和正文。', timestamp: now - MINUTE },
       links: teammates.slice(0, 3).map(bot => ({ rel: BOT_GROUP_MEMBER_LINK_REL, label: bot.name,
         target: { kind: 'resource', ref: { collectionId: TEAMMATES, kind: 'bot', id: bot.id } } })), revision: 'visual-comparison-1' }],
   };
