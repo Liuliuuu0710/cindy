@@ -368,7 +368,7 @@ export function useChatServerGroup(groupId: string, enabled: boolean, threadRoot
   const act = async (action: BotGroupRemoteActionId, input?: Record<string, unknown>): Promise<RemoteActionInvokeResponse> => {
     if (action === 'stop') {
       const operationId = (await import('expo-crypto')).randomUUID();
-      try { await api.client.stop(groupId, operationId, threadRootId); } finally { if (valid()) reload(); }
+      try { await api.client.stop(groupId, operationId); } finally { if (valid()) reload(); }
       return { effects: [] };
     }
     if (action === 'dissolve' || action === 'leave' || action === 'hide') {

@@ -76,68 +76,6 @@ describe('group list activity', () => {
   });
 });
 
-// Huang Xiaowen's thread/main status leak: existing tests only exercise one lane.
-// Unit: real load/projection/stop with the same bot active in main and two topics;
-// sources outside the loaded window must still resolve, and terminal work must disappear.
-it('isolates live work and stop controls by source topic, including older sources', async () => {
-  const sources = [message(20), { ...message(21), threadRootId: id(20) }, { ...message(22), threadRootId: id(19) }];
-  let status = 'needs_input';
-  const request = vi.fn(async (path: string, method?: string) => {
-    if (method === 'POST') return {};
-    if (path === '/me') return { actor: { id: id(10), kind: 'human' } };
-    if (path.endsWith('/snapshot')) return snapshot();
-    if (path.endsWith('/executions')) return sources.map((source, i) => ({ id: id(30 + i), source_message_id: source.id,
-      bot_id: id(12), requester_id: id(10), epoch: 1, status }));
-    if (path.endsWith('/plans')) return sources.map((source, i) => ({ id: id(40 + i), source_message_id: source.id,
-      creator_id: id(10), revision: 1, status: 'running' }));
-    if (path.includes('/execution-failures?') || path.includes('/messages?')) return [];
-    if (path.endsWith(`/messages/${id(19)}`)) return message(19);
-    const source = sources.find(source => path.endsWith(`/messages/${source.id}`));
-    if (source) return source;
-    throw new Error(path);
-  });
-  const client = createChatServerClient(request as any);
-  for (const [scope, index] of [[undefined, 0], [id(20), 1], [id(19), 2]] as const) {
-    const page = await client.load(id(1), undefined, scope);
-    expect(chatGroupView(page, id(10)).round.speakers.map(row => row.executionId)).toEqual([id(30 + index)]);
-    request.mockClear();
-    await client.stop(id(1), 'stop', scope);
-    expect(request.mock.calls.filter(([, method]) => method === 'POST').map(([path]) => path)).toEqual([
-      `/conversations/${id(1)}/plans/${id(40 + index)}`,
-      `/conversations/${id(1)}/executions/${id(30 + index)}/control`,
-    ]);
-  }
-  for (status of ['queued', 'running', 'stopping']) {
-    expect(chatGroupView(await client.load(id(1), undefined, id(20)), id(10)).round.speakers.map(row => row.executionStatus)).toEqual([status]);
-  }
-  for (status of ['succeeded', 'failed', 'cancelled']) {
-    expect(chatGroupView(await client.load(id(1), undefined, id(20)), id(10)).round.status).toBe('idle');
-  }
-});
-
-// Unit: unresolved source must never default to main or permit a cross-topic stop;
-// existing execution fixtures always have a readable source.
-it.each([404, 503])('does not guess an unavailable execution source into main (%s)', async status => {
-  const request = vi.fn(async (path: string, method?: string) => {
-    if (method === 'POST') throw new Error('Unexpected write');
-    if (path === '/me') return { actor: { id: id(10), kind: 'human' } };
-    if (path.endsWith('/snapshot')) return snapshot();
-    if (path.endsWith('/plans') || path.includes('/messages?') || path.includes('/execution-failures?')) return [];
-    if (path.endsWith('/executions')) return [{ id: id(30), bot_id: id(12), requester_id: id(10),
-      epoch: 1, source_message_id: id(21), status: 'running' }];
-    throw { status };
-  });
-  const client = createChatServerClient(request as any);
-  if (status === 404) {
-    expect(chatGroupView(await client.load(id(1)), id(10)).round.status).toBe('idle');
-    await client.stop(id(1), 'stop');
-  } else {
-    await expect(client.load(id(1))).rejects.toMatchObject({ status });
-    await expect(client.stop(id(1), 'stop')).rejects.toMatchObject({ status });
-  }
-  expect(request.mock.calls.filter(([, method]) => method === 'POST')).toEqual([]);
-});
-
 // Merge regression: history generation changes while execution state is read.
 // Production load must retry, retaining both the new revision and fresh work.
 it('retains fresh executions when cached history changes during load', async () => {
@@ -168,7 +106,7 @@ describe('direct Chat Server client', () => {
     const request = vi.fn().mockImplementation(async (path: string) => {
       if (path === '/me') return { actor: { id: id(10), kind: 'human' } };
       if (path.endsWith('/snapshot')) return snapshot();
-      if (path.endsWith('/executions')) return [{ id: id(30), bot_id: id(12), status: executionStatus, epoch: 1, source_message_id: id(21) }];
+      if (path.endsWith('/executions')) return [{ id: id(30), bot_id: id(12), status: executionStatus, epoch: 1, source_message_id: id(20) }];
       if (path.endsWith(`/messages/${id(20)}`)) return message(20);
       if (path.includes('/messages?')) return [{ ...message(21), threadRootId: id(20) }];
       return [];
@@ -599,12 +537,12 @@ describe('group lifecycle contract', () => {
 it('stops my requests and companions without stopping another member’s work', async () => {
   const ownBot = { ...snapshot().members[0], id: id(12), kind: 'bot', ownerActorId: id(11) };
   const planId = id(40);
-  const execution = (n: number, bot: number, requester: number, plan_id: string | null = null) => ({ id: id(n), bot_id: id(bot), requester_id: id(requester), status: 'running', plan_id, source_message_id: id(20) });
+  const execution = (n: number, bot: number, requester: number, plan_id: string | null = null) => ({ id: id(n), bot_id: id(bot), requester_id: id(requester), status: 'running', plan_id });
   const request = vi.fn(async (path: string, method?: string) => {
     if (method === 'POST') return {};
     if (path === '/me') return { actor: { id: id(11), kind: 'human' } };
-    if (path.endsWith('/snapshot')) return { ...snapshot(), messages: [message(20)], members: [...snapshot().members, ownBot] };
-    if (path.endsWith('/plans')) return [{ id: planId, creator_id: id(11), status: 'running', revision: 7, source_message_id: id(20) }];
+    if (path.endsWith('/snapshot')) return { ...snapshot(), members: [...snapshot().members, ownBot] };
+    if (path.endsWith('/plans')) return [{ id: planId, creator_id: id(11), status: 'running', revision: 7 }];
     if (path.endsWith('/executions')) return [execution(30, 12, 10), execution(31, 13, 11), execution(32, 13, 10), execution(33, 12, 11, planId)];
     throw new Error(path);
   });
@@ -619,7 +557,7 @@ it('stops my requests and companions without stopping another member’s work', 
 
 it('projects waiting and stopping executions without inventing task IDs or losing concurrent turns', () => {
   const common = { source_message_id: id(20), bot_id: id(12), epoch: 1 };
-  const page = { snapshot: snapshot(), messages: [message(20)], before: null, executions: [
+  const page = { snapshot: snapshot(), messages: [], before: null, executions: [
     { ...common, id: id(30), status: 'needs_input' }, { ...common, id: id(31), status: 'stopping' },
     { ...common, id: id(32), status: 'succeeded' },
   ] };
