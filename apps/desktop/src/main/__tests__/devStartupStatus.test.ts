@@ -53,6 +53,17 @@ describe('devStartupStatus', () => {
       startedAtMs: 100,
     });
 
+    // Registration starts the restart waiter's second budget; it is not ready.
+    expect(JSON.parse(fs.readFileSync(statusPath, 'utf8'))).toMatchObject({
+      state: 'pending',
+      phase: 'main-started',
+      instance: {
+        instanceId: 'test-owner',
+        startedAtMs: 100,
+        rootDir: path.join(tempDir, 'repo'),
+      },
+    });
+
     const ready = vi.fn();
     observeDesktopStartupResult(ready);
     markDesktopDevWindowReady(4343);
@@ -82,6 +93,25 @@ describe('devStartupStatus', () => {
       passive: true,
     });
   });
+
+  // A late main process must not revive a timed-out/settled restart generation.
+  it.each(['abandoned', 'failed', 'ready'])(
+    'preserves terminal %s status during registration',
+    async (state) => {
+      const original = JSON.stringify({ state, at: 100 });
+      fs.writeFileSync(statusPath, original);
+      cleanup = await beginDesktopDevInstance({
+        userDataDir: tempDir,
+        dbFilePrefix: 'cindy',
+        rootDir: tempDir,
+        passive: true,
+        isolated: true,
+      });
+      markDesktopDevWindowReady();
+      markDesktopDevReady();
+      expect(fs.readFileSync(statusPath, 'utf8')).toBe(original);
+    },
+  );
 
   it('persists OS process identity through readiness updates', async () => {
     const identity = { startedAtMs: 50, executablePath: path.join(tempDir, 'Cindy') };

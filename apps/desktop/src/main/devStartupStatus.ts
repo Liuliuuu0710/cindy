@@ -109,7 +109,7 @@ function readJson(filePath: string): Record<string, unknown> | null {
 }
 
 function updateExternalStartupStatus(
-  state: 'window-ready' | 'ready' | 'failed',
+  state: 'pending' | 'window-ready' | 'ready' | 'failed',
   detail: Record<string, unknown>,
 ): void {
   const statusPath = process.env.XDT_DESKTOP_DEV_STARTUP_STATUS_FILE;
@@ -118,7 +118,7 @@ function updateExternalStartupStatus(
   try {
     const currentState = readJson(statusPath)?.state;
     const canTransition =
-      state === 'window-ready'
+      state === 'pending' || state === 'window-ready'
         ? currentState === 'pending'
         : currentState === 'pending' || currentState === 'window-ready';
     if (!canTransition) return;
@@ -187,6 +187,7 @@ export async function beginDesktopDevInstance(
       // writing local-v1 while another process snapshots it.
       atomicWriteJson(filePath, record);
       trackedInstance = { filePath, record };
+      updateExternalStartupStatus('pending', { phase: 'main-started', instance: record });
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
