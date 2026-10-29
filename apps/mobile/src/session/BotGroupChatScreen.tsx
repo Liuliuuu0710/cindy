@@ -11,7 +11,7 @@ import type { DurableOutboxRecord } from './durableOutbox';
  * 每次电脑推送变化就重读，不在本地拼时间线。分工的安排卡、交接文件、「下一步 · 继续」
  * 「没做完 · 重试」见 BotGroupPlan.tsx；正在发言的伙伴与它待确认的操作见 BotGroupSpeakerRow。
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -63,7 +63,6 @@ import { useIsFocused } from 'expo-router';
 import { AppState } from 'react-native';
 import { useAuth } from '@/auth/AuthContext';
 import { Text } from '@/components/AppText';
-import { ChatReplyIcon } from '@/components/ChatReplyIcon';
 import { MainWindowActionButton, MainWindowEmptyState } from '@/components/MobilePrimitives';
 import { readRemoteCollectionCache } from '@/device-link/remoteResourceAvailability';
 import type { RemoteResourceHostTarget } from '@/device-link/remoteResources';
@@ -83,10 +82,14 @@ import { CompanionEntering, CompanionFadeIn } from './CompanionEntering';
 import { BotGroupRuntimeFailureNotice } from './BotGroupRuntimeFailureNotice';
 import { BotGroupComposer, type BotGroupSendInput } from './BotGroupComposer';
 import { BotGroupMessageAttachments } from './BotGroupMessageAttachments';
+import { companionMessageBubble } from './companionMessageAppearance';
 import { MessageListVisibilityContext, useScrollViewMessageVisibility } from './messageListVisibility';
 import { BotGroupTaskCard } from './BotGroupTaskCard';
 import { BotGroupMarkdownText, BotGroupUserText } from './BotGroupMessageText';
 import { BotGroupQuote } from './BotGroupQuote';
+import { BotGroupMessageActionSheet, type BotGroupMessageAction } from './BotGroupMessageActionSheet';
+import { BotGroupMessageActions } from './BotGroupMessageActions';
+import { copyMessageText } from './messageActions';
 import {
   BOT_GROUP_COMPACT_HIT_SLOP,
   BotGroupDivider,
@@ -137,6 +140,7 @@ export function BotGroupChatScreen({ deviceId, deviceName, groupId, messageId, n
   const resolveMedia = useBotGroupRemoteMedia(deviceId);
   const [settings, setSettings] = useState(false);
   const [replyTo, setReplyTo] = useState<BotGroupQuoteView | null>(null);
+  const [actionMessage, setActionMessage] = useState<BotGroupMessageView | null>(null);
   const [replyFocusRequest, setReplyFocusRequest] = useState(0);
   const leaveAfterSettings = useRef(false);
   const [continuing, setContinuing] = useState(false);
@@ -363,6 +367,30 @@ export function BotGroupChatScreen({ deviceId, deviceName, groupId, messageId, n
     }
   };
 
+  const canReplyToMessage = !!(chat.server || group?.serverBacked) && !group?.archived && !group?.dissolvedAt;
+
+  const replyToMessage = useCallback((message: BotGroupMessageView) => {
+    if (canReplyToMessage) {
+      setReplyTo(botGroupQuoteFromMessage(message));
+      setReplyFocusRequest(request => request + 1);
+    }
+  }, [canReplyToMessage]);
+
+  const copyGroupMessage = useCallback(async (message: BotGroupMessageView) => {
+    const attachmentNames = (message.attachments ?? []).map(attachment => attachment.name).filter(Boolean);
+    const copyText = [message.content, attachmentNames.length > 0 ? t('message.actions.attachmentsPrefix', { names: attachmentNames.join(', ') }) : '']
+      .filter(part => part.trim().length > 0).join('\n\n');
+    const status = await copyMessageText(copyText);
+    if (status === 'failed') Alert.alert(t('message.renderer.copyStateFailed'));
+  }, [t]);
+
+  const handleMessageAction = useCallback(async (action: BotGroupMessageAction) => {
+    const message = actionMessage;
+    if (!message) return;
+    if (action === 'reply') return replyToMessage(message);
+    await copyGroupMessage(message);
+  }, [actionMessage, copyGroupMessage, replyToMessage]);
+
   const stop = async () => {
     try { await chat.act('stop'); } catch (error) { report(error, 'groupChat.composer.stopFailed'); }
   };
@@ -462,7 +490,10 @@ export function BotGroupChatScreen({ deviceId, deviceName, groupId, messageId, n
         <BotGroupTimeline group={group} deviceId={deviceId} online={chat.online} identityFor={identityFor}
           highlightId={highlightId} onLocateMessage={locateMessage}
           pending={chat.pending} onPendingAction={(id, action) => { void chat.pendingAction?.(id, action).catch(error => report(error, 'groupChat.composer.sendFailed')); }}
-          onReply={(chat.server || group.serverBacked) && !group.archived && !group.dissolvedAt ? message => { setReplyTo(botGroupQuoteFromMessage(message)); setReplyFocusRequest(request => request + 1); } : undefined}
+          onMessageLongPress={message => setActionMessage(message)}
+          onMessageReply={canReplyToMessage ? replyToMessage : undefined}
+          onMessageCopy={message => { void copyGroupMessage(message); }}
+          onMessageMore={message => setActionMessage(message)}
           onMessageLayout={(id, y, height) => {
             previewVisibility.setLayout(id, { y, height });
             messagePositions.current.set(id, y);
@@ -519,6 +550,12 @@ export function BotGroupChatScreen({ deviceId, deviceName, groupId, messageId, n
       onRefresh={chat.reload}
       onClosed={() => { if (leaveAfterSettings.current) { leaveAfterSettings.current = false; leave(); } }}
       onDeleted={onGroupDeleted} /> : null}
+    <BotGroupMessageActionSheet
+      visible={actionMessage !== null}
+      canReply={canReplyToMessage}
+      onClose={() => setActionMessage(null)}
+      onAction={action => { void handleMessageAction(action); }}
+    />
   </SafeAreaView>;
 }
 
@@ -532,7 +569,7 @@ function followUpPending(action: PlanPending['action'] | null): BotGroupFollowUp
 
 export function BotGroupTimeline({
   group, deviceId, online, identityFor, resolveMedia, resolveServerMedia, loadOlder, loadingOlder, continuing, planPending, onContinue, onPlanAction, onEditStep, onInteractionError,
-  onMessageLayout, onLocateMessage, highlightId, onReply, pending = [], onPendingAction,
+  onMessageLayout, onLocateMessage, highlightId, onMessageLongPress, onMessageReply, onMessageCopy, onMessageMore, pending = [], onPendingAction,
 }: {
   group: BotGroupRemoteChatData;
   pending?: readonly DurableOutboxRecord[];
@@ -554,7 +591,10 @@ export function BotGroupTimeline({
   onMessageLayout?: (id: string, y: number, height: number) => void;
   onLocateMessage?: (id: string) => void;
   highlightId?: string;
-  onReply?: (message: BotGroupMessageView) => void;
+  onMessageLongPress?: (message: BotGroupMessageView) => void;
+  onMessageReply?: (message: BotGroupMessageView) => void;
+  onMessageCopy?: (message: BotGroupMessageView) => void;
+  onMessageMore?: (message: BotGroupMessageView) => void;
 }) {
   const { t, i18n } = useTranslation();
   const styles = useThemedStyles(makeStyles);
@@ -603,19 +643,20 @@ export function BotGroupTimeline({
           planReassignable={message.kind === 'plan' && openPlan?.id === message.planId && openPlan.status === 'waiting'}
           planPending={planCardPending(pendingFor(message.planId))}
           onPlanAction={(action) => { if (message.planId) onPlanAction(action, message.planId); }}
-          onEditStep={(step, action, botId) => { if (message.planId) onEditStep(message.planId, step, action, botId); }} />
+          onEditStep={(step, action, botId) => { if (message.planId) onEditStep(message.planId, step, action, botId); }}
+          onLongPress={!queued && onMessageLongPress && isBotGroupMessageQuotable(message) ? () => onMessageLongPress(message) : undefined}
+          actions={!queued && isBotGroupMessageQuotable(message) ? <BotGroupMessageActions
+            align={message.authorKind === 'user' && message.isSelf !== false ? 'right' : 'left'}
+            onCopy={onMessageCopy ? () => onMessageCopy(message) : undefined}
+            onReply={onMessageReply ? () => onMessageReply(message) : undefined}
+            onMore={onMessageMore ? () => onMessageMore(message) : undefined}
+          /> : null} />
         </CompanionEntering>
         {queued ? <View style={styles.pendingRow} testID={`botGroup.pending.${queued.item.clientId}`}>
           <Text style={styles.pendingText}>{t(queued.state === 'failed' ? 'message.queue.notSent' : !online ? 'message.queue.waitingForNetwork' : 'message.queue.queued')}</Text>
           {queued.state === 'failed' && !queued.suspended ? <MainWindowActionButton density="compact" action={{ label: t('message.queue.retry'), onPress: () => onPendingAction?.(queued.item.clientId, 'retry') }} /> : null}
           {!queued.enqueueStarted && queued.state !== 'sending' ? <MainWindowActionButton density="compact" action={{ label: t('message.queue.cancelSend'), onPress: () => onPendingAction?.(queued.item.clientId, 'cancel') }} /> : null}
         </View> : null}
-        {!queued && onReply && isBotGroupMessageQuotable(message) ? <Pressable
-          accessibilityRole="button" accessibilityLabel={t('message.renderer.reply')}
-          testID={`botGroup.reply.${message.id}`} onPress={() => onReply(message)}
-          style={[styles.replyAction, message.isSelf === true && styles.ownReplyAction]}>
-          <ChatReplyIcon size={iconSize.md} color={styles.replyIcon.color} />
-        </Pressable> : null}
       </View>;
     })}
     {openPlan && followUp ? <View style={styles.indented}>
@@ -631,7 +672,7 @@ export function BotGroupTimeline({
 
 function BotGroupTimelineItem({
   message, continued = false, quoteDisplay, onLocateQuote, member, members, deviceId, online, identityFor, mentionLabels, resolveMedia, resolveServerMedia, canContinue, continuing, onContinue,
-  plan, planActionable, planReassignable, planPending, onPlanAction, onEditStep,
+  plan, planActionable, planReassignable, planPending, onPlanAction, onEditStep, onLongPress, actions,
 }: {
   message: BotGroupMessageView;
   /** Same teammate as the message just above: no second avatar or name. */
@@ -657,6 +698,8 @@ function BotGroupTimelineItem({
   planPending: BotGroupPlanCardAction | null;
   onPlanAction(action: 'start' | 'dismiss'): void;
   onEditStep(step: BotGroupPlanStepView, action: 'reassign' | 'remove', botId?: string): void;
+  onLongPress?: () => void;
+  actions?: ReactNode;
 }) {
   const { t } = useTranslation();
   const styles = useThemedStyles(makeStyles);
@@ -684,7 +727,7 @@ function BotGroupTimelineItem({
     // G3: the 1:1 user bubble, including its compact density for one short line.
     const compact = message.content.length <= COMPACT_BUBBLE_MAX_CHARS && !message.content.includes('\n');
     return <View style={styles.userRow} testID="botGroup.message.user">
-      <View style={styles.userColumn}>
+      <Pressable delayLongPress={350} onLongPress={onLongPress} style={styles.userColumn}>
         {quoteDisplay ? <BotGroupQuote display={quoteDisplay} align="right" onPress={onLocateQuote} /> : null}
         {attachments.length > 0
           ? <BotGroupMessageAttachments messageId={message.id} attachments={attachments} align="right" onResolveRemoteMedia={resolveMedia} resolveServerMedia={resolveServerMedia} />
@@ -696,7 +739,8 @@ function BotGroupTimelineItem({
         ]} testID="botGroup.message.userBubble">
           <BotGroupUserText content={message.content} mentionLabels={mentionLabels} />
         </View> : null}
-      </View>
+      </Pressable>
+      {actions}
     </View>;
   }
   // Server plans retain the human creator as author, but the card belongs to its organizer.
@@ -711,28 +755,31 @@ function BotGroupTimelineItem({
       <BotGroupAvatar deviceId={deviceId} identity={author} size={BOT_GROUP_MESSAGE_AVATAR_SIZE} online={online} />
     </View>}
     <View style={styles.botColumn}>
-      {continued ? null : <View style={styles.authorRow}>
-        <Text numberOfLines={1} style={styles.authorName}>{author.name}</Text>
-        {isPlanCard ? <BotGroupOrganizerTag /> : null}
-      </View>}
-      {isPlanCard
-        ? <BotGroupPlanCard plan={plan} members={members} identityFor={identityFor} deviceId={deviceId} online={online}
-          actionable={planActionable} reassignable={planReassignable} pending={planPending}
-          onStart={() => onPlanAction('start')} onDismiss={() => onPlanAction('dismiss')} onEditStep={onEditStep} />
-        : <>
-          {quoteDisplay ? <BotGroupQuote display={quoteDisplay} onPress={onLocateQuote} /> : null}
-          {/* A task this teammate started from the group; mine is live, another owner's is a snapshot.
+      <Pressable delayLongPress={350} onLongPress={onLongPress} style={styles.botMessagePressable}>
+        {continued ? null : <View style={styles.authorRow}>
+          <Text numberOfLines={1} style={styles.authorName}>{author.name}</Text>
+          {isPlanCard ? <BotGroupOrganizerTag /> : null}
+        </View>}
+        {isPlanCard
+          ? <BotGroupPlanCard plan={plan} members={members} identityFor={identityFor} deviceId={deviceId} online={online}
+            actionable={planActionable} reassignable={planReassignable} pending={planPending}
+            onStart={() => onPlanAction('start')} onDismiss={() => onPlanAction('dismiss')} onEditStep={onEditStep} />
+          : <View style={styles.botBubble} testID="botGroup.message.botBubble">
+            {quoteDisplay ? <BotGroupQuote display={quoteDisplay} onPress={onLocateQuote} /> : null}
+            {/* A task this teammate started from the group; mine is live, another owner's is a snapshot.
               An author no longer in the group is unknown: its task may run on another computer, so it
               stays a snapshot rather than a lookup on this one (same rule as the desktop timeline).
               The live card reads the owned companion's home computer when it is known (the group may
               be opened through another computer, or straight from the Chat Server with none); else
               the computer the group was opened through. */}
-          {message.task ? <BotGroupTaskCard task={message.task} owned={member !== undefined && member.isOwned !== false}
-            deviceId={member?.homeDeviceId || deviceId || ''} /> : null}
-          {message.attachments?.length ? <BotGroupMessageAttachments messageId={message.id} attachments={message.attachments} align="left" onResolveRemoteMedia={resolveMedia} resolveServerMedia={resolveServerMedia} /> : null}
-          {message.content.trim() ? <BotGroupMarkdownText content={message.content} authorKind={message.authorKind} /> : null}
-          <BotGroupHandoffFiles files={message.files} />
-        </>}
+            {message.task ? <BotGroupTaskCard task={message.task} owned={member !== undefined && member.isOwned !== false}
+              deviceId={member?.homeDeviceId || deviceId || ''} /> : null}
+            {message.attachments?.length ? <BotGroupMessageAttachments messageId={message.id} attachments={message.attachments} align="left" onResolveRemoteMedia={resolveMedia} resolveServerMedia={resolveServerMedia} /> : null}
+            {message.content.trim() ? <BotGroupMarkdownText content={message.content} authorKind={message.authorKind} /> : null}
+            <BotGroupHandoffFiles files={message.files} />
+          </View>}
+      </Pressable>
+      {actions}
     </View>
   </View>;
 }
@@ -744,11 +791,8 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   newMessagesButton: { backgroundColor: colors.surfaceElevated },
   locatedMessage: { backgroundColor: colors.surfaceElevated, borderRadius: radius.container },
   replyDraft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  replyAction: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginLeft: BOT_GROUP_MESSAGE_AVATAR_SIZE + REPLY_AVATAR_GAP },
   pendingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', gap: spacing.sm },
   pendingText: { color: colors.textTertiary, fontSize: typeScale.footnote, lineHeight: lineHeight.caption },
-  ownReplyAction: { alignSelf: 'flex-end', marginLeft: 0 },
-  replyIcon: { color: colors.textSecondary },
   floatingHeader: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   emptyActions: { flexDirection: 'row', justifyContent: 'center', gap: spacing.sm, marginTop: spacing.lg },
@@ -762,11 +806,11 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   time: { color: colors.textTertiary, fontSize: typeScale.caption, lineHeight: lineHeight.caption, textAlign: 'center' },
   notice: { color: colors.textTertiary, fontSize: typeScale.footnote, lineHeight: lineHeight.caption, textAlign: 'center' },
   dividerText: { flexShrink: 1, color: colors.textTertiary, fontSize: typeScale.footnote, lineHeight: lineHeight.caption, textAlign: 'center' },
-  userRow: { flexDirection: 'row', justifyContent: 'flex-end' },
+  userRow: { gap: 2 },
   // Full width so the bubble keeps its 86% cap and attachments their own size limits.
-  userColumn: { flex: 1, minWidth: 0, alignItems: 'flex-end', gap: spacing.xs },
+  userColumn: { minWidth: 0, alignItems: 'flex-end', gap: spacing.xs },
   // The 1:1 user bubble (MessageRenderer userBubble): 86% wide, padding 12, compact 8/12.
-  userBubble: { maxWidth: '86%', backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderWidth: StyleSheet.hairlineWidth,
+  userBubble: { maxWidth: '86%', backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderWidth: 0,
     borderRadius: radius.container, padding: spacing.md },
   userBubbleCompact: { paddingVertical: spacing.sm },
   // The 1:1 reply geometry: avatar 28, 2pt down, 10 to the text.
@@ -774,7 +818,9 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   botRowContinued: { marginTop: -spacing.sm },
   avatarSlot: { marginTop: 2 },
   avatarSpacer: { width: BOT_GROUP_MESSAGE_AVATAR_SIZE },
-  botColumn: { flex: 1, minWidth: 0, gap: spacing.xs },
+  botColumn: { flex: 1, minWidth: 0, gap: 2 },
+  botMessagePressable: { gap: spacing.xs },
+  botBubble: companionMessageBubble(colors),
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: BOT_GROUP_MESSAGE_AVATAR_SIZE },
   authorName: { flexShrink: 1, color: colors.textPrimary, fontSize: typeScale.bodySmall, lineHeight: lineHeight.bodySmall, fontWeight: fontWeight.medium },
 });

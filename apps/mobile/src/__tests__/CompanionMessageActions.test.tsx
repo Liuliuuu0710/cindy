@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 const h = vi.hoisted(() => ({ menu: null as any, sheet: null as any, native: true }));
 vi.mock('react-native', () => ({
+  StyleSheet: { create: (styles: unknown) => styles },
   View: ({ children }: any) => <div>{children}</div>,
   Pressable: ({ children, onPress, disabled, testID }: any) => <button data-testid={testID} disabled={disabled} onClick={onPress}>{children}</button>,
 }));

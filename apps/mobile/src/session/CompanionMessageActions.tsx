@@ -1,4 +1,4 @@
-import { iconSize, iconStroke } from '@/theme';
+import { iconStroke } from '@/theme';
 import { useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Copy, Check, Ellipsis } from 'lucide-react-native';
@@ -12,6 +12,7 @@ import { fontWeight, lineHeight, typeScale } from '@/theme/tokens';
 /** §3 menu-item role: 16/22 medium. */
 const menuItemText = { fontSize: typeScale.body, lineHeight: lineHeight.body, fontWeight: fontWeight.medium } as const;
 import { CompanionSheet } from './CompanionSheet';
+import { companionMessageActionStyles, companionMessageActionSize, companionMessageActionHitSlop } from './companionMessageAppearance';
 
 /** Compact companion controls; the existing task handlers still own every operation. */
 export function CompanionMessageActions({ user, copied, copying, disabled, onCopy, actions, onAction }: {
@@ -24,18 +25,18 @@ export function CompanionMessageActions({ user, copied, copying, disabled, onCop
   // Desktop exposes this existing composer action as Reply in companion chats.
   const reply = actions.find(action => action.id === 'add-to-chat');
   const menuActions = actions.filter(action => action.id !== 'add-to-chat');
-  const hit = { width: 44, height: 44, alignItems: 'center' as const, justifyContent: 'center' as const };
-  const more = <Pressable style={hit} disabled={disabled} accessibilityRole="button" accessibilityState={{ disabled }} accessibilityLabel={t('message.renderer.moreActions')} testID="companion.messageMore" onPress={() => { if (!usesNativePullDownMenu()) setOpen(true); }}>
-    <Ellipsis size={iconSize.sm} color={colors.textSecondary} />
+  const hit = companionMessageActionStyles.button;
+  const more = <Pressable style={hit} hitSlop={companionMessageActionHitSlop} disabled={disabled} accessibilityRole="button" accessibilityState={{ disabled }} accessibilityLabel={t('message.renderer.moreActions')} testID="companion.messageMore" onPress={() => { if (!usesNativePullDownMenu()) setOpen(true); }}>
+    <Ellipsis size={companionMessageActionSize} color={colors.textSecondary} />
   </Pressable>;
-  return <View style={{ flexDirection: 'row', justifyContent: user ? 'flex-end' : 'flex-start' }} testID="companion.messageActions">
-    {!user && onCopy ? <Pressable style={hit} disabled={disabled || copying} accessibilityRole="button" accessibilityLabel={t(copied ? 'message.renderer.copyStateCopied' : 'message.renderer.copyStateCopy')} onPress={onCopy} testID="message.copyButton">
-      {copied ? <Check size={iconSize.sm} color={colors.textSecondary} /> : <Copy size={iconSize.sm} color={colors.textSecondary} />}
+  return <View style={[companionMessageActionStyles.row, { justifyContent: user ? 'flex-end' : 'flex-start' }]} testID="companion.messageActions">
+    {onCopy ? <Pressable style={hit} hitSlop={companionMessageActionHitSlop} disabled={disabled || copying} accessibilityRole="button" accessibilityLabel={t(copied ? 'message.renderer.copyStateCopied' : 'message.renderer.copyStateCopy')} onPress={onCopy} testID="message.copyButton">
+      {copied ? <Check size={companionMessageActionSize} color={colors.textSecondary} /> : <Copy size={companionMessageActionSize} color={colors.textSecondary} />}
     </Pressable> : null}
-    {reply ? <Pressable style={hit} disabled={disabled || reply.disabled} accessibilityRole="button"
+    {reply ? <Pressable style={hit} hitSlop={companionMessageActionHitSlop} disabled={disabled || reply.disabled} accessibilityRole="button"
       accessibilityState={{ disabled: disabled || !!reply.disabled }} accessibilityLabel={t('message.renderer.reply')}
       onPress={() => onAction(reply.id)} testID="companion.messageReply">
-      <ChatReplyIcon size={iconSize.sm} color={colors.textSecondary} strokeWidth={iconStroke.regular} />
+      <ChatReplyIcon size={companionMessageActionSize} color={colors.textSecondary} strokeWidth={iconStroke.regular} />
     </Pressable> : null}
     {/* The system menu (UIMenu / Android PopupMenu) opens over the trigger regardless of its
         own disabled state, so a disabled More button is rendered without one. */}

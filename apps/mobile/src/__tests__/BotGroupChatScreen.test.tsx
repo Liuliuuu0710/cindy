@@ -38,7 +38,10 @@ const h = vi.hoisted(() => ({
 
 // Keep the real attachment components; only replace native reader and filesystem surfaces for jsdom.
 vi.mock('react-native-webview', () => ({ WebView: () => null }));
-vi.mock('expo-modules-core', () => ({ requireOptionalNativeModule: () => null }));
+vi.mock('expo-modules-core', () => ({
+  requireOptionalNativeModule: () => null,
+  requireNativeViewManager: () => ({ children }: any) => el('div', null, children),
+}));
 vi.mock('expo-file-system', () => ({ Directory: class {}, File: class {}, Paths: { cache: 'file:///test-cache' } }));
 vi.mock('expo-web-browser', () => ({ openBrowserAsync: vi.fn(async () => ({})) }));
 vi.mock('@/components/ChatReplyIcon', () => ({ ChatReplyIcon: () => null }));
@@ -56,8 +59,8 @@ vi.mock('react-native', () => {
       h.keyboardAvoidingView = props;
       return el('div', null, children);
     },
-    Pressable: ({ children, onPress, disabled, testID, accessibilityLabel }: any) => el('button',
-      { 'data-testid': testID, 'aria-label': accessibilityLabel, disabled, onClick: onPress },
+    Pressable: ({ children, onPress, onLongPress, disabled, testID, accessibilityLabel }: any) => el('button',
+      { 'data-testid': testID, 'aria-label': accessibilityLabel, disabled, onClick: onPress, onContextMenu: onLongPress },
       typeof children === 'function' ? children({ pressed: false }) : children),
     ActivityIndicator: ({ testID }: any) => el('i', { 'data-testid': testID ?? 'spinner' }),
     StyleSheet: { create: (value: unknown) => value, hairlineWidth: 1 },
@@ -84,6 +87,7 @@ vi.mock('expo-router', () => ({
 }));
 vi.mock('expo-router/react-navigation', () => ({ useHeaderHeight: () => 72 }));
 vi.mock('react-native-safe-area-context', () => ({ SafeAreaView: ({ children }: any) => el('main', null, children), useSafeAreaInsets: () => ({ top: 59, bottom: 34, left: 0, right: 0 }) }));
+vi.mock('@/session/SheetModal', () => ({ SheetModal: ({ visible, children }: any) => visible ? el('div', { 'data-testid': 'sheet-modal' }, children) : null }));
 vi.mock('@/session/SessionHeaderNativeControls', () => ({ SessionHeaderNativeBlur: ({ height, fadeInside }: any) => { h.headerBlur.push(height); h.headerFade.push(fadeInside); return null; } }));
 vi.mock('react-i18next', async (importOriginal) => ({
   ...await importOriginal<typeof import('react-i18next')>(),
@@ -97,7 +101,7 @@ vi.mock('react-i18next', async (importOriginal) => ({
 vi.mock('expo-crypto', () => ({ randomUUID: () => `uuid-${++h.uuid}` }));
 vi.mock('lucide-react-native', () => Object.fromEntries(
   ['ChevronLeft', 'Settings2', 'Plus', 'Square', 'Users', 'X', 'Check', 'CircleAlert', 'CircleCheck', 'CircleDashed', 'FileText', 'Sparkles', 'Folder', 'Camera', 'Image',
-    'Layers', 'ListChecks', 'ListTodo', 'Ellipsis', 'ChevronRight', 'ChevronDown']
+    'Layers', 'ListChecks', 'ListTodo', 'Ellipsis', 'ChevronRight', 'ChevronDown', 'Copy', 'MessageSquarePlus', 'MoreHorizontal']
     .map((name) => [name, () => null]),
 ));
 vi.mock('@/theme', async () => ({
@@ -286,6 +290,13 @@ async function click(id: string) {
   const target = byId(id);
   if (!target) throw new Error(`missing ${id}`);
   await act(async () => { target.click(); });
+}
+async function longPress(id: string) {
+  const target = node.querySelector<HTMLElement>(`[data-testid="${id}"]`);
+  if (!target) throw new Error(`missing ${id}`);
+  // The message row also contains its action bar; press its body, which owns the gesture.
+  const body = target.matches('button') ? target : target.querySelector('button') ?? target;
+  await act(async () => { body.dispatchEvent(new Event('contextmenu', { bubbles: true })); });
 }
 async function render(data: BotGroupRemoteChatData | null = group(), kind: 'ready' | 'loading' | 'missing' | 'error' = 'ready', threadRootId?: string) {
   h.chat = {
@@ -711,7 +722,7 @@ describe('group composer', () => {
     await render(group({ serverBacked: true, openPlan: null, messages: [
       message(originalId, 1, { authorName: '咪咪', authorBotId: 'mimi', content: '请回复这条' }),
     ] }));
-    await click(`botGroup.reply.${originalId}`);
+    await click('botGroup.messageAction.reply');
     await type('引用回复');
     h.chat.act.mockRejectedValueOnce(new Error('QUOTE_UNAVAILABLE'));
     await click('botGroup.composer.send');
@@ -738,10 +749,12 @@ describe('group composer', () => {
     await render(group({ serverBacked: true, openPlan: null, messages: [
       message(originalId, 1, { authorName: '咪咪', authorBotId: 'mimi', content: '请回复这条' }),
     ] }));
-    await click(`botGroup.reply.${originalId}`);
+    await longPress('botGroup.message.bot');
+    await click('botGroup.messageActions.reply');
     h.inputFocus.mockClear(); h.inputBlur.mockClear();
     h.inputFocused = focused; h.keyboardVisible = keyboard;
-    await click(`botGroup.reply.${originalId}`);
+    await longPress('botGroup.message.bot');
+    await click('botGroup.messageActions.reply');
     expect(h.inputBlur).toHaveBeenCalledTimes(blurs);
     expect(h.inputFocus).toHaveBeenCalledTimes(1);
   });
