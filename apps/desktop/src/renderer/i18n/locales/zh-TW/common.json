@@ -11999,6 +11999,10 @@
     "verificationFailed": "暫時無法確認 ChatGPT 登入是否已恢復，請重新檢測。"
   },
   "chat": {
+    "adviceCard": {
+      "collapseExplanation": "收合說明",
+      "expandExplanation": "展開說明"
+    },
     "imageDelivery": {
       "stored": "圖片已交付",
       "failed": "圖片交付失敗，可重試傳輸已有圖片。",

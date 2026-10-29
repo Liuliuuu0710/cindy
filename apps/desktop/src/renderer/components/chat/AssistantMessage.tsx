@@ -68,6 +68,8 @@ import { getStickySessionDeviceId } from '@/features/device-link/stickySessionOr
 import { insertSessionLinkIntoComposer } from '@/lib/composerActionsBus';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { BubbleHoverToolbar, MessageActionBar } from './MessageActionBar';
+import { AdviceAnswerCards } from './AdviceAnswerCards';
+import { parseAdviceAnswer } from '@cindy/maker-shared/message-presentation';
 import { shareSelectionStore } from './shareSelectionStore';
 import { useForkAtMessage } from './useForkAtMessage';
 import { useDeleteMessage } from './useDeleteMessage';
@@ -340,6 +342,10 @@ export const AssistantMessage = memo(function AssistantMessage({
   // /goal:隐藏助手输出末尾由 goal 协议要求模型吐出的裁决 JSON 块(仅显示层剥离,
   // 原文仍保留在 DB / transcript)。pattern:末尾的 ```json {...goal_status...} ``` 围栏块。
   const displayContent = stripStarterOptionList(stripGoalVerdictBlock(content), botStarterOptions ?? []);
+  const adviceAnswer = useMemo(
+    () => parseAdviceAnswer(displayContent, isStreaming),
+    [displayContent, isStreaming],
+  );
   const streamFadeKey = messageClientId
     ? `${currentSessionId ?? ''}\u0000${messageClientId}`
     : undefined;
@@ -428,6 +434,8 @@ export const AssistantMessage = memo(function AssistantMessage({
             running={false}
             sessionId={currentSessionId}
           />
+        ) : adviceAnswer ? (
+          <AdviceAnswerCards answer={adviceAnswer} />
         ) : isStreaming && USE_LINE_COMMIT_STREAMING && !hasRichAnswer(content) ? (
           <StreamingBody
             workingDir={workingDir}

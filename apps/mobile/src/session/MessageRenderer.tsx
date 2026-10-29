@@ -11,6 +11,8 @@ import { RichContentRuntime } from './richContentRuntime';
 import { MessageListVisibility, MessageListVisibilityContext, useMessageListItemVisible } from './messageListVisibility';
 import { CompanionLearningFooter } from './CompanionLearningFooter';
 import { CompanionTaskResultCard } from './CompanionTaskResultCard';
+import { AdviceAnswerCards } from './AdviceAnswerCards';
+import { parseAdviceAnswer } from '@cindy/maker-shared/message-presentation';
 import { botTaskResultKey, readBotTaskResults } from '@cindy/maker-shared/botCollaboration';
 import type { ErrorDiagnosisSource } from './errorDiagnosisPrompt';
 import { AgentErrorDetails } from './AgentErrorDetails';
@@ -3558,6 +3560,9 @@ function MessageBubble({
   // IM 来源卡片(本机 IM 保留 user kind 以挂普通用户操作)与桌面一样左对齐。
   const isUser = presentation.isUserAligned && !item.message.hookSource;
   const isStreamingAssistant = item.message.kind === 'assistant' && item.message.isStreaming === true;
+  const adviceAnswer = useMemo(() => item.message.kind === 'assistant'
+    ? parseAdviceAnswer(bubbleBody ?? '', isStreamingAssistant)
+    : null, [bubbleBody, isStreamingAssistant, item.message.kind]);
   const clientId = messageClientId(item);
   const shareableMessage = isShareableMessage(item.message);
   const handleShareableMessageViewChange = useCallback((view: View | null) => {
@@ -3948,6 +3953,8 @@ function MessageBubble({
               {displayBubbleBody}
             </MarkdownSelectableText>
           )
+        ) : adviceAnswer ? (
+          <AdviceAnswerCards answer={adviceAnswer} selectable={canSelectVisibleText} />
         ) : rendersSentInlineBody ? (
           <SentInlineAtomBody
             onOpenPayload={actions.onOpenPayload}
