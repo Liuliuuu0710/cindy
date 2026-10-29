@@ -48,7 +48,10 @@ function ExternalTaskDialog({ entry }: { entry: NonNullable<ReturnType<typeof ge
     >
       <Dialog.Portal>
         <Dialog.Overlay className="modal-scrim fixed inset-0 z-[70]" />
-        <Dialog.Content className="modal-panel fixed inset-0 z-[71] m-auto flex h-fit max-h-[85vh] w-[min(480px,calc(100vw-32px))] flex-col gap-4 overflow-y-auto p-4 outline-none">
+        <Dialog.Content
+          className="modal-panel fixed inset-0 z-[71] m-auto flex h-fit max-h-[85vh] w-[min(480px,calc(100vw-32px))] flex-col gap-4 overflow-y-auto p-4 outline-none"
+          onPointerDownOutside={(event) => event.preventDefault()}
+        >
           <Dialog.Title className="text-18 font-medium text-[var(--confirm-title)]">
             {t('externalTask.title')}
           </Dialog.Title>
