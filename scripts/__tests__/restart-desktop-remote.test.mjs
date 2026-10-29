@@ -923,6 +923,23 @@ test("startup split budgets allow 170s bootstrap then 119s host readiness", asyn
 	assert.equal(fs.existsSync(f.statusPath), false);
 });
 
+test("startup ready budget anchors to registration, not process start (migration-lock wait)", async (t) => {
+	const f = startupBudgetFixture(t);
+	f.write({ state: "pending" });
+	const pending = waitForDesktopStartup(f.statusPath);
+	// The main process started at +170s but only registered at +195s because a
+	// concurrent migration held the barrier for 25s. The 120s ready budget must
+	// start from registration, so 119s after registration is still within it.
+	const marker = f.marker({ startedAtMs: f.start + 170_000, registeredAtMs: f.start + 195_000 });
+	f.write(marker);
+	t.mock.timers.tick(195_000);
+	await Promise.resolve();
+	f.write({ ...marker, state: "ready" });
+	t.mock.timers.tick(119_000);
+	assert.equal((await pending).state, "ready");
+	assert.equal(fs.existsSync(f.statusPath), false);
+});
+
 for (const invalid of ["missing", "stale", "foreign", "late", "pid-mismatch"]) {
 	test(`startup split budgets reject ${invalid} registration at build deadline`, async (t) => {
 		const f = startupBudgetFixture(t);

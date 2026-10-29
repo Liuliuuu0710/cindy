@@ -1205,7 +1205,14 @@ export async function waitForDesktopStartup(statusPath, {
       && Number.isFinite(instance.startedAtMs)
       && instance.startedAtMs >= startedAtMs && instance.startedAtMs <= now;
     if (readyDeadline === null && validInstance && instance.startedAtMs <= buildDeadline) {
-      readyDeadline = instance.startedAtMs + readyTimeoutMs;
+      // The ready budget anchors to registration completion, not process start,
+      // so a concurrent migration's lock wait does not consume it. Legacy
+      // records without a finite registeredAtMs fall back to startedAtMs.
+      const registrationAtMs =
+        Number.isFinite(instance.registeredAtMs) && instance.registeredAtMs >= instance.startedAtMs
+          ? instance.registeredAtMs
+          : instance.startedAtMs;
+      readyDeadline = registrationAtMs + readyTimeoutMs;
       console.log('DESKTOP_DEV_STEP=waiting-ready');
       console.log(`==> Desktop main registered; waiting up to ${Math.round(readyTimeoutMs / 1000)}s from registration for window + auth/local database.`);
     }

@@ -449,6 +449,49 @@ describe('devStartupStatus', () => {
     ).toMatchObject({ instanceId: 'waited-for-adoption' });
   });
 
+  it('anchors the ready budget to registration completion after the migration barrier', async () => {
+    let releaseBarrier!: () => void;
+    let barrierEntered!: () => void;
+    const entered = new Promise<void>((resolve) => {
+      barrierEntered = resolve;
+    });
+    const holdBarrier = new Promise<void>((resolve) => {
+      releaseBarrier = resolve;
+    });
+    const adoption = withLocalProfileMigrationStartupBarrier(tempDir, 'cindy', async () => {
+      barrierEntered();
+      await holdBarrier;
+    });
+    await entered;
+
+    // Control the clock so the migration-lock wait is observable: the process
+    // starts at T0 but only registers at T0+25s once the lock is released.
+    const now = vi.spyOn(Date, 'now');
+    now.mockReturnValue(1_000_000);
+    const registration = beginDesktopDevInstance({
+      userDataDir: tempDir,
+      dbFilePrefix: 'cindy',
+      rootDir: tempDir,
+      passive: false,
+      isolated: false,
+      pid: 4252,
+      instanceId: 'ready-budget-after-barrier',
+    });
+    expect(fs.existsSync(path.join(tempDir, '.dev-instances', '4252.json'))).toBe(false);
+
+    now.mockReturnValue(1_025_000);
+    releaseBarrier();
+    await adoption;
+    cleanup = await registration;
+    now.mockRestore();
+
+    const record = JSON.parse(
+      fs.readFileSync(path.join(tempDir, '.dev-instances', '4252.json'), 'utf8'),
+    );
+    expect(record.startedAtMs).toBe(1_000_000);
+    expect(record.registeredAtMs).toBe(1_025_000);
+  });
+
   it('retries a transient Windows rename lock while publishing the mandatory instance record', async () => {
     const instancePath = path.join(tempDir, '.dev-instances', '4251.json');
     fs.mkdirSync(path.dirname(instancePath), { recursive: true });

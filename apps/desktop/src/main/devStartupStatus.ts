@@ -31,6 +31,13 @@ export interface DesktopDevInstanceRecord {
   /** Main reports the actual window renderer; Linux zygote children may retain argv. */
   rendererPid?: number;
   startedAtMs: number;
+  /**
+   * Set when registration actually completes (after the migration barrier),
+   * so the ready budget starts from registration rather than process start.
+   * Absent on records written before this field existed; readers fall back to
+   * startedAtMs.
+   */
+  registeredAtMs?: number;
   /** Optional for legacy readers/writers; absence never claims that a PID is stale. */
   processIdentity?: DesktopProcessIdentity;
   updatedAtMs: number;
@@ -185,9 +192,14 @@ export async function beginDesktopDevInstance(
       // Initial registration is part of the adoption safety protocol. If it
       // cannot be published, fail startup rather than continuing invisibly and
       // writing local-v1 while another process snapshots it.
-      atomicWriteJson(filePath, record);
-      trackedInstance = { filePath, record };
-      updateExternalStartupStatus('pending', { phase: 'main-started', instance: record });
+      // Registration only completes once the migration barrier releases, so the
+      // ready budget must start from here: a concurrent migration's lock wait
+      // must not consume the second-phase startup budget.
+      const registeredAtMs = Date.now();
+      const registeredRecord = { ...record, registeredAtMs, updatedAtMs: registeredAtMs };
+      atomicWriteJson(filePath, registeredRecord);
+      trackedInstance = { filePath, record: registeredRecord };
+      updateExternalStartupStatus('pending', { phase: 'main-started', instance: registeredRecord });
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
