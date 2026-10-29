@@ -59,7 +59,8 @@ let root: Root | undefined;
 let roster: ReturnType<typeof useBotGroupRoster>;
 let chat: ReturnType<typeof useBotGroupChat>;
 let showChat = false;
-function Probe() { roster = useBotGroupRoster(h.targets, !showChat); chat = useBotGroupChat(host, showChat ? id : ''); return null; }
+let threadRootId: string | undefined;
+function Probe() { roster = useBotGroupRoster(h.targets, !showChat); chat = useBotGroupChat(host, showChat ? id : '', threadRootId); return null; }
 async function render() { root ??= createRoot(document.createElement('div')); await act(async () => root!.render(createElement(Probe))); }
 async function send(input: Record<string, unknown>) {
   await chat.act('send', input);
@@ -74,8 +75,7 @@ beforeEach(async () => {
   await clearRemoteResourceCache(); h.auth.user.id = 'owner';
   await mobileDurableOutbox.activate(''); h.disk.clear(); h.history.clear(); setMobileAuthOwner('owner');
   await mobileDurableOutbox.activate(getMobileAuthOwner().accountKey);
-  vi.clearAllMocks(); h.foreground.clear(); showChat = false; h.auth.accountGeneration = 1; h.legacy.items = []; h.targets = []; h.legacy.isOnline.mockReturnValue(false);
-  h.put.mockImplementation(async () => {});
+  vi.clearAllMocks(); h.foreground.clear(); showChat = false; threadRootId = undefined; h.auth.accountGeneration = 1; h.legacy.items = []; h.targets = []; h.legacy.isOnline.mockReturnValue(false);
   vi.stubGlobal('WebSocket', class { close() {} });
   h.auth.apiFetch.mockImplementation(async (path: string, options: any) => {
     options.assertCurrent();
@@ -89,6 +89,38 @@ beforeEach(async () => {
     if (path.endsWith('/messages')) return { id: self };
     throw new Error('Unexpected request');
   });
+});
+// Integration fixture: Huang Xiaowen's return-from-topic bug. Existing hook cases
+// never switch scope with live work. Exercise UI state and the real stop request.
+it('keeps topic work out of main after navigation and sends stop only for the active topic', async () => {
+  const replyId = '00000000-0000-4000-8000-000000000003';
+  const executionId = '00000000-0000-4000-8000-000000000004';
+  const original = h.auth.apiFetch.getMockImplementation()!;
+  h.auth.apiFetch.mockImplementation(async (path: string, options: any) => {
+    if (path.endsWith('/executions')) return [{ id: executionId, source_message_id: replyId, bot_id: self,
+      requester_id: self, epoch: 1, status: 'running' }];
+    if (path.endsWith('/plans')) return [];
+    if (path.endsWith('/control')) return {};
+    if (path.includes('/messages')) {
+      const rootMessage = (await original(`/v1/conversations/${id}/messages?limit=100`, options))[0];
+      const reply = { ...rootMessage, id: replyId, threadRootId: self, seq: '9007199254740994' };
+      if (path.endsWith(`/messages/${replyId}`)) return reply;
+      if (path.endsWith(`/messages/${self}`)) return rootMessage;
+      return path.includes('threadRootId=') ? [reply] : [rootMessage];
+    }
+    return original(path, options);
+  });
+  showChat = true; threadRootId = self; await render();
+  expect(chat.state).toMatchObject({ kind: 'ready', group: { round: { status: 'running', speakers: [{ executionId }] } } });
+  threadRootId = undefined; await render();
+  expect(chat.state).toMatchObject({ kind: 'ready', group: { round: { status: 'idle', speakers: [] } } });
+  await act(async () => { await chat.act('stop'); });
+  expect(h.auth.apiFetch.mock.calls.filter(([path]) => path.endsWith('/control'))).toHaveLength(0);
+  threadRootId = self; await render();
+  await act(async () => { await chat.act('stop'); });
+  expect(h.auth.apiFetch.mock.calls.filter(([path]) => path.endsWith('/control')).map(([path]) => path)).toEqual([
+    `/v1/conversations/${id}/executions/${executionId}/control`,
+  ]);
 });
 // Regression: entering a saved group must not depend on Chat Server latency.
 // Integration tier: real hook, real disk store, controlled native IO / HTTP.

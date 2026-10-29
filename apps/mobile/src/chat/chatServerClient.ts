@@ -36,7 +36,7 @@ export interface ChatExecutionFailure {
   failure_code?: unknown; updated_at?: string; plan_id?: string | null;
 }
 export interface ChatExecution extends ChatExecutionFailure { requester_id?: string; created_at?: string; status: string }
-export interface ChatPage { threadRootId?: string; snapshot: ChatSnapshot; messages: ChatMessage[]; before: string | null; failures?: ChatExecutionFailure[]; executions?: ChatExecution[]; historyRevision?: string }
+export interface ChatPage { threadRootId?: string; snapshot: ChatSnapshot; messages: ChatMessage[]; before: string | null; failures?: ChatExecutionFailure[]; executions?: ChatExecution[]; executionSources?: Array<Pick<ChatMessage, 'id' | 'threadRootId'>>; historyRevision?: string }
 /** `actorId` acts as one of the account's own actors (Chat Server `X-Chat-Actor`). */
 export type ChatRequest = <T>(path: string, method?: 'GET' | 'POST' | 'PATCH', body?: unknown, actorId?: string, signal?: AbortSignal) => Promise<T>;
 /** An actor the account owns; a companion's `externalId` is its bot id on every computer. */
@@ -205,6 +205,14 @@ function chatMemberIdentity(member: ChatMember, members: readonly ChatMember[]) 
  * Sequence strings stay on the wire; numeric positions below are presentation order only.
  * `actors` (the account's own, from `/actors`) tell which computer runs each owned companion.
  */
+const activeExecution = (row: ChatExecution) => ['queued', 'running', 'needs_input', 'stopping'].includes(row.status);
+const sourceInScope = (sourceId: string, sources: ReadonlyMap<string, Pick<ChatMessage, 'threadRootId'>>, threadRootId?: string) => {
+  const source = sources.get(sourceId);
+  // The root displayed atop a topic still belongs to main. Unknown sources must
+  // not be guessed into main, including old cached pages without scope metadata.
+  return !!source && (source.threadRootId ?? undefined) === threadRootId;
+};
+
 export function chatGroupView(page: ChatPage, selfId: string, actors: readonly ChatActor[] = []): BotGroupRemoteChatData {
   const { room, members } = page.snapshot;
   const ownerMembers = room.kind === 'direct' ? [] : members;
@@ -248,7 +256,8 @@ export function chatGroupView(page: ChatPage, selfId: string, actors: readonly C
     const member = members.find(candidate => candidate.id === failure.botId);
     return [{ ...failure, botName: member ? memberName(member, ownerMembers) : '' }];
   });
-  const executions = (page.executions ?? []).filter(row => ['queued', 'running', 'needs_input', 'stopping'].includes(row.status));
+  const sources = new Map([...page.snapshot.messages, ...page.messages, ...(page.executionSources ?? [])].map(source => [source.id, source]));
+  const executions = (page.executions ?? []).filter(row => activeExecution(row) && sourceInScope(row.source_message_id, sources, page.threadRootId));
   const speakers = executions.map(row => ({ botId: row.bot_id, sessionId: null, executionId: row.id,
     ...(row.created_at && Number.isFinite(Date.parse(row.created_at)) ? { startedAt: Date.parse(row.created_at) } : {}),
     executionStatus: row.status as 'queued' | 'running' | 'needs_input' | 'stopping', stopping: row.status === 'stopping',
@@ -277,6 +286,21 @@ export function createChatServerClient(request: ChatRequest, personalList = crea
   // Preserve the posted quote through a lost response. Retrying an operation must
   // not change its content/recipients if the original is subsequently edited or removed.
   const postedQuotes = new Map<string, { content: ChatMessage['content']; mentions: string[] }>();
+  async function executionSources(room: string, rows: readonly { source_message_id: string }[], known: readonly ChatMessage[]) {
+    const sources = new Map(known.map(source => [source.id, { id: source.id, threadRootId: source.threadRootId }]));
+    for (const sourceId of new Set(rows.map(row => row.source_message_id))) {
+      if (sources.has(sourceId)) continue;
+      try {
+        const source = await request<ChatMessage>(`/conversations/${room}/messages/${chatId(sourceId)}`);
+        if (source.id !== sourceId || !(source.threadRootId === null || typeof source.threadRootId === 'string')) throw new Error('INVALID_CHAT_MESSAGE');
+        sources.set(source.id, { id: source.id, threadRootId: source.threadRootId });
+      } catch (error) {
+        // A removed source cannot authorize a stop in an inferred conversation.
+        if (!error || typeof error !== 'object' || !('status' in error) || error.status !== 404) throw error;
+      }
+    }
+    return sources;
+  }
   async function failures(roomId: string, messages: ChatMessage[]): Promise<ChatExecutionFailure[]> {
     const sources = new Set(messages.map(message => chatId(message.id)));
     let value: ChatExecutionFailure[] = [];
@@ -536,6 +560,8 @@ export function createChatServerClient(request: ChatRequest, personalList = crea
       }
       // Use the same execution snapshot for running status and stop controls.
       const executions = await request<ChatExecution[]>(`/conversations/${room}/executions`);
+      if (!Array.isArray(executions)) throw new Error('INVALID_CHAT_EXECUTIONS');
+      const sources = await executionSources(room, executions.filter(activeExecution), [...snapshot.messages, ...messages]);
       const executionFailures = await failures(room, messages);
       const projection = await stored?.projection<ChatMessage>(room, []);
       if (projection && snapshot.cacheGeneration !== projection.generation) {
@@ -544,24 +570,30 @@ export function createChatServerClient(request: ChatRequest, personalList = crea
       }
       return { snapshot, messages, before, ...(projection ? { historyRevision: projection.generation } : {}),
         ...(threadRootId ? { threadRootId } : {}), failures: executionFailures,
-        ...(Array.isArray(executions) ? { executions } : {}) };
+        executions, executionSources: [...sources.values()] };
     },
-    async stop(roomId: string, operationId: string) {
+    async stop(roomId: string, operationId: string, threadRootId?: string) {
       const room = chatId(roomId);
       const self = await identity();
       const snapshot = await request<ChatSnapshot>(`/conversations/${room}/snapshot`);
       const ownBots = new Set(snapshot.members.filter(member => member.state === 'joined' && member.kind === 'bot' && member.ownerActorId === self).map(member => member.id));
-      const plans = await request<Array<{ id: string; status: string; creator_id: string; revision: number }>>(`/conversations/${room}/plans`);
+      const plans = await request<Array<{ id: string; status: string; creator_id: string; revision: number; source_message_id: string }>>(`/conversations/${room}/plans`);
+      const executions = await request<ChatExecution[]>(`/conversations/${room}/executions`);
+      const eligiblePlans = plans.filter(plan => plan.creator_id === self && ['proposed', 'running', 'waiting'].includes(plan.status));
+      const eligibleExecutions = executions.filter(execution => ['queued', 'running', 'needs_input'].includes(execution.status)
+        && (execution.requester_id === self || ownBots.has(execution.bot_id)));
+      // Resolve scope before any write; the current viewport may not contain the source.
+      const sources = await executionSources(room, [...eligiblePlans, ...eligibleExecutions], snapshot.messages);
       const stoppedPlans = new Set<string>();
       const refused = (error: unknown) => !!error && typeof error === 'object' && 'status' in error && [403, 404, 409].includes(Number(error.status));
-      for (const plan of plans.filter(plan => plan.creator_id === self && ['proposed', 'running', 'waiting'].includes(plan.status))) {
+      for (const plan of eligiblePlans.filter(plan => sourceInScope(plan.source_message_id, sources, threadRootId))) {
         try {
           await request(`/conversations/${room}/plans/${chatId(plan.id)}`, 'POST', { operationId: `${operationId}:plan:${plan.id}`, expectedRevision: plan.revision, action: 'stop' });
           stoppedPlans.add(plan.id);
         } catch (error) { if (!refused(error)) throw error; }
       }
-      const executions = await request<ChatExecution[]>(`/conversations/${room}/executions`);
-      for (const execution of executions.filter(execution => ['queued', 'running', 'needs_input'].includes(execution.status) && !(execution.plan_id && stoppedPlans.has(execution.plan_id)))) {
+      for (const execution of eligibleExecutions.filter(execution => sourceInScope(execution.source_message_id, sources, threadRootId)
+        && !(execution.plan_id && stoppedPlans.has(execution.plan_id)))) {
         const asBot = execution.requester_id !== self && ownBots.has(execution.bot_id);
         if (execution.requester_id !== self && !asBot) continue;
         try {
