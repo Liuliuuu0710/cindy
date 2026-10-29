@@ -16,7 +16,7 @@ import { Text } from '@/components/AppText';
 import { useDeviceLink } from '@/device-link/DeviceLinkContext';
 import { startFocusedTopicSubscription } from '@/device-link/focusedTopicSubscription';
 import { useThemedStyles, type ThemeColors } from '@/theme';
-import { fontWeight, lineHeight, radius, spacing, typeScale } from '@/theme/tokens';
+import { fontWeight, iconSize, lineHeight, radius, spacing, typeScale } from '@/theme/tokens';
 import {
   BOT_GROUP_INLINE_AVATAR_SIZE,
   BotGroupAvatar,
@@ -87,7 +87,7 @@ export function BotGroupSpeakerRow({ deviceId, identity, sessionId, activity, on
   return <View style={styles.row} testID="botGroup.speaking" accessibilityLabel={`${identity.name}, ${waiting ? t('groupChat.waitingConfirm', { name: identity.name }) : label}`}>
     <View style={styles.nameRow}>
       <View style={styles.avatar}>
-        <BotGroupAvatar deviceId={deviceId} identity={identity} size={24} online={online} />
+        <BotGroupAvatar deviceId={deviceId} identity={identity} size={iconSize.xl} online={online} />
         <CompanionPresenceRing active={!waiting && !isStopping} width={1.5} />
       </View>
       <Text numberOfLines={1} style={styles.name}>{identity.name}</Text>
@@ -117,7 +117,7 @@ export function BotGroupSpeakerRow({ deviceId, identity, sessionId, activity, on
 const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   row: { backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderWidth: StyleSheet.hairlineWidth,
     borderRadius: radius.container, paddingHorizontal: spacing.sm, paddingTop: spacing.sm },
-  avatar: { width: 24, height: 24 },
+  avatar: { width: iconSize.xl, height: iconSize.xl },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   name: { flex: 1, color: colors.textPrimary, fontSize: typeScale.footnote, lineHeight: lineHeight.caption, fontWeight: fontWeight.medium },
   actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
