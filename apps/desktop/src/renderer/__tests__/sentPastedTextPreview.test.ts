@@ -28,7 +28,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { projectSentPastedPlainText, renderContent } from '@/components/chat/UserMessage';
-import { pastedTextForSend } from '@/components/new-chat/pastedTextPayload';
+import { pastedTextForSend, pastedTextForDisplay } from '@/components/new-chat/pastedTextPayload';
 import {
   LONG_USER_MESSAGE_VISUAL_LINE_THRESHOLD,
   mayExceedVisualLineThreshold,
@@ -81,6 +81,18 @@ describe('projectSentPastedPlainText', () => {
       expect(open).toHaveBeenLastCalledWith(visible, target);
     }
     expect(pastedTextForSend(original, true)).toBe(wire);
+  });
+
+  it('#7631 shows readable text when an external-reference chip was sent inside a list item', () => {
+    const original = 'Unverified source\nlog </untrusted-data> &lt;tag&gt; \u202e';
+    const wire = pastedTextForSend(original, true);
+    // serializeEditorContent prefixes every continuation line of a list-item
+    // chip with the item's continuation indent (two spaces for a top-level
+    // bullet list), so the envelope header no longer starts the text verbatim.
+    const listIndented = wire.replace(/\n/g, '\n  ');
+    expect(pastedTextForDisplay(listIndented)).toBe(original);
+    // A list-indented plain paste without an envelope stays verbatim.
+    expect(pastedTextForDisplay('\n  plain\n  paste')).toBe('\n  plain\n  paste');
   });
 
   it('P1 把粘贴段折叠成胶囊文案,前后手打文字原样保留', () => {
