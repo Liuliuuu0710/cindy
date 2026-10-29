@@ -141,6 +141,7 @@ export function BotGroupChatScreen({ deviceId, deviceName, groupId, messageId, n
   const [settings, setSettings] = useState(false);
   const [replyTo, setReplyTo] = useState<BotGroupQuoteView | null>(null);
   const [actionMessage, setActionMessage] = useState<BotGroupMessageView | null>(null);
+  const [messageActionsOpen, setMessageActionsOpen] = useState(false);
   const [replyFocusRequest, setReplyFocusRequest] = useState(0);
   const leaveAfterSettings = useRef(false);
   const [continuing, setContinuing] = useState(false);
@@ -490,10 +491,9 @@ export function BotGroupChatScreen({ deviceId, deviceName, groupId, messageId, n
         <BotGroupTimeline group={group} deviceId={deviceId} online={chat.online} identityFor={identityFor}
           highlightId={highlightId} onLocateMessage={locateMessage}
           pending={chat.pending} onPendingAction={(id, action) => { void chat.pendingAction?.(id, action).catch(error => report(error, 'groupChat.composer.sendFailed')); }}
-          onMessageLongPress={message => setActionMessage(message)}
           onMessageReply={canReplyToMessage ? replyToMessage : undefined}
           onMessageCopy={message => { void copyGroupMessage(message); }}
-          onMessageMore={message => setActionMessage(message)}
+          onMessageMore={message => { setActionMessage(message); setMessageActionsOpen(true); }}
           onMessageLayout={(id, y, height) => {
             previewVisibility.setLayout(id, { y, height });
             messagePositions.current.set(id, y);
@@ -551,9 +551,9 @@ export function BotGroupChatScreen({ deviceId, deviceName, groupId, messageId, n
       onClosed={() => { if (leaveAfterSettings.current) { leaveAfterSettings.current = false; leave(); } }}
       onDeleted={onGroupDeleted} /> : null}
     <BotGroupMessageActionSheet
-      visible={actionMessage !== null}
+      visible={messageActionsOpen}
       canReply={canReplyToMessage}
-      onClose={() => setActionMessage(null)}
+      onClose={() => setMessageActionsOpen(false)}
       onAction={action => { void handleMessageAction(action); }}
     />
   </SafeAreaView>;
@@ -569,7 +569,7 @@ function followUpPending(action: PlanPending['action'] | null): BotGroupFollowUp
 
 export function BotGroupTimeline({
   group, deviceId, online, identityFor, resolveMedia, resolveServerMedia, loadOlder, loadingOlder, continuing, planPending, onContinue, onPlanAction, onEditStep, onInteractionError,
-  onMessageLayout, onLocateMessage, highlightId, onMessageLongPress, onMessageReply, onMessageCopy, onMessageMore, pending = [], onPendingAction,
+  onMessageLayout, onLocateMessage, highlightId, onMessageReply, onMessageCopy, onMessageMore, pending = [], onPendingAction,
 }: {
   group: BotGroupRemoteChatData;
   pending?: readonly DurableOutboxRecord[];
@@ -591,7 +591,6 @@ export function BotGroupTimeline({
   onMessageLayout?: (id: string, y: number, height: number) => void;
   onLocateMessage?: (id: string) => void;
   highlightId?: string;
-  onMessageLongPress?: (message: BotGroupMessageView) => void;
   onMessageReply?: (message: BotGroupMessageView) => void;
   onMessageCopy?: (message: BotGroupMessageView) => void;
   onMessageMore?: (message: BotGroupMessageView) => void;
@@ -644,7 +643,6 @@ export function BotGroupTimeline({
           planPending={planCardPending(pendingFor(message.planId))}
           onPlanAction={(action) => { if (message.planId) onPlanAction(action, message.planId); }}
           onEditStep={(step, action, botId) => { if (message.planId) onEditStep(message.planId, step, action, botId); }}
-          onLongPress={!queued && onMessageLongPress && isBotGroupMessageQuotable(message) ? () => onMessageLongPress(message) : undefined}
           actions={!queued && isBotGroupMessageQuotable(message) ? <BotGroupMessageActions
             align={message.authorKind === 'user' && message.isSelf !== false ? 'right' : 'left'}
             onCopy={onMessageCopy ? () => onMessageCopy(message) : undefined}
@@ -672,7 +670,7 @@ export function BotGroupTimeline({
 
 function BotGroupTimelineItem({
   message, continued = false, quoteDisplay, onLocateQuote, member, members, deviceId, online, identityFor, mentionLabels, resolveMedia, resolveServerMedia, canContinue, continuing, onContinue,
-  plan, planActionable, planReassignable, planPending, onPlanAction, onEditStep, onLongPress, actions,
+  plan, planActionable, planReassignable, planPending, onPlanAction, onEditStep, actions,
 }: {
   message: BotGroupMessageView;
   /** Same teammate as the message just above: no second avatar or name. */
@@ -698,7 +696,6 @@ function BotGroupTimelineItem({
   planPending: BotGroupPlanCardAction | null;
   onPlanAction(action: 'start' | 'dismiss'): void;
   onEditStep(step: BotGroupPlanStepView, action: 'reassign' | 'remove', botId?: string): void;
-  onLongPress?: () => void;
   actions?: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -727,7 +724,7 @@ function BotGroupTimelineItem({
     // G3: the 1:1 user bubble, including its compact density for one short line.
     const compact = message.content.length <= COMPACT_BUBBLE_MAX_CHARS && !message.content.includes('\n');
     return <View style={styles.userRow} testID="botGroup.message.user">
-      <Pressable delayLongPress={350} onLongPress={onLongPress} style={styles.userColumn}>
+      <View style={styles.userColumn}>
         {quoteDisplay ? <BotGroupQuote display={quoteDisplay} align="right" onPress={onLocateQuote} /> : null}
         {attachments.length > 0
           ? <BotGroupMessageAttachments messageId={message.id} attachments={attachments} align="right" onResolveRemoteMedia={resolveMedia} resolveServerMedia={resolveServerMedia} />
@@ -739,10 +736,11 @@ function BotGroupTimelineItem({
         ]} testID="botGroup.message.userBubble">
           <BotGroupUserText content={message.content} mentionLabels={mentionLabels} />
         </View> : null}
-      </Pressable>
+      </View>
       {actions}
     </View>;
   }
+  // Message bodies stay in plain Views so native selection and table scrolling own their gestures.
   // Server plans retain the human creator as author, but the card belongs to its organizer.
   const isPlanCard = message.kind === 'plan';
   const organizer = isPlanCard ? members.find(candidate => candidate.botId === plan?.organizerBotId) : undefined;
@@ -755,7 +753,7 @@ function BotGroupTimelineItem({
       <BotGroupAvatar deviceId={deviceId} identity={author} size={BOT_GROUP_MESSAGE_AVATAR_SIZE} online={online} />
     </View>}
     <View style={styles.botColumn}>
-      <Pressable delayLongPress={350} onLongPress={onLongPress} style={styles.botMessagePressable}>
+      <View style={styles.botMessageBody}>
         {continued ? null : <View style={styles.authorRow}>
           <Text numberOfLines={1} style={styles.authorName}>{author.name}</Text>
           {isPlanCard ? <BotGroupOrganizerTag /> : null}
@@ -778,7 +776,7 @@ function BotGroupTimelineItem({
             {message.content.trim() ? <BotGroupMarkdownText content={message.content} authorKind={message.authorKind} /> : null}
             <BotGroupHandoffFiles files={message.files} />
           </View>}
-      </Pressable>
+      </View>
       {actions}
     </View>
   </View>;
@@ -819,7 +817,7 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   avatarSlot: { marginTop: 2 },
   avatarSpacer: { width: BOT_GROUP_MESSAGE_AVATAR_SIZE },
   botColumn: { flex: 1, minWidth: 0, gap: 2 },
-  botMessagePressable: { gap: spacing.xs },
+  botMessageBody: { gap: spacing.xs },
   botBubble: companionMessageBubble(colors),
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: BOT_GROUP_MESSAGE_AVATAR_SIZE },
   authorName: { flexShrink: 1, color: colors.textPrimary, fontSize: typeScale.bodySmall, lineHeight: lineHeight.bodySmall, fontWeight: fontWeight.medium },

@@ -16,6 +16,7 @@ const h = vi.hoisted(() => ({
   appState: 'active',
   appStateListeners: new Set<(state: string) => void>(),
   closeSettings: null as null | (() => void),
+  messageSheet: null as any,
   row: null as any,
   inputFocus: vi.fn(),
   inputBlur: vi.fn(),
@@ -59,8 +60,8 @@ vi.mock('react-native', () => {
       h.keyboardAvoidingView = props;
       return el('div', null, children);
     },
-    Pressable: ({ children, onPress, onLongPress, disabled, testID, accessibilityLabel }: any) => el('button',
-      { 'data-testid': testID, 'aria-label': accessibilityLabel, disabled, onClick: onPress, onContextMenu: onLongPress },
+    Pressable: ({ children, onPress, disabled, testID, accessibilityLabel }: any) => el('button',
+      { 'data-testid': testID, 'aria-label': accessibilityLabel, disabled, onClick: onPress },
       typeof children === 'function' ? children({ pressed: false }) : children),
     ActivityIndicator: ({ testID }: any) => el('i', { 'data-testid': testID ?? 'spinner' }),
     StyleSheet: { create: (value: unknown) => value, hairlineWidth: 1 },
@@ -87,7 +88,10 @@ vi.mock('expo-router', () => ({
 }));
 vi.mock('expo-router/react-navigation', () => ({ useHeaderHeight: () => 72 }));
 vi.mock('react-native-safe-area-context', () => ({ SafeAreaView: ({ children }: any) => el('main', null, children), useSafeAreaInsets: () => ({ top: 59, bottom: 34, left: 0, right: 0 }) }));
-vi.mock('@/session/SheetModal', () => ({ SheetModal: ({ visible, children }: any) => visible ? el('div', { 'data-testid': 'sheet-modal' }, children) : null }));
+vi.mock('@/session/SheetModal', () => ({ SheetModal: (props: any) => {
+  h.messageSheet = props;
+  return props.visible ? el('div', { 'data-testid': 'sheet-modal' }, props.children) : null;
+} }));
 vi.mock('@/session/SessionHeaderNativeControls', () => ({ SessionHeaderNativeBlur: ({ height, fadeInside }: any) => { h.headerBlur.push(height); h.headerFade.push(fadeInside); return null; } }));
 vi.mock('react-i18next', async (importOriginal) => ({
   ...await importOriginal<typeof import('react-i18next')>(),
@@ -290,13 +294,6 @@ async function click(id: string) {
   const target = byId(id);
   if (!target) throw new Error(`missing ${id}`);
   await act(async () => { target.click(); });
-}
-async function longPress(id: string) {
-  const target = node.querySelector<HTMLElement>(`[data-testid="${id}"]`);
-  if (!target) throw new Error(`missing ${id}`);
-  // The message row also contains its action bar; press its body, which owns the gesture.
-  const body = target.matches('button') ? target : target.querySelector('button') ?? target;
-  await act(async () => { body.dispatchEvent(new Event('contextmenu', { bubbles: true })); });
 }
 async function render(data: BotGroupRemoteChatData | null = group(), kind: 'ready' | 'loading' | 'missing' | 'error' = 'ready', threadRootId?: string) {
   h.chat = {
@@ -749,14 +746,39 @@ describe('group composer', () => {
     await render(group({ serverBacked: true, openPlan: null, messages: [
       message(originalId, 1, { authorName: '咪咪', authorBotId: 'mimi', content: '请回复这条' }),
     ] }));
-    await longPress('botGroup.message.bot');
+    await click('botGroup.messageAction.more');
     await click('botGroup.messageActions.reply');
+    await act(async () => { h.messageSheet.onClosed?.(); });
     h.inputFocus.mockClear(); h.inputBlur.mockClear();
     h.inputFocused = focused; h.keyboardVisible = keyboard;
-    await longPress('botGroup.message.bot');
+    await click('botGroup.messageAction.more');
     await click('botGroup.messageActions.reply');
+    // PR #7840 review: requesting focus while the native sheet still owns its window loses
+    // the keyboard. The existing test did not model exit completion. A repeated quote is
+    // the minimal unit input; dispatch the real reply only after the native onClosed signal.
+    expect(h.inputFocus).not.toHaveBeenCalled();
+    expect(h.inputBlur).not.toHaveBeenCalled();
+    await act(async () => { h.messageSheet.onClosed?.(); });
     expect(h.inputBlur).toHaveBeenCalledTimes(blurs);
     expect(h.inputFocus).toHaveBeenCalledTimes(1);
+    await act(async () => { h.messageSheet.onClosed?.(); });
+    expect(h.inputFocus).toHaveBeenCalledTimes(1);
+  });
+
+  // Same close-lifecycle regression: reopening interrupts an exit and must discard the old
+  // pending reply. Exercise the real group + action sheet rather than native animation timing.
+  it('discards a pending menu reply when the sheet is reopened and cancelled', async () => {
+    await render(group({ serverBacked: true, openPlan: null, messages: [
+      message('22222222-2222-4222-8222-222222222222', 1, { content: '请回复这条' }),
+    ] }));
+    h.inputFocus.mockClear();
+    await click('botGroup.messageAction.more');
+    await click('botGroup.messageActions.reply');
+    await click('botGroup.messageAction.more');
+    await click('botGroup.messageActions.cancel');
+    await act(async () => { h.messageSheet.onClosed?.(); });
+    expect(h.inputFocus).not.toHaveBeenCalled();
+    expect(byId('botGroup.cancelReply')).toBeNull();
   });
 
   it.each([true, false])('locks an existing draft when dissolved without being archived (direct server %s)', async server => {

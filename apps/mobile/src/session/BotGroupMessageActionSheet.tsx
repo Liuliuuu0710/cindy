@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Copy, MessageSquarePlus, type LucideIcon } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -19,6 +20,19 @@ export function BotGroupMessageActionSheet({ visible, canReply, onClose, onActio
   const styles = useThemedStyles(makeStyles);
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const pendingAction = useRef<BotGroupMessageAction | null>(null);
+  useEffect(() => {
+    if (visible) pendingAction.current = null;
+  }, [visible]);
+  const handleClosed = useCallback(() => {
+    const action = pendingAction.current;
+    pendingAction.current = null;
+    if (action) onAction(action);
+  }, [onAction]);
+  const closeWithoutAction = useCallback(() => {
+    pendingAction.current = null;
+    onClose();
+  }, [onClose]);
   const items: { id: BotGroupMessageAction; label: string; Icon: LucideIcon }[] = [
     ...(canReply ? [{ id: 'reply' as const, label: t('message.renderer.reply'), Icon: MessageSquarePlus }] : []),
     { id: 'copy', label: t('message.renderer.copyStateCopy'), Icon: Copy },
@@ -26,8 +40,9 @@ export function BotGroupMessageActionSheet({ visible, canReply, onClose, onActio
   return <SheetModal
     nativePresentation
     visible={visible}
-    onRequestClose={onClose}
-    onBackdropPress={onClose}
+    onRequestClose={closeWithoutAction}
+    onBackdropPress={closeWithoutAction}
+    onClosed={handleClosed}
     backdropTestID="botGroup.messageActions.backdrop"
   >
     <View style={[styles.cardArea, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
@@ -37,7 +52,7 @@ export function BotGroupMessageActionSheet({ visible, canReply, onClose, onActio
           key={id}
           accessibilityRole="button"
           accessibilityLabel={label}
-          onPress={() => { onAction(id); onClose(); }}
+          onPress={() => { pendingAction.current = id; onClose(); }}
           style={({ pressed }) => [styles.actionRow, pressed && styles.pressed]}
           testID={`botGroup.messageActions.${id}`}
         >
@@ -45,7 +60,7 @@ export function BotGroupMessageActionSheet({ visible, canReply, onClose, onActio
           <Text style={styles.actionLabel}>{label}</Text>
         </Pressable>)}
       </View>
-      <Pressable accessibilityRole="button" accessibilityLabel={t('session.common.cancel')} onPress={onClose}
+      <Pressable accessibilityRole="button" accessibilityLabel={t('session.common.cancel')} onPress={closeWithoutAction}
         style={({ pressed }) => [styles.cancelCard, pressed && styles.pressed]} testID="botGroup.messageActions.cancel">
         <BlurBackdrop intensity={32} overlayColor={colors.sheetActionSurface} />
         <Text style={styles.cancelText}>{t('session.common.cancel')}</Text>
