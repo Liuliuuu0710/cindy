@@ -1,0 +1,11 @@
+{
+  "sourceCommit": "ec7f7a4b8838fcd000ccb0eca32631c130ec032a",
+  "platform": "iOS 26.5 / iPhone 17 Pro / Baguette",
+  "syntheticData": true,
+  "scene": "visual-group-text-selection",
+  "bodySelection": "文字选择",
+  "codeSelection": "greeting",
+  "tableSelection": "需要",
+  "pasteResult": "文字选择",
+  "androidVerified": false
+}
