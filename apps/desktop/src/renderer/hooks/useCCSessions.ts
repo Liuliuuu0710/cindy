@@ -66,7 +66,7 @@ interface UseCCSessionsReturn {
     providerId?: string | null;
     /** Only the Cindy Make purpose may be requested from the renderer; Main validates it. */
     source?: 'cindy-make';
-  }) => Promise<Session | null>;
+  }, onCreateError?: (error: unknown) => void) => Promise<Session | null>;
   refreshSessions: () => Promise<Session[]>;
   patchLocal: (id: string, patch: Partial<Session>) => void;
 }
@@ -172,7 +172,7 @@ export function useCCSessions(options?: UseCCSessionsOptions): UseCCSessionsRetu
       source?: 'cindy-make';
       /** 新建页的未发送任务(见 sessionService.create)。 */
       provisional?: boolean;
-    }): Promise<Session | null> => {
+    }, onCreateError?: (error: unknown) => void): Promise<Session | null> => {
       try {
         const newSession = await sessionService.create({
           permissionMode: 'auto',
@@ -185,6 +185,8 @@ export function useCCSessions(options?: UseCCSessionsOptions): UseCCSessionsRetu
         return newSession;
       } catch (err) {
         setError(err instanceof Error ? err : new Error(String(err)));
+        // The caller needs this invocation's error before React commits setError.
+        onCreateError?.(err);
         return null;
       }
     },
