@@ -295,7 +295,6 @@ it('measures mounted shareable messages for manual sharing sticky selection', ()
 
 it('renders message bodies natively with in-place per-block selectable text', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/session/MessageRenderer.tsx'), 'utf8');
-    const selectableSource = readFileSync(resolve(process.cwd(), 'src/session/MarkdownSelectableText.tsx'), 'utf8');
     const flowSource = readFileSync(resolve(process.cwd(), 'e2e/maestro/message_selection.yaml'), 'utf8');
     const bubbleStart = source.indexOf('function MessageBubble');
     const bubbleEnd = source.indexOf('function copyActionLabel', bubbleStart);
@@ -313,13 +312,12 @@ it('renders message bodies natively with in-place per-block selectable text', ()
     // iOS 部分选择:RN Text 底层是 UILabel 只能整块拷贝(facebook/react-native#13938),
     // 可选中块在 iOS 换用 react-native-uitextview(真 UITextView,系统选择手柄);
     // Android 维持 AppText selectable(本身有手柄)。嵌套 span 必须同为 UITextView 家族。
-    // MarkdownSelectableText 已抽到共享模块,消息流与卡片都经它复用选区菜单。
-    expect(source).toContain("from 'react-native-uitextview'");
-    expect(selectableSource).toContain('function MarkdownSelectableText({');
-    expect(selectableSource).toContain("if (selectable && allowIosUITextView && Platform.OS === 'ios') {");
-    expect(selectableSource).toContain('uiTextView');
-    expect(selectableSource).toContain("from 'react-native-uitextview'");
-    expect(source).toContain('function MarkdownSelectableSpan(');
+    const selectableTextSource = readFileSync(resolve(process.cwd(), 'src/session/MarkdownSelectableText.tsx'), 'utf8');
+    expect(selectableTextSource).toContain("from 'react-native-uitextview'");
+    expect(selectableTextSource).toContain('function MarkdownSelectableText({');
+    expect(selectableTextSource).toContain("if (selectable && allowIosUITextView && Platform.OS === 'ios') {");
+    expect(selectableTextSource).toContain('uiTextView');
+    expect(selectableTextSource).toContain('function MarkdownSelectableSpan(');
     expect(source).toContain('const SpanText = ctx.SpanText ?? MessageBodyText;');
     expect(markdownBodySource).toContain('blockSelectable && allowIosUITextView && Platform.OS === \'ios\'');
 

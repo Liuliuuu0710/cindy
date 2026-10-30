@@ -101,7 +101,6 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
-import { UITextView } from 'react-native-uitextview';
 import {
   LegendList,
   useRecyclingState,
@@ -133,7 +132,6 @@ import { buildMobileMessageMenu, type MobileMessageMenuActionId } from '@/sessio
 import { isShareableMessage } from '@/session/shareSelectionStore';
 import {
   ShareMessageCheckbox,
-  useCancelShareSelectionRowTap,
   MessageBodyText,
 } from '@/session/ShareMessageCheckbox';
 import { SentInlineAtomBody } from '@/session/SentInlineAtomBody';
@@ -147,12 +145,12 @@ import {
   type SentInlineToken,
 } from '@/session/sentMessageAtoms';
 import { SelectionQuoteContext } from '@/session/selectionQuote';
+import { MarkdownSelectableText, MarkdownSelectableSpan } from './MarkdownSelectableText';
 import {
   MOBILE_COMPOSER_CONTROL_SIZE,
   MOBILE_COMPOSER_VOICE_ANCHOR_RIGHT,
 } from '@/session/MobileComposerInputRow';
-import { MAX_FONT_SIZE_MULTIPLIER, Text } from '@/components/AppText';
-import { MarkdownSelectableText } from '@/session/MarkdownSelectableText';
+import { Text } from '@/components/AppText';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type {
   NormalizedAttachment,
@@ -526,40 +524,6 @@ const stylesStatic = StyleSheet.create({
   },
 });
 
-/**
- * 消息正文可选中文本块的双端实现:
- * - iOS:RN 官方 Text 底层是 UILabel,selectable 只有「长按拷贝整块」、没有系统选择手柄
- *   (部分选择做不到,facebook/react-native#13938)。换用 react-native-uitextview
- *   (Bluesky 开源,真 UITextView):长按出系统手柄、支持块内部分选择,嵌套 span 样式与 onPress 保留。
- * - Android:RN Text selectable 本身就有系统选择手柄,维持 AppText(带全局字体缩放限幅)。
- * 选中高亮双端都刻意**不**覆写 selectionColor,交给系统:iOS UITextView 本就用系统高亮;
- * Android 不传则回落 Activity 主题的 textColorHighlight(accent 色 ~26% 透明度的半透明
- * tint),选区可见性与选中文字可读性天然兼得。历史教训(#1427):曾逐 view 覆写不透明
- * token —— surfaceChip 近白,浅色主题选区与底色仅 1.04:1,选了看不见;换 inputCaret 纯蓝,
- * 选中文字对比度跌到 2.6:1,看得见但读不了 —— 不透明覆写两头都讨不到好。props 类型
- * Omit 掉 selectionColor 挡编译期,messageSelectionHighlight.test.ts 锁文件级不再覆写。
- */
-
-/**
- * iOS 可选中块里的嵌套 span:必须也是 UITextView(经库内祖先上下文渲染为原生 child),
- * 混入 RN Text 会破坏原生文本树。仅由 renderInline 在「块可选中且 iOS」时使用。
- */
-function MarkdownSelectableSpan(props: ComponentProps<typeof Text>) {
-  const cancelShareSelectionRowTap = useCancelShareSelectionRowTap();
-  const handlePress = props.onPress
-    ? (event: GestureResponderEvent) => {
-      cancelShareSelectionRowTap?.();
-      props.onPress?.(event);
-    }
-    : undefined;
-  return (
-    <UITextView
-      maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}
-      {...props}
-      onPress={handlePress}
-    />
-  );
-}
 
 function isTextRunContinuationGroup(group: MobileMarkdownBlockGroup): boolean {
   return group.type === 'text_run' && group.textRunContinuation === true;
@@ -7396,7 +7360,7 @@ function MessagePayloadModal({
             testID="message.payloadMermaidDiagram"
             zoomable
           />
-          <View style={[styles.payloadFloatingActions, { top: modalSafeArea.paddingTop }]}>
+          <View style={[styles.payloadFloatingActions, { top: modalSafeArea.paddingTop, right: safeAreaInsets.right + spacing.lg }]}>
             {imageAnnotation ? (
               <PayloadHeaderActionButton
                 accessibilityLabel={t('message.renderer.annotateSendToChat')}
@@ -7450,6 +7414,9 @@ function MessagePayloadModal({
           styles.payloadModal,
           {
             paddingBottom: modalSafeArea.paddingBottom,
+            // Landscape side insets hold the notch or a vertical system bar (Duo).
+            paddingLeft: safeAreaInsets.left,
+            paddingRight: safeAreaInsets.right,
             paddingTop: modalSafeArea.paddingTop,
           },
         ]}
@@ -9680,7 +9647,6 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.sm,
     position: 'absolute',
-    right: spacing.lg,
   },
   // 浮动按钮需要实底色,否则悬在图表线条上看不清。
   payloadFloatingButton: {

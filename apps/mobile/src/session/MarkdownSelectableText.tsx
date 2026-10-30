@@ -1,24 +1,19 @@
 import { useContext, useRef, type ComponentProps } from 'react';
-import {
-  Platform,
-  StyleSheet,
-  useWindowDimensions,
-  type StyleProp,
-  type TextStyle,
-} from 'react-native';
+import { Platform, StyleSheet, useWindowDimensions, type GestureResponderEvent, type StyleProp, type TextStyle } from 'react-native';
 import { UITextView } from 'react-native-uitextview';
-
 import { MAX_FONT_SIZE_MULTIPLIER, Text } from '@/components/AppText';
 import { i18n } from '@/i18n';
-import {
-  handleSelectionQuoteMenuAction,
-  SelectionQuoteContext,
-  selectionQuoteMenuLabel,
-} from '@/session/selectionQuote';
-import { SelectionMenuText } from '@/session/SelectionMenuText';
-import { selectableTextVerticalOffset } from '@/session/selectableTextAlignment';
+import { SelectionMenuText } from './SelectionMenuText';
+import { useCancelShareSelectionRowTap } from './ShareMessageCheckbox';
+import { selectableTextVerticalOffset } from './selectableTextAlignment';
+import { SelectionQuoteContext, handleSelectionQuoteMenuAction, selectionQuoteMenuLabel } from './selectionQuote';
 
-export type MarkdownSelectableTextProps = Omit<ComponentProps<typeof Text>, 'selectionColor'> & {
+/**
+ * Shared message selection: iOS uses UITextView for native range handles (RN
+ * Text only copies whole blocks); Android retains its native selectable Text.
+ * Leave selection highlighting to the platform (#1427).
+ */
+type MarkdownSelectableTextProps = Omit<ComponentProps<typeof Text>, 'selectionColor'> & {
   /**
    * iOS 是否使用可部分选中的 UITextView。普通任务的超长展开正文回退 RN Text:
    * UITextView 在折叠→展开时骤增为超高复用视图会偶发只留下巨高空白容器。
@@ -30,11 +25,6 @@ export type MarkdownSelectableTextProps = Omit<ComponentProps<typeof Text>, 'sel
   alignmentTextStyles?: readonly StyleProp<TextStyle>[];
 };
 
-/**
- * 与正文同款的选中文本：接回「添加到对话 / 侧边追问」选区菜单。
- * iOS 用真 UITextView（menuActionLabel / onMenuAction），Android 与回退用
- * SelectionMenuText。context 为 null（宿主未启用 / 非会话场景）时零开销走原路径。
- */
 export function MarkdownSelectableText({
   allowIosUITextView = true,
   adjustVerticalAlignment = true,
@@ -42,6 +32,10 @@ export function MarkdownSelectableText({
   selectable,
   ...rest
 }: MarkdownSelectableTextProps) {
+  // chat-text-quote:宿主(MessageRenderer)启用采集时,给 iOS UITextView 传
+  // menuActionLabel(系统选择菜单里插入「添加到对话」项,iOS 16+)并挂
+  // onTextLayout(缓存逐行渲染文本)+ onMenuAction(菜单点按时按选区偏移切
+  // 文本提交)。context 为 null(宿主未启用 / 非会话场景)时零开销走原路径。
   const quoteCtx = useContext(SelectionQuoteContext);
   const renderedLinesRef = useRef<readonly string[]>([]);
   const { fontScale } = useWindowDimensions();
@@ -77,6 +71,8 @@ export function MarkdownSelectableText({
           renderedLinesRef.current = rawLines.map((line) => (typeof line === 'string' ? line : line.text));
           rest.onTextLayout?.(e);
         }}
+        // menuActionLabel / onMenuAction 是 uitextview patch 的扩展 prop,不在
+        // RN Text props 里,组件内部私有附加(经 {...rest} 透传到原生组件)。
         {...{
           menuActionLabel: selectionQuoteMenuLabel(),
           sideChatMenuActionLabel: quoteCtx.askInSideChat ? i18n.t('session.sideChat.title') : '',
@@ -91,4 +87,25 @@ export function MarkdownSelectableText({
     );
   }
   return <SelectionMenuText selectable={selectable} {...rest} />;
+}
+
+/**
+ * iOS 可选中块里的嵌套 span:必须也是 UITextView(经库内祖先上下文渲染为原生 child),
+ * 混入 RN Text 会破坏原生文本树。仅由 renderInline 在「块可选中且 iOS」时使用。
+ */
+export function MarkdownSelectableSpan(props: ComponentProps<typeof Text>) {
+  const cancelShareSelectionRowTap = useCancelShareSelectionRowTap();
+  const handlePress = props.onPress
+    ? (event: GestureResponderEvent) => {
+      cancelShareSelectionRowTap?.();
+      props.onPress?.(event);
+    }
+    : undefined;
+  return (
+    <UITextView
+      maxFontSizeMultiplier={MAX_FONT_SIZE_MULTIPLIER}
+      {...props}
+      onPress={handlePress}
+    />
+  );
 }
