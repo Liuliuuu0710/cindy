@@ -117,6 +117,8 @@ export interface UseMobileLocalAttachmentsResult {
   failPastePlaceholders: () => void;
   /** 拉起相册 / 相机。 */
   addImages: (source: 'library' | 'camera') => Promise<void>;
+  /** 从系统相册选择视频，按文件附件上传，不进入图片转换或压缩管线。 */
+  addVideos: () => Promise<void>;
   /** 拉起系统文件选择器。 */
   addDocument: () => Promise<void>;
   /** 输入框 Paste 粘贴剪贴板图片(ComposerRichInput 落盘的 file:// 临时文件)。 */
@@ -529,6 +531,42 @@ export function useMobileLocalAttachments(
     }
   };
 
+  const addVideos = async (): Promise<void> => {
+    const begun = beginPick();
+    if (!begun) return;
+    try {
+      // Use the system picker grant; do not request broad photo-library access.
+      // Keep deferred iCloud photo selection on its existing native path.
+      const picked = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['videos'],
+        allowsMultipleSelection: true,
+        orderedSelection: true,
+        selectionLimit: begun.remainingSlots,
+        videoExportPreset: ImagePicker.VideoExportPreset.Passthrough,
+        preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Current,
+      });
+      if (!isAttachmentScopeActive() || picked.canceled) return;
+      const candidates = picked.assets.slice(0, begun.remainingSlots).map((asset, index): MobileLocalAttachmentUploadCandidate => {
+        const uri = asset.uri.trim();
+        if (!uri) throw new Error(t('composer.upload.noFileRead'));
+        return {
+          kind: 'file',
+          uri,
+          name: asset.fileName?.trim() || uri.split('/').pop()?.split(/[?#]/)[0] || `video-${index + 1}`,
+          size: asset.fileSize ?? 0,
+          mimeType: asset.mimeType || undefined,
+        };
+      });
+      if (candidates.length === 0) return;
+      enqueueUploads(candidates, { token: optionsRef.current.getAccessToken() });
+      optionsRef.current.onPicked?.();
+    } catch (err) {
+      if (isAttachmentScopeActive()) optionsRef.current.onError(formatRemoteError(err));
+    } finally {
+      pickerBusyRef.current = false;
+    }
+  };
+
   const addDocument = async (): Promise<void> => {
     const begun = beginPick();
     if (!begun) return;
@@ -661,6 +699,7 @@ export function useMobileLocalAttachments(
     beginPastePlaceholders,
     failPastePlaceholders,
     addImages,
+    addVideos,
     addDocument,
     addPastedImages,
     enqueueUploads,

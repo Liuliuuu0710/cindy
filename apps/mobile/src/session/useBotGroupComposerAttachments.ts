@@ -182,6 +182,7 @@ export function useBotGroupComposerAttachments({ deviceId, upload, onPicked }: {
     error,
     setError,
     addImages: local.addImages,
+    addVideos: local.addVideos,
     addDocument: local.addDocument,
     addPastedImages: local.addPastedImages,
     beginPastePlaceholders: local.beginPastePlaceholders,

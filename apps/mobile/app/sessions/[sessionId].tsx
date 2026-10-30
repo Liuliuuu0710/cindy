@@ -53,6 +53,7 @@ import { takeRefinementContextTail, truncateRefinementReply } from '@cindy/voice
 import {
   ArrowDown,
   Camera,
+  Video,
   Check,
   ChevronDown,
   ChevronRight,
@@ -1362,6 +1363,7 @@ function SessionScreenContent({ beforeSessionSwitchRef, newSessionActionRef }: S
     beginPastePlaceholders,
     failPastePlaceholders,
     addImages: addLocalImageAttachments,
+    addVideos: addLocalVideoAttachments,
     addDocument: addLocalFileAttachment,
     addPastedImages: addPastedImageAttachments,
     enqueueUploads,
@@ -10157,6 +10159,15 @@ function SessionScreenContent({ beforeSessionSwitchRef, newSessionActionRef }: S
                   onPress={() => void addLocalImageAttachments('library')}
                   dismissBeforePress
                   testID="session.contextSheetPhotoRow"
+                />
+                <ContextSheetRow
+                  accessibilityHint={composerSendUnavailableReason ?? undefined}
+                  disabled={!canUseComposer}
+                  icon={<Video color={colors.textPrimary} size={iconSize.lg} strokeWidth={iconStroke.regular} />}
+                  label={t('message.payloadPresentation.video')}
+                  onPress={() => void addLocalVideoAttachments()}
+                  dismissBeforePress
+                  testID="session.contextSheetVideoRow"
                 />
                 <ContextSheetRow
                   accessibilityHint={composerSendUnavailableReason ?? undefined}
