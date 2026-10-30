@@ -6,7 +6,7 @@ import type { AdviceAnswer } from '@cindy/maker-shared/message-presentation';
 import { Text } from '@/components/AppText';
 import { MarkdownSelectableText } from '@/session/MarkdownSelectableText';
 import { useThemedStyles, type ThemeColors } from '@/theme';
-import { fontWeight, lineHeight, navigationChrome, radius, spacing, typeScale } from '@/theme/tokens';
+import { fontWeight, iconSize, lineHeight, navigationChrome, radius, spacing, typeScale } from '@/theme/tokens';
 
 function AdviceRow({ item, index, selectable }: { item: AdviceAnswer['items'][number]; index: number; selectable: boolean }) {
   const styles = useThemedStyles(makeStyles);
@@ -18,7 +18,7 @@ function AdviceRow({ item, index, selectable }: { item: AdviceAnswer['items'][nu
         <Text accessible={false} style={styles.number}>{String(index + 1).padStart(2, '0')}</Text>
         <MarkdownSelectableText accessibilityRole="header" selectable={selectable} style={styles.itemTitle}>{item.title}</MarkdownSelectableText>
         <Pressable accessibilityRole="button" accessibilityLabel={expanded ? t('message.renderer.collapseExplanation') : t('message.renderer.expandExplanation')} accessibilityState={{ expanded }} onPress={() => setExpanded((value) => !value)} style={styles.toggle}>
-          <ChevronDown size={16} color={styles.number.color} style={expanded ? styles.expandedIcon : undefined} />
+          <ChevronDown size={iconSize.md} color={styles.number.color} style={expanded ? styles.expandedIcon : undefined} />
         </Pressable>
       </View>
       <View style={styles.content}>
