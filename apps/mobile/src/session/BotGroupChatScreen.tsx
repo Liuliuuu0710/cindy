@@ -694,8 +694,10 @@ function BotGroupChatContent({ deviceId, deviceName, groupId, messageId, notific
       {!imageSelectionActive && replyTo ? <View style={styles.replyDraft}>
         <View style={styles.replyDraftBody}><BotGroupQuote display={resolveBotGroupQuote(replyTo, group.messages)} onPress={() => locateMessage(replyTo.messageId)} /></View>
         <Pressable accessibilityRole="button" accessibilityLabel={t('message.quote.remove')}
-          hitSlop={8} onPress={() => setReplyTo(null)} style={styles.replyDraftClose} testID="botGroup.cancelReply">
-          <X color={colors.textSecondary} size={iconSize.sm} strokeWidth={iconStroke.regular} />
+          onPress={() => setReplyTo(null)} style={styles.replyDraftClose} testID="botGroup.cancelReply">
+          <View pointerEvents="none" style={styles.replyDraftCloseIcon}>
+            <X color={colors.textSecondary} size={iconSize.sm} strokeWidth={iconStroke.regular} />
+          </View>
         </Pressable>
       </View> : null}
       {!imageSelectionActive && !threadRootId ? <BotGroupWorkArea group={group} deviceId={deviceId} online={chat.online} identityFor={identityFor}
@@ -1057,7 +1059,8 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     backgroundColor: colors.surfaceElevated, borderColor: colors.border, borderWidth: StyleSheet.hairlineWidth,
     borderRadius: radius.container, marginHorizontal: spacing.md, marginBottom: spacing.xs,
     paddingLeft: spacing.md, paddingRight: spacing.xs, paddingVertical: spacing.sm },
-  replyDraftClose: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceChip,
+  replyDraftClose: { alignItems: 'center', justifyContent: 'center', height: 44, width: 44 },
+  replyDraftCloseIcon: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceChip,
     borderRadius: radius.pill, height: 26, width: 26 },
   replyDraftBody: { flex: 1, minWidth: 0 },
   userQuote: { alignSelf: 'stretch', marginBottom: spacing.xs },
