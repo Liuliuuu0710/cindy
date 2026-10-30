@@ -1,0 +1,2085 @@
+{
+  "pages": 70,
+  "variants": 1184,
+  "passed": 925,
+  "failed": 259,
+  "failures": [
+    {
+      "id": "chat-video.menu-inline.light.zh-CN.800x600",
+      "page": "chat-video",
+      "theme": "light",
+      "errors": [
+        "Error: variant timed out after 20000ms"
+      ]
+    },
+    {
+      "id": "chat-video.menu-inline.dark.zh-CN.800x600",
+      "page": "chat-video",
+      "theme": "dark",
+      "errors": [
+        "Error: variant timed out after 20000ms"
+      ]
+    },
+    {
+      "id": "chat-video.menu-lightbox.light.zh-CN.800x600",
+      "page": "chat-video",
+      "theme": "light",
+      "errors": [
+        "Error: variant timed out after 20000ms"
+      ]
+    },
+    {
+      "id": "chat-video.menu-lightbox.dark.zh-CN.800x600",
+      "page": "chat-video",
+      "theme": "dark",
+      "errors": [
+        "Error: variant timed out after 20000ms"
+      ]
+    },
+    {
+      "id": "local-plugin-sharing.interactive.light.zh-CN.1100x850",
+      "page": "local-plugin-sharing",
+      "theme": "light",
+      "errors": [
+        "untranslated keys rendered: v1.0.0"
+      ]
+    },
+    {
+      "id": "local-plugin-sharing.interactive.dark.zh-CN.1100x850",
+      "page": "local-plugin-sharing",
+      "theme": "dark",
+      "errors": [
+        "untranslated keys rendered: v1.0.0"
+      ]
+    },
+    {
+      "id": "mail-reading.default.dark.zh-CN.640x700",
+      "page": "mail-reading",
+      "theme": "dark",
+      "errors": [
+        "Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed and the 'allow-scripts' permission is not set."
+      ]
+    },
+    {
+      "id": "mail-reading.narrow.light.zh-CN.320x700",
+      "page": "mail-reading",
+      "theme": "light",
+      "errors": [
+        "Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed and the 'allow-scripts' permission is not set."
+      ]
+    },
+    {
+      "id": "mail-reading.narrow.dark.zh-CN.320x700",
+      "page": "mail-reading",
+      "theme": "dark",
+      "errors": [
+        "Error: page failed to start: ResizeObserver loop completed with undelivered notifications."
+      ]
+    },
+    {
+      "id": "mail-reading.fixed-width.light.zh-CN.320x400",
+      "page": "mail-reading",
+      "theme": "light",
+      "errors": [
+        "Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed and the 'allow-scripts' permission is not set."
+      ]
+    },
+    {
+      "id": "mail-reading.fixed-width.dark.zh-CN.320x400",
+      "page": "mail-reading",
+      "theme": "dark",
+      "errors": [
+        "Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed and the 'allow-scripts' permission is not set."
+      ]
+    },
+    {
+      "id": "plugin-install-mail.participant-avatars.light.zh-CN.360x720",
+      "page": "plugin-install-mail",
+      "theme": "light",
+      "errors": [
+        "Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed and the 'allow-scripts' permission is not set.",
+        "Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed and the 'allow-scripts' permission is not set."
+      ]
+    },
+    {
+      "id": "plugin-install-mail.participant-avatars.dark.zh-CN.360x720",
+      "page": "plugin-install-mail",
+      "theme": "dark",
+      "errors": [
+        "Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed and the 'allow-scripts' permission is not set.",
+        "Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed and the 'allow-scripts' permission is not set."
+      ]
+    },
+    {
+      "id": "plugin-install-mail.read-mail-body.light.zh-CN.360x600",
+      "page": "plugin-install-mail",
+      "theme": "light",
+      "errors": [
+        "Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed and the 'allow-scripts' permission is not set.",
+        "Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed and the 'allow-scripts' permission is not set."
+      ]
+    },
+    {
+      "id": "plugin-install-mail.read-mail-body.dark.zh-CN.360x600",
+      "page": "plugin-install-mail",
+      "theme": "dark",
+      "errors": [
+        "Error: page failed to start: ResizeObserver loop completed with undelivered notifications."
+      ]
+    },
+    {
+      "id": "plugin-install-mail.two-mail-views.light.zh-CN.700x600",
+      "page": "plugin-install-mail",
+      "theme": "light",
+      "errors": [
+        "Error: page failed to start: ResizeObserver loop completed with undelivered notifications."
+      ]
+    },
+    {
+      "id": "plugin-install-mail.two-mail-views.dark.zh-CN.700x600",
+      "page": "plugin-install-mail",
+      "theme": "dark",
+      "errors": [
+        "Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed and the 'allow-scripts' permission is not set.",
+        "Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed and the 'allow-scripts' permission is not set."
+      ]
+    },
+    {
+      "id": "plugin-install-mail.edit-mail-body.light.zh-CN.700x600",
+      "page": "plugin-install-mail",
+      "theme": "light",
+      "errors": [
+        "Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed and the 'allow-scripts' permission is not set.",
+        "Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed and the 'allow-scripts' permission is not set."
+      ]
+    },
+    {
+      "id": "plugin-install-mail.edit-mail-body.dark.zh-CN.700x600",
+      "page": "plugin-install-mail",
+      "theme": "dark",
+      "errors": [
+        "Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed and the 'allow-scripts' permission is not set."
+      ]
+    },
+    {
+      "id": "plugin-install-mail.refresh-mail-body.light.zh-CN.700x600",
+      "page": "plugin-install-mail",
+      "theme": "light",
+      "errors": [
+        "Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed and the 'allow-scripts' permission is not set."
+      ]
+    },
+    {
+      "id": "plugin-install-mail.refresh-mail-body.dark.zh-CN.700x600",
+      "page": "plugin-install-mail",
+      "theme": "dark",
+      "errors": [
+        "Blocked script execution in 'about:srcdoc' because the document's frame is sandboxed and the 'allow-scripts' permission is not set."
+      ]
+    },
+    {
+      "id": "region-capture.video.light.zh-CN.900x700",
+      "page": "region-capture",
+      "theme": "light",
+      "errors": [
+        "Error: variant timed out after 20000ms"
+      ]
+    },
+    {
+      "id": "region-capture.video.dark.zh-CN.900x700",
+      "page": "region-capture",
+      "theme": "dark",
+      "errors": [
+        "Error: variant timed out after 20000ms"
+      ]
+    },
+    {
+      "id": "region-capture.gif.light.zh-CN.900x700",
+      "page": "region-capture",
+      "theme": "light",
+      "errors": [
+        "browserContext.newPage: Protocol error (Target.createTarget): Not supported"
+      ]
+    },
+    {
+      "id": "region-capture.gif.dark.zh-CN.900x700",
+      "page": "region-capture",
+      "theme": "dark",
+      "errors": [
+        "browserContext.newPage: Protocol error (Target.createTarget): Not supported"
+      ]
+    },
+    {
+      "id": "relay-service.default.light.zh-CN.760x720",
+      "page": "relay-service",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "relay-service.default.dark.zh-CN.760x720",
+      "page": "relay-service",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "relay-service.server.light.zh-CN.360x900",
+      "page": "relay-service",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "relay-service.server.dark.zh-CN.360x900",
+      "page": "relay-service",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "relay-service.host.light.zh-CN.760x720",
+      "page": "relay-service",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "relay-service.host.dark.zh-CN.760x720",
+      "page": "relay-service",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "relay-service.retry-replace.light.zh-CN.760x720",
+      "page": "relay-service",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "relay-service.retry-replace.dark.zh-CN.760x720",
+      "page": "relay-service",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "relay-service.retry-own.light.zh-CN.760x720",
+      "page": "relay-service",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "relay-service.retry-own.dark.zh-CN.760x720",
+      "page": "relay-service",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "relay-service.retry-existing.light.zh-CN.760x720",
+      "page": "relay-service",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "relay-service.retry-existing.dark.zh-CN.760x720",
+      "page": "relay-service",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "relay-service.retry-check-error.light.zh-CN.760x720",
+      "page": "relay-service",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "relay-service.retry-check-error.dark.zh-CN.760x720",
+      "page": "relay-service",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "relay-service.deploy-steady.light.zh-CN.760x720",
+      "page": "relay-service",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "relay-service.deploy-steady.dark.zh-CN.760x720",
+      "page": "relay-service",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "relay-service.multi.light.zh-CN.760x720",
+      "page": "relay-service",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "relay-service.multi.dark.zh-CN.760x720",
+      "page": "relay-service",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "remote-model-access.alias-all.light.zh-CN.760x700",
+      "page": "remote-model-access",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "remote-model-access.alias-all.dark.zh-CN.760x700",
+      "page": "remote-model-access",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "remote-model-access.alias-partial.light.zh-CN.760x700",
+      "page": "remote-model-access",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "remote-model-access.alias-partial.dark.zh-CN.760x700",
+      "page": "remote-model-access",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "remote-model-access.alias-pi-ceiling.light.zh-CN.760x700",
+      "page": "remote-model-access",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "remote-model-access.alias-pi-ceiling.dark.zh-CN.760x700",
+      "page": "remote-model-access",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "remote-model-access.alias-pi-only.light.zh-CN.760x700",
+      "page": "remote-model-access",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "remote-model-access.alias-pi-only.dark.zh-CN.760x700",
+      "page": "remote-model-access",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "remote-model-access.budget.light.zh-CN.760x700",
+      "page": "remote-model-access",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "remote-model-access.budget.dark.zh-CN.760x700",
+      "page": "remote-model-access",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "remote-model-access.budget-claude.light.zh-CN.760x700",
+      "page": "remote-model-access",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "remote-model-access.budget-claude.dark.zh-CN.760x700",
+      "page": "remote-model-access",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "remote-model-access.budget-new-model.light.zh-CN.760x700",
+      "page": "remote-model-access",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "remote-model-access.budget-new-model.dark.zh-CN.760x700",
+      "page": "remote-model-access",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "remote-model-access.budget-learning.light.zh-CN.760x700",
+      "page": "remote-model-access",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "remote-model-access.budget-learning.dark.zh-CN.760x700",
+      "page": "remote-model-access",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "remote-model-access.budget-save-failure.light.zh-CN.760x700",
+      "page": "remote-model-access",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "remote-model-access.budget-save-failure.dark.zh-CN.760x700",
+      "page": "remote-model-access",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "remote-model-access.budget-unsupported.light.zh-CN.760x700",
+      "page": "remote-model-access",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "remote-model-access.budget-unsupported.dark.zh-CN.760x700",
+      "page": "remote-model-access",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "remote-model-access.default.light.zh-CN.760x700",
+      "page": "remote-model-access",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "remote-model-access.default.dark.zh-CN.760x700",
+      "page": "remote-model-access",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "remote-model-access.member.light.zh-CN.760x700",
+      "page": "remote-model-access",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "remote-model-access.member.dark.zh-CN.760x700",
+      "page": "remote-model-access",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "rich-answer.default.light.zh-CN.560x480",
+      "page": "rich-answer",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "rich-answer.default.dark.zh-CN.560x480",
+      "page": "rich-answer",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "rich-answer.narrow.light.zh-CN.320x520",
+      "page": "rich-answer",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "rich-answer.narrow.dark.zh-CN.320x520",
+      "page": "rich-answer",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "rich-answer.readonly.light.zh-CN.560x480",
+      "page": "rich-answer",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "rich-answer.readonly.dark.zh-CN.560x480",
+      "page": "rich-answer",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "scheduler-model.default.light.zh-CN.720x600",
+      "page": "scheduler-model",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "scheduler-model.default.dark.zh-CN.720x600",
+      "page": "scheduler-model",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "subscription-fast.default.light.zh-CN.760x800",
+      "page": "subscription-fast",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "subscription-fast.default.dark.zh-CN.760x800",
+      "page": "subscription-fast",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "subscription-fast.prohibited.light.zh-CN.760x800",
+      "page": "subscription-fast",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "subscription-fast.prohibited.dark.zh-CN.760x800",
+      "page": "subscription-fast",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "subscription-fast.pending.light.zh-CN.760x800",
+      "page": "subscription-fast",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "subscription-fast.pending.dark.zh-CN.760x800",
+      "page": "subscription-fast",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "subscription-fast.narrow.light.zh-CN.320x950",
+      "page": "subscription-fast",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "subscription-fast.narrow.dark.zh-CN.320x950",
+      "page": "subscription-fast",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "task-execution-errors.default.light.zh-CN.560x440",
+      "page": "task-execution-errors",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "task-execution-errors.default.dark.zh-CN.560x440",
+      "page": "task-execution-errors",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "task-execution-errors.narrow.light.zh-CN.320x540",
+      "page": "task-execution-errors",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "task-execution-errors.narrow.dark.zh-CN.320x540",
+      "page": "task-execution-errors",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "task-execution-errors.history.light.zh-CN.560x440",
+      "page": "task-execution-errors",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "task-execution-errors.history.dark.zh-CN.560x440",
+      "page": "task-execution-errors",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "task-execution-errors.subagent.light.zh-CN.560x440",
+      "page": "task-execution-errors",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "task-execution-errors.subagent.dark.zh-CN.560x440",
+      "page": "task-execution-errors",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammate-feishu.default.light.zh-CN.720x900",
+      "page": "teammate-feishu",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammate-feishu.default.dark.zh-CN.720x900",
+      "page": "teammate-feishu",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammate-feishu.feishu-onboarding.light.zh-CN.720x900",
+      "page": "teammate-feishu",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammate-feishu.feishu-onboarding.dark.zh-CN.720x900",
+      "page": "teammate-feishu",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammate-feishu.feishu-lark.light.zh-CN.720x900",
+      "page": "teammate-feishu",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammate-feishu.feishu-lark.dark.zh-CN.720x900",
+      "page": "teammate-feishu",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammate-feishu.feishu-expanded.light.zh-CN.720x900",
+      "page": "teammate-feishu",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammate-feishu.feishu-expanded.dark.zh-CN.720x900",
+      "page": "teammate-feishu",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammate-feishu.feishu-narrow.light.zh-CN.320x700",
+      "page": "teammate-feishu",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammate-feishu.feishu-narrow.dark.zh-CN.320x700",
+      "page": "teammate-feishu",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammate-glance.default.light.zh-CN.1040x760",
+      "page": "teammate-glance",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammate-glance.default.dark.zh-CN.1040x760",
+      "page": "teammate-glance",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammate-glance.menu.light.zh-CN.1040x760",
+      "page": "teammate-glance",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammate-glance.menu.dark.zh-CN.1040x760",
+      "page": "teammate-glance",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammate-glance.new.light.zh-CN.1040x760",
+      "page": "teammate-glance",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammate-glance.new.dark.zh-CN.1040x760",
+      "page": "teammate-glance",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammate-glance.activity.light.zh-CN.1040x760",
+      "page": "teammate-glance",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammate-glance.activity.dark.zh-CN.1040x760",
+      "page": "teammate-glance",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammate-task-filter.default.light.zh-CN.840x640",
+      "page": "teammate-task-filter",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammate-task-filter.default.dark.zh-CN.840x640",
+      "page": "teammate-task-filter",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammate-task-filter.archived-reminder.light.zh-CN.840x640",
+      "page": "teammate-task-filter",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammate-task-filter.archived-reminder.dark.zh-CN.840x640",
+      "page": "teammate-task-filter",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammates-section.states.light.zh-CN.800x600",
+      "page": "teammates-section",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammates-section.states.dark.zh-CN.800x600",
+      "page": "teammates-section",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammates-section.default.light.zh-CN.800x600",
+      "page": "teammates-section",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammates-section.default.dark.zh-CN.800x600",
+      "page": "teammates-section",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammates-section.session.light.zh-CN.800x600",
+      "page": "teammates-section",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammates-section.session.dark.zh-CN.800x600",
+      "page": "teammates-section",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammates-section.history.light.zh-CN.800x600",
+      "page": "teammates-section",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammates-section.history.dark.zh-CN.800x600",
+      "page": "teammates-section",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammates-section.direct.light.zh-CN.800x600",
+      "page": "teammates-section",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammates-section.direct.dark.zh-CN.800x600",
+      "page": "teammates-section",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammates-section.remote.light.zh-CN.800x600",
+      "page": "teammates-section",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammates-section.remote.dark.zh-CN.800x600",
+      "page": "teammates-section",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammates-section.merged-cindy.light.zh-CN.800x600",
+      "page": "teammates-section",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammates-section.merged-cindy.dark.zh-CN.800x600",
+      "page": "teammates-section",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammates-section.long-speakers-11.light.zh-CN.800x600",
+      "page": "teammates-section",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammates-section.long-speakers-11.dark.zh-CN.800x600",
+      "page": "teammates-section",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammates-section.long-speakers-999.light.zh-CN.800x600",
+      "page": "teammates-section",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammates-section.long-speakers-999.dark.zh-CN.800x600",
+      "page": "teammates-section",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammates-section.device-names.light.zh-CN.800x600",
+      "page": "teammates-section",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "teammates-section.device-names.dark.zh-CN.800x600",
+      "page": "teammates-section",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "thread-panels.group.light.zh-CN.960x640",
+      "page": "thread-panels",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "thread-panels.group.dark.zh-CN.960x640",
+      "page": "thread-panels",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "thread-panels.default.light.zh-CN.960x640",
+      "page": "thread-panels",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "thread-panels.default.dark.zh-CN.960x640",
+      "page": "thread-panels",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "thread-panels.failed.light.zh-CN.960x640",
+      "page": "thread-panels",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "thread-panels.failed.dark.zh-CN.960x640",
+      "page": "thread-panels",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "unified-model-rail.default.light.zh-CN.780x640",
+      "page": "unified-model-rail",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "unified-model-rail.default.dark.zh-CN.780x640",
+      "page": "unified-model-rail",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "unified-model-rail.recent.light.zh-CN.780x640",
+      "page": "unified-model-rail",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "unified-model-rail.recent.dark.zh-CN.780x640",
+      "page": "unified-model-rail",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "unified-model-rail.cindy-personal.light.zh-CN.780x640",
+      "page": "unified-model-rail",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "unified-model-rail.cindy-personal.dark.zh-CN.780x640",
+      "page": "unified-model-rail",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "unified-model-rail.cindy-xd.light.zh-CN.780x640",
+      "page": "unified-model-rail",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "unified-model-rail.cindy-xd.dark.zh-CN.780x640",
+      "page": "unified-model-rail",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "unified-model-rail.cindy-organization.light.zh-CN.780x640",
+      "page": "unified-model-rail",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "unified-model-rail.cindy-organization.dark.zh-CN.780x640",
+      "page": "unified-model-rail",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "usage-task-table.default.light.zh-CN.1100x320",
+      "page": "usage-task-table",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "usage-task-table.default.dark.zh-CN.1100x320",
+      "page": "usage-task-table",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-call.default.light.zh-CN.800x820",
+      "page": "voice-call",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-call.default.dark.zh-CN.800x820",
+      "page": "voice-call",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-call.narrow.light.zh-CN.320x900",
+      "page": "voice-call",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-call.narrow.dark.zh-CN.320x900",
+      "page": "voice-call",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-call.wide.light.zh-CN.1280x900",
+      "page": "voice-call",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-call.wide.dark.zh-CN.1280x900",
+      "page": "voice-call",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-call.failed.light.zh-CN.800x820",
+      "page": "voice-call",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-call.failed.dark.zh-CN.800x820",
+      "page": "voice-call",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-call.speech-timeout.light.zh-CN.320x900",
+      "page": "voice-call",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-call.speech-timeout.dark.zh-CN.320x900",
+      "page": "voice-call",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-call.speech-error.light.zh-CN.800x820",
+      "page": "voice-call",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-call.speech-error.dark.zh-CN.800x820",
+      "page": "voice-call",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-call.empty.light.zh-CN.800x820",
+      "page": "voice-call",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-call.empty.dark.zh-CN.800x820",
+      "page": "voice-call",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-call.muted.light.zh-CN.800x820",
+      "page": "voice-call",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-call.muted.dark.zh-CN.800x820",
+      "page": "voice-call",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-call.speaking.light.zh-CN.800x820",
+      "page": "voice-call",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-call.speaking.dark.zh-CN.800x820",
+      "page": "voice-call",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-call.countdown.light.zh-CN.320x900",
+      "page": "voice-call",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-call.countdown.dark.zh-CN.320x900",
+      "page": "voice-call",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-call.long.light.zh-CN.800x820",
+      "page": "voice-call",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-call.long.dark.zh-CN.800x820",
+      "page": "voice-call",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.openrouter-auto-voice.light.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.openrouter-auto-voice.dark.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.minimax-auto-voice.light.zh-CN.320x900",
+      "page": "voice-settings",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.minimax-auto-voice.dark.zh-CN.320x900",
+      "page": "voice-settings",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.openrouter.light.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.openrouter.dark.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.openrouter-manual.light.zh-CN.320x900",
+      "page": "voice-settings",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.openrouter-manual.dark.zh-CN.320x900",
+      "page": "voice-settings",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.gateway-elevenlabs.light.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.gateway-elevenlabs.dark.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.gateway-minimax.light.zh-CN.320x900",
+      "page": "voice-settings",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.gateway-minimax.dark.zh-CN.320x900",
+      "page": "voice-settings",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.gateway-manual.light.zh-CN.320x900",
+      "page": "voice-settings",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.gateway-manual.dark.zh-CN.320x900",
+      "page": "voice-settings",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.default.light.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.default.dark.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.narrow.light.zh-CN.320x820",
+      "page": "voice-settings",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.narrow.dark.zh-CN.320x820",
+      "page": "voice-settings",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.minimax.light.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.minimax.dark.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.openai.light.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.openai.dark.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.qwen.light.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.qwen.dark.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.qwen-proxy.light.zh-CN.320x900",
+      "page": "voice-settings",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.qwen-proxy.dark.zh-CN.320x900",
+      "page": "voice-settings",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.cosyvoice.light.zh-CN.320x900",
+      "page": "voice-settings",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.cosyvoice.dark.zh-CN.320x900",
+      "page": "voice-settings",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.unsupported.light.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.unsupported.dark.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.hidden.light.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.hidden.dark.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.hidden-empty.light.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.hidden-empty.dark.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.qwen-catalog.light.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.qwen-catalog.dark.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.cosy-catalog.light.zh-CN.320x900",
+      "page": "voice-settings",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.cosy-catalog.dark.zh-CN.320x900",
+      "page": "voice-settings",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.cosy-custom-failure.light.zh-CN.320x900",
+      "page": "voice-settings",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.cosy-custom-failure.dark.zh-CN.320x900",
+      "page": "voice-settings",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.empty.light.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.empty.dark.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.manual.light.zh-CN.320x900",
+      "page": "voice-settings",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.manual.dark.zh-CN.320x900",
+      "page": "voice-settings",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.menu.light.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.menu.dark.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.menu-narrow.light.zh-CN.320x820",
+      "page": "voice-settings",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.menu-narrow.dark.zh-CN.320x820",
+      "page": "voice-settings",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.menu-error.light.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.menu-error.dark.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.menu-timeout.light.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.menu-timeout.dark.zh-CN.460x740",
+      "page": "voice-settings",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.manual-timeout.light.zh-CN.320x900",
+      "page": "voice-settings",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.manual-timeout.dark.zh-CN.320x900",
+      "page": "voice-settings",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.manual-error.light.zh-CN.320x900",
+      "page": "voice-settings",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "voice-settings.manual-error.dark.zh-CN.320x900",
+      "page": "voice-settings",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.default.light.zh-CN.620x900",
+      "page": "wechat-companion",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.default.dark.zh-CN.620x900",
+      "page": "wechat-companion",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.existing.light.zh-CN.620x900",
+      "page": "wechat-companion",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.existing.dark.zh-CN.620x900",
+      "page": "wechat-companion",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.assigned.light.zh-CN.620x900",
+      "page": "wechat-companion",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.assigned.dark.zh-CN.620x900",
+      "page": "wechat-companion",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.other.light.zh-CN.620x900",
+      "page": "wechat-companion",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.other.dark.zh-CN.620x900",
+      "page": "wechat-companion",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.feishu-hidden-tasks.light.zh-CN.620x900",
+      "page": "wechat-companion",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.feishu-hidden-tasks.dark.zh-CN.620x900",
+      "page": "wechat-companion",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.feishu-hidden-tasks-narrow.light.zh-CN.360x900",
+      "page": "wechat-companion",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.feishu-hidden-tasks-narrow.dark.zh-CN.360x900",
+      "page": "wechat-companion",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.sidebar-394.light.zh-CN.1280x900",
+      "page": "wechat-companion",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.sidebar-394.dark.zh-CN.1280x900",
+      "page": "wechat-companion",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.sidebar-320.light.zh-CN.1280x900",
+      "page": "wechat-companion",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.sidebar-320.dark.zh-CN.1280x900",
+      "page": "wechat-companion",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.wide-settings.light.zh-CN.1280x900",
+      "page": "wechat-companion",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.wide-settings.dark.zh-CN.1280x900",
+      "page": "wechat-companion",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.long-name.light.zh-CN.1280x1000",
+      "page": "wechat-companion",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.long-name.dark.zh-CN.1280x1000",
+      "page": "wechat-companion",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.header-action.light.zh-CN.1280x1100",
+      "page": "wechat-companion",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.header-action.dark.zh-CN.1280x1100",
+      "page": "wechat-companion",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.header-action-empty.light.zh-CN.1280x900",
+      "page": "wechat-companion",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.header-action-empty.dark.zh-CN.1280x900",
+      "page": "wechat-companion",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.sidebar-empty-320.light.zh-CN.1280x900",
+      "page": "wechat-companion",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.sidebar-empty-320.dark.zh-CN.1280x900",
+      "page": "wechat-companion",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.header-action-empty-320.light.zh-CN.1280x900",
+      "page": "wechat-companion",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.header-action-empty-320.dark.zh-CN.1280x900",
+      "page": "wechat-companion",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.header-action-empty-394.light.zh-CN.1280x900",
+      "page": "wechat-companion",
+      "theme": "light",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    },
+    {
+      "id": "wechat-companion.header-action-empty-394.dark.zh-CN.1280x900",
+      "page": "wechat-companion",
+      "theme": "dark",
+      "errors": [
+        "AssertionError [ERR_ASSERTION]: Electron window matches the variant viewport"
+      ]
+    }
+  ]
+}
