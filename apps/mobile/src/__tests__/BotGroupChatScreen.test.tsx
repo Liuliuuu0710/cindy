@@ -120,7 +120,7 @@ vi.mock('react-i18next', async (importOriginal) => ({
 vi.mock('expo-crypto', () => ({ randomUUID: () => `uuid-${++h.uuid}` }));
 vi.mock('lucide-react-native', () => Object.fromEntries(
   ['Copy', 'Share', 'ArrowUpRight', 'CornerDownRight', 'Circle', 'Bell', 'ChevronLeft', 'Settings2', 'Plus', 'Square', 'Users', 'X', 'Check', 'CircleAlert', 'CircleCheck', 'CircleDashed', 'FileText', 'Sparkles', 'Folder', 'Camera', 'Image',
-    'Video', 'Layers', 'ListChecks', 'ListTodo', 'Ellipsis', 'ChevronRight', 'ChevronDown']
+    'Layers', 'ListChecks', 'ListTodo', 'Ellipsis', 'ChevronRight', 'ChevronDown']
     .map((name) => [name, () => null]),
 ));
 vi.mock('@/theme', async () => ({
@@ -202,7 +202,7 @@ vi.mock('@/session/useMobileLocalAttachments', () => ({
     h.local.setPending = setPending;
     return {
       pendingUploads, pastePlaceholderCount: 0,
-      addImages: h.local.addImages, addVideos: h.local.addVideos, addDocument: h.local.addDocument, addPastedImages: h.local.addPastedImages,
+      addImages: h.local.addImages, addDocument: h.local.addDocument, addPastedImages: h.local.addPastedImages,
       beginPastePlaceholders: vi.fn(), failPastePlaceholders: vi.fn(), enqueueUploads: h.local.enqueueUploads,
       removePendingUpload: h.local.removePendingUpload, retryPendingUpload: vi.fn(),
       waitForPendingUploads: h.local.wait, releaseUploadedSources: h.local.release, getPendingUploadCount: () => pendingUploads.length,
@@ -339,7 +339,7 @@ beforeEach(() => {
   h.discarded = []; h.deleted = []; h.leaveGuard = []; h.leaveDecision = async () => false;
   h.local = {
     options: null, setPending: null,
-    addImages: vi.fn(), addVideos: vi.fn(), addDocument: vi.fn(), addPastedImages: vi.fn(), enqueueUploads: vi.fn(),
+    addImages: vi.fn(), addDocument: vi.fn(), addPastedImages: vi.fn(), enqueueUploads: vi.fn(),
     removePendingUpload: vi.fn(), release: vi.fn(), wait: vi.fn(async () => ({ failedCount: 0 })),
   };
   h.confirm.mockResolvedValue(true);
@@ -973,12 +973,12 @@ describe('group attachments', () => {
     expect(byId('botGroup.composer.menu')).toBeNull();
     await click('botGroup.composer.more');
     expect(byId('botGroup.contextSheet')?.getAttribute('aria-label')).toBe('groupChat.composer.more');
-    for (const row of ['botGroup.contextSheetPhotos', 'botGroup.contextSheetPhotoRow', 'botGroup.contextSheetVideoRow', 'botGroup.contextSheetCameraRow', 'botGroup.contextSheetFileRow']) {
+    for (const row of ['botGroup.contextSheetPhotos', 'botGroup.contextSheetPhotoRow', 'botGroup.contextSheetCameraRow', 'botGroup.contextSheetFileRow']) {
       expect(byId(row)).not.toBeNull();
     }
-    expect(node.textContent).toContain('session.common.photo');
-    await click('botGroup.contextSheetVideoRow');
-    expect(h.local.addVideos).toHaveBeenCalledOnce();
+    expect(node.textContent).toContain('session.common.photosAndVideos');
+    await click('botGroup.contextSheetPhotoRow');
+    expect(h.local.addImages).toHaveBeenLastCalledWith('library');
     await click('botGroup.contextSheetCameraRow');
     expect(h.local.addImages).toHaveBeenLastCalledWith('camera');
     await click('botGroup.contextSheetFileRow');

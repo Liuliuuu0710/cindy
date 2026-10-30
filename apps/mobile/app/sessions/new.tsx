@@ -96,7 +96,6 @@ import { Text } from '@/components/AppText';
 import type { TextInput as NativeTextInput } from 'react-native';
 import {
   Camera,
-  Video,
   Check,
   ChevronDown,
   ChevronRight,
@@ -887,7 +886,6 @@ function NewRemoteSessionContent({ creatingRef }: { creatingRef: { current: bool
     beginPastePlaceholders,
     failPastePlaceholders,
     addImages: addLocalImageAttachments,
-    addVideos: addLocalVideoAttachments,
     addDocument: addLocalFileAttachment,
     addPastedImages: addPastedImageAttachments,
     enqueueUploads,
@@ -5732,18 +5730,10 @@ function NewRemoteSessionContent({ creatingRef }: { creatingRef: { current: bool
               <ContextSheetRow
                 disabled={creating}
                 icon={<Image color={colors.textPrimary} size={iconSize.lg} strokeWidth={iconStroke.regular} />}
-                label={t('session.common.photo')}
+                label={t('session.common.photosAndVideos')}
                 onPress={() => void addLocalImageAttachments('library')}
                 dismissBeforePress
                   testID="newSession.contextSheetPhotoRow"
-              />
-              <ContextSheetRow
-                disabled={creating}
-                icon={<Video color={colors.textPrimary} size={iconSize.lg} strokeWidth={iconStroke.regular} />}
-                label={t('message.payloadPresentation.video')}
-                onPress={() => void addLocalVideoAttachments()}
-                dismissBeforePress
-                testID="newSession.contextSheetVideoRow"
               />
               <ContextSheetRow
                 disabled={creating}

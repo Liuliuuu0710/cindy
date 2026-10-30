@@ -233,15 +233,16 @@ describe('useMobileLocalAttachments abandonment on scope change', () => {
     expect(runtime.uploads).toHaveLength(0);
   });
 
-  it.each(['library', 'camera', 'document', 'video'] as const)('reports %s input before a slot exists and ignores late selections after scope exit', async source => {
+  it.each(['library', 'camera', 'document', 'fallback-library'] as const)('reports %s input before a slot exists and ignores late selections after scope exit', async source => {
     const harness = mount('session-a');
     let finish!: (value: unknown) => void;
     const picker = source === 'library' ? runtime.pickPhotos : source === 'camera' ? runtime.pickCamera
-      : source === 'video' ? runtime.pickLibrary : runtime.pickDocument;
+      : source === 'fallback-library' ? runtime.pickLibrary : runtime.pickDocument;
+    if (source === 'fallback-library') runtime.pickPhotos.mockResolvedValue(null);
     picker.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
     let picking!: Promise<void>;
     await act(async () => { picking = source === 'document' ? harness.first.addDocument()
-      : source === 'video' ? harness.first.addVideos() : harness.first.addImages(source); });
+      : harness.first.addImages(source === 'fallback-library' ? 'library' : source); });
     expect(harness.first.getPendingUploadCount()).toBe(0);
     expect(harness.first.hasAttachmentInput()).toBe(true);
     act(() => harness.first.discardAllPendingUploadsForScopeChange());
@@ -261,46 +262,50 @@ describe('useMobileLocalAttachments abandonment on scope change', () => {
 
   // unit integration: the real hook must carry library videos into the existing
   // file queue. Existing picker tests cover only images and document-provider files.
-  it.each(['ios', 'android'])('uploads selected MOV and MP4 files without image conversion and waits before sending on %s', async platform => {
+  it.each(['ios', 'android'])('uploads a mixed photo, MOV and MP4 selection through the legacy fallback on %s', async platform => {
     runtime.platform = platform;
+    runtime.pickPhotos.mockResolvedValue(null);
     const upload = vi.fn<NonNullable<UseMobileLocalAttachmentsOptions['upload']>>(async (candidate) => ({ ...candidate, id: candidate.name, path: 'peer-ref', category: 'file', ext: '.mov', mimeType: candidate.mimeType ?? 'application/octet-stream' }));
     const harness = mount('session-a', upload);
     // Unknown picker size must be resolved through the existing file stat path.
     runtime.pickLibrary.mockResolvedValue({ canceled: false, assets: [
-      { uri: 'file:///library/clip.mov', fileName: 'original.MOV', mimeType: 'video/quicktime', fileSize: null },
-      { uri: 'file:///library/clip.mp4', fileName: null, mimeType: 'video/mp4', fileSize: 2000 },
+      { type: 'video', uri: 'file:///library/clip.mov', fileName: 'original.MOV', mimeType: 'video/quicktime', fileSize: null },
+      { type: 'video', uri: 'file:///library/clip.mp4', fileName: null, mimeType: 'video/mp4', fileSize: 2000 },
+      { type: 'image', uri: 'file:///library/still.png', fileName: 'still.png', mimeType: 'image/png', fileSize: 1000, width: 32, height: 32 },
     ] });
     await act(async () => {
-      await harness.first.addVideos();
+      await harness.first.addImages('library');
       expect(harness.latest().hasAttachmentInput()).toBe(true);
       expect(await harness.latest().waitForPendingUploads()).toEqual({ failedCount: 0, abandoned: false });
     });
     expect(runtime.pickLibrary).toHaveBeenCalledWith(expect.objectContaining({
-      mediaTypes: ['videos'], allowsMultipleSelection: true, selectionLimit: 20,
+      mediaTypes: ['images', 'videos'], allowsMultipleSelection: true, selectionLimit: 20,
       videoExportPreset: 0, preferredAssetRepresentationMode: 'current',
     }));
     expect(upload.mock.calls.map(([candidate, uri]) => [candidate.name, candidate.size, candidate.mimeType, uri])).toEqual(expect.arrayContaining([
       ['original.MOV', 1000, 'video/quicktime', 'file:///library/clip.mov'],
       ['clip.mp4', 2000, 'video/mp4', 'file:///library/clip.mp4'],
+      ['still.png', 1000, 'image/png', 'file:///library/still.png'],
     ]));
-    expect(harness.options.onUploaded).toHaveBeenCalledTimes(2);
+    expect(harness.options.onUploaded).toHaveBeenCalledTimes(3);
     expect(harness.options.onUploaded).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({ kind: 'file', name: 'original.MOV' }), expect.any(String));
     expect(harness.options.onError).not.toHaveBeenCalledWith(expect.any(String), expect.anything());
-    expect(runtime.pickPhotos).not.toHaveBeenCalled();
+    if (platform === 'android') expect(runtime.pickPhotos).not.toHaveBeenCalled();
   });
 
   it('limits video selection to the remaining slots shared with files and images', async () => {
     const harness = mount('session-a');
+    runtime.pickPhotos.mockResolvedValue(null);
     harness.options.getAttachmentCount = () => 19;
     harness.rerender('session-a');
     runtime.pickLibrary.mockResolvedValue({ canceled: false, assets: [
-      { uri: 'file:///clip.mov', fileName: 'clip.mov', fileSize: 1000 },
-      { uri: 'file:///extra.mp4', fileName: 'extra.mp4', fileSize: 1000 },
+      { type: 'video', uri: 'file:///clip.mov', fileName: 'clip.mov', fileSize: 1000 },
+      { type: 'video', uri: 'file:///extra.mp4', fileName: 'extra.mp4', fileSize: 1000 },
     ] });
-    await act(async () => { await harness.first.addVideos(); });
+    await act(async () => { await harness.first.addImages('library'); });
     expect(runtime.pickLibrary).toHaveBeenCalledWith(expect.objectContaining({ selectionLimit: 1 }));
     expect(harness.latest().pendingUploads.map(item => item.name)).toEqual(['clip.mov']);
-    await act(async () => { await harness.latest().addVideos(); });
+    await act(async () => { await harness.latest().addImages('library'); });
     expect(runtime.pickLibrary).toHaveBeenCalledOnce();
     expect(harness.options.onError).toHaveBeenLastCalledWith('composer.upload.maxAttachments');
   });
@@ -310,15 +315,16 @@ describe('useMobileLocalAttachments abandonment on scope change', () => {
       ext: '.mov', size: 1000, category: 'file', mimeType: 'video/quicktime' };
     const upload = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValue(attachment);
     const harness = mount('session-a', upload);
+    runtime.pickPhotos.mockResolvedValue(null);
     runtime.pickLibrary.mockResolvedValueOnce({ canceled: true, assets: null });
-    await act(async () => { await harness.first.addVideos(); });
+    await act(async () => { await harness.first.addImages('library'); });
     expect(harness.first.hasAttachmentInput()).toBe(false);
     expect(upload).not.toHaveBeenCalled();
     runtime.pickLibrary.mockResolvedValueOnce({ canceled: false, assets: [
-      { uri: 'file:///clip.mov', fileName: 'clip.mov', fileSize: 1000, mimeType: 'video/quicktime' },
+      { type: 'video', uri: 'file:///clip.mov', fileName: 'clip.mov', fileSize: 1000, mimeType: 'video/quicktime' },
     ] });
     await act(async () => {
-      await harness.first.addVideos();
+      await harness.first.addImages('library');
       expect(await harness.latest().waitForPendingUploads()).toEqual({ failedCount: 1, abandoned: false });
     });
     expect(harness.latest().pendingUploads).toHaveLength(1);
