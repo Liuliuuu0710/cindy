@@ -82,7 +82,7 @@ export function BotGroupSpeakerRow({ deviceId, identity, sessionId, activity, on
     : activity === 'planning'
     ? t('groupChat.speaking.planning')
     : copy ?? (activity === 'step' ? t('groupChat.speaking.step') : t('devices.companions.working.processing'));
-  const elapsed = startedAt && Number.isFinite(startedAt)
+  const elapsed = executionStatus !== 'queued' && startedAt && Number.isFinite(startedAt)
     ? t('message.renderer.workedDuration', { duration: formatLocalizedSeconds((now - startedAt) / 1000) }) : null;
   return <View style={styles.row} testID="botGroup.speaking" accessibilityLabel={`${identity.name}, ${waiting ? t('groupChat.waitingConfirm', { name: identity.name }) : label}`}>
     <View style={styles.nameRow}>
