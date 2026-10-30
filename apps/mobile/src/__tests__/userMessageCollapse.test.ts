@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { i18n } from '@/i18n';
 import { buildMessageContentLayout, nextSettledContentWidth } from '@/session/messageContentLayout';
 import { selectableTextVerticalOffset } from '@/session/selectableTextAlignment';
-import { rendererFunction, rendererSource, executeRenderer } from './fixtures/messageRendererComponents';
+import { rendererFunction, rendererSource, selectableTextFunction, selectableTextSource, executeRenderer } from './fixtures/messageRendererComponents';
 import { PR_WATCH_EXPANDED_BLANK_FIXTURE } from '@/__tests__/fixtures/prWatchExpandedBlank';
 
 import {
@@ -184,7 +184,7 @@ const Text = nativeText('rn-text');
 const UITextView = nativeText('ios-text-view');
 const ScrollView = (props: SurfaceProps) => React.createElement('div', { 'data-scroll': true }, props.children);
 const { BubbleHarness, MarkdownHarness } = executeRenderer<{ BubbleHarness: React.ComponentType<any>; MarkdownHarness: React.ComponentType<any> }>(
-  rendererFunction('MarkdownSelectableText').getText(rendererSource) + String.raw`
+  selectableTextFunction('MarkdownSelectableText').getText(selectableTextSource).replace(/^export\s+/, '') + String.raw`
 function MarkdownHarness({ pinContentWidth = false, allowIosUITextView = true, boundTextRuns = false, selectable, text, layout, code = false, codeCopyEnabled = true }) {
   const styles = {};
   const onOpenPayload = undefined;
@@ -220,6 +220,7 @@ function BubbleHarness({ body, kind = 'user', automationOrigin: origin }) {
   const replyTarget = null;
   const replyTargetId = null;
   const isStreamingAssistant = false;
+  const adviceAnswer = null;
   const contentLayout = buildMessageContentLayout({ screenWidth: 402 });
   const t = i18n.t.bind(i18n);
   ` + collapseCode + bodyStatement('bubble', 'MessageBubble').getText(rendererSource) + String.raw`

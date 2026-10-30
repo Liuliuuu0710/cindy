@@ -23,6 +23,13 @@ vi.mock('@/components/AppText', async () => {
     'data-selectable': String(selectable),
   }, children) };
 });
+vi.mock('@/session/MarkdownSelectableText', async () => {
+  const { createElement } = await import('react');
+  return { MarkdownSelectableText: ({ children, selectable, style, accessibilityRole }: any) => createElement('span', {
+    style, role: accessibilityRole === 'header' ? 'heading' : undefined,
+    'data-selectable': String(selectable),
+  }, children) };
+});
 vi.mock('@/theme', async () => {
   const { lightColors, darkColors } = await import('@/theme/tokens');
   return { useThemedStyles: (make: (colors: unknown) => unknown) => make(state.dark ? darkColors : lightColors) };

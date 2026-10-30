@@ -14,15 +14,22 @@ import { iconSize, iconStroke, lightColors } from '@/theme/tokens';
 // host or unrelated viewers. Only native view surfaces and unrelated children
 // are adapted; routing, folding, account/device keys, and React hooks stay real.
 export const rendererSource = ts.createSourceFile('MessageRenderer.tsx', readFileSync(resolve(process.cwd(), 'src/session/MessageRenderer.tsx'), 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-export function rendererFunction(name: string): ts.FunctionDeclaration | ts.FunctionExpression {
+export const selectableTextSource = ts.createSourceFile('MarkdownSelectableText.tsx', readFileSync(resolve(process.cwd(), 'src/session/MarkdownSelectableText.tsx'), 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+function functionIn(source: ts.SourceFile, name: string): ts.FunctionDeclaration | ts.FunctionExpression {
   let found: ts.FunctionDeclaration | ts.FunctionExpression | undefined;
   function visit(node: ts.Node) {
     if ((ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node)) && node.name?.text === name) found = node;
     ts.forEachChild(node, visit);
   }
-  visit(rendererSource);
-  if (!found?.body) throw new Error('Message renderer function was not found: ' + name);
+  visit(source);
+  if (!found?.body) throw new Error('Renderer function was not found: ' + name);
   return found;
+}
+export function rendererFunction(name: string): ts.FunctionDeclaration | ts.FunctionExpression {
+  return functionIn(rendererSource, name);
+}
+export function selectableTextFunction(name: string): ts.FunctionDeclaration | ts.FunctionExpression {
+  return functionIn(selectableTextSource, name);
 }
 
 export function executeRenderer<T>(code: string, globals: Record<string, unknown>): T {

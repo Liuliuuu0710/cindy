@@ -4,6 +4,7 @@ import { View, Pressable, StyleSheet } from 'react-native';
 import { ChevronDown } from 'lucide-react-native';
 import type { AdviceAnswer } from '@cindy/maker-shared/message-presentation';
 import { Text } from '@/components/AppText';
+import { MarkdownSelectableText } from '@/session/MarkdownSelectableText';
 import { useThemedStyles, type ThemeColors } from '@/theme';
 import { fontWeight, lineHeight, navigationChrome, radius, spacing, typeScale } from '@/theme/tokens';
 
@@ -15,14 +16,17 @@ function AdviceRow({ item, index, selectable }: { item: AdviceAnswer['items'][nu
     <View style={[styles.row, index > 0 && styles.separator]}>
       <View style={styles.heading}>
         <Text accessible={false} style={styles.number}>{String(index + 1).padStart(2, '0')}</Text>
-        <Text accessibilityRole="header" selectable={selectable} style={styles.itemTitle}>{item.title}</Text>
+        <MarkdownSelectableText accessibilityRole="header" selectable={selectable} style={styles.itemTitle}>{item.title}</MarkdownSelectableText>
         <Pressable accessibilityRole="button" accessibilityLabel={expanded ? t('message.renderer.collapseExplanation') : t('message.renderer.expandExplanation')} accessibilityState={{ expanded }} onPress={() => setExpanded((value) => !value)} style={styles.toggle}>
           <ChevronDown size={16} color={styles.number.color} style={expanded ? styles.expandedIcon : undefined} />
         </Pressable>
       </View>
       <View style={styles.content}>
-        <Text selectable={selectable} style={styles.body}><Text style={styles.actionLabel}>{item.actionLabel}</Text> {item.action}</Text>
-        {expanded && <Text selectable={selectable} style={styles.explanation}>{item.explanation}</Text>}
+        <View style={styles.actionRow}>
+          <Text style={styles.actionLabel}>{item.actionLabel}</Text>
+          <MarkdownSelectableText selectable={selectable} style={styles.actionBody}>{item.action}</MarkdownSelectableText>
+        </View>
+        {expanded && <MarkdownSelectableText selectable={selectable} style={styles.explanation}>{item.explanation}</MarkdownSelectableText>}
       </View>
     </View>
   );
@@ -36,12 +40,12 @@ export function AdviceAnswerCards({ answer, selectable = true }: {
   const styles = useThemedStyles(makeStyles);
   return (
     <View style={styles.answer} testID="advice-answer">
-      <Text accessibilityRole="header" selectable={selectable} style={styles.title}>{answer.title}</Text>
-      <Text selectable={selectable} style={styles.body}>{answer.introduction}</Text>
+      <MarkdownSelectableText accessibilityRole="header" selectable={selectable} style={styles.title}>{answer.title}</MarkdownSelectableText>
+      <MarkdownSelectableText selectable={selectable} style={styles.body}>{answer.introduction}</MarkdownSelectableText>
       <View style={styles.card}>
         {answer.items.map((item, index) => <AdviceRow key={index} item={item} index={index} selectable={selectable} />)}
       </View>
-      <Text selectable={selectable} style={styles.note}>{answer.note}</Text>
+      <MarkdownSelectableText selectable={selectable} style={styles.note}>{answer.note}</MarkdownSelectableText>
     </View>
   );
 }
@@ -58,7 +62,9 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   toggle: { width: navigationChrome.target, height: navigationChrome.target, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill },
   expandedIcon: { transform: [{ rotate: '180deg' }] },
   content: { marginLeft: spacing.xl + spacing.sm, gap: spacing.sm },
+  actionRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs },
   actionLabel: { fontSize: typeScale.caption, lineHeight: lineHeight.caption, fontWeight: fontWeight.medium, color: colors.textSecondary, backgroundColor: colors.surfaceChip, borderRadius: radius.pill, paddingHorizontal: spacing.sm, overflow: 'hidden' },
+  actionBody: { flex: 1, fontSize: typeScale.bodyLarge, lineHeight: lineHeight.bodyLarge, fontWeight: fontWeight.regular, color: colors.textPrimary },
   body: { fontSize: typeScale.bodyLarge, lineHeight: lineHeight.bodyLarge, fontWeight: fontWeight.regular, color: colors.textPrimary },
   explanation: { fontSize: typeScale.footnote, lineHeight: lineHeight.caption, fontWeight: fontWeight.regular, color: colors.textSecondary, borderLeftWidth: 1, borderLeftColor: colors.border, paddingLeft: spacing.sm },
   note: { fontSize: typeScale.footnote, lineHeight: lineHeight.caption, fontWeight: fontWeight.regular, color: colors.textSecondary },

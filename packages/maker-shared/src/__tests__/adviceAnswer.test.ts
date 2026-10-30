@@ -53,4 +53,18 @@ describe('explicit advice-answer Markdown', () => {
       actionLabel: 'Try this', action: 'First record the reason.\n\nThen review the evidence.',
     });
   });
+
+  it('rejects links, images, inline code, HTML, bare URLs and emphasis so cards never render dead text', () => {
+    const cases = [
+      source.replace('选一个已有项目，定义这周可以交付的最小成果。', '按 [指南](https://example.com) 操作。'),
+      source.replace('减少同时启动的新方向，给一个项目留下完成交付的时间。', '见 ![配图](https://example.com/a.png) 说明。'),
+      source.replace('先把注意力放在这三件事上', '先运行 `npm run setup`'),
+      source.replace('这些建议供你选择和试用，不是对你能力的定论。', '注意事项 <b>加粗</b> 说明。'),
+      source.replace('选一个已有项目，定义这周可以交付的最小成果。', '去 https://example.com 查看。'),
+      source.replace('先把注意力放在这三件事上', '先做 **A** 与 __B__ 两件事'),
+    ];
+    for (const content of cases) {
+      expect(parseAdviceAnswer(content)).toBeNull();
+    }
+  });
 });

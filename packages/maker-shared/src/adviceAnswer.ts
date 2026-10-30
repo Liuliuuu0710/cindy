@@ -26,6 +26,13 @@ function boundedText(text: string, maxLength: number): boolean {
   return text.length > 0 && text.length <= maxLength;
 }
 
+/** v1 fields are plain text only: links, images, bare URLs, inline code, HTML
+ *  and emphasis markers would render as dead (non-clickable) text inside the
+ *  card, so such content falls back to the regular Markdown renderer. */
+function hasUnsupportedMarkdown(text: string): boolean {
+  return /\[[^\]]*\]\(|https?:\/\/|`|<|\*\*|__|~~/.test(text);
+}
+
 /** Incomplete, unmarked, unsupported or invalid messages keep their Markdown UI. */
 export function parseAdviceAnswer(content: string, isStreaming = false): AdviceAnswer | null {
   if (isStreaming || content.length > MAX_SOURCE_LENGTH) return null;
@@ -64,5 +71,7 @@ export function parseAdviceAnswer(content: string, isStreaming = false): AdviceA
       || !boundedText(actionLabel, 80) || !boundedText(action, 3000)) return null;
     items.push({ title: itemTitle, explanation, actionLabel, action });
   }
+  if ([title, introduction, note, ...items.flatMap((item) => [item.title, item.explanation, item.actionLabel, item.action])]
+    .some(hasUnsupportedMarkdown)) return null;
   return { version: 1, title, introduction, items, note };
 }
