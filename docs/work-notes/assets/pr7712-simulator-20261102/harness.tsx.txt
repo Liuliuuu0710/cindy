@@ -1,0 +1,84 @@
+// Temporary native acceptance harness. Removed after evidence capture; no live transport.
+import { useRef, useState } from 'react';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Stack } from 'expo-router';
+import * as FileSystem from 'expo-file-system/legacy';
+import { Text } from '@/components/AppText';
+import { useTheme, textStyles, spacing } from '@/theme';
+import { MOBILE_VISUAL_MOCK_ENABLED } from '@/config/env';
+import { BotGroupComposer, type BotGroupSendInput } from '@/session/BotGroupComposer';
+import { BotGroupMessageAttachments } from '@/session/BotGroupMessageAttachments';
+import { MobileComposerInputRow } from '@/session/MobileComposerInputRow';
+import type { UseMobileLocalAttachmentsOptions } from '@/session/useMobileLocalAttachments';
+import type { RemoteSerializedAttachment } from '@/session/types';
+
+export default function AttachmentAcceptance() {
+  const { colors, mode, setPreference } = useTheme();
+  const [kind, setKind] = useState<'group' | 'shared'>('group');
+  const [value, setValue] = useState('');
+  const [focused, setFocused] = useState(false);
+  const [plus, setPlus] = useState(0);
+  const [status, setStatus] = useState('Ready');
+  const [sent, setSent] = useState<BotGroupSendInput[]>([]);
+  const pending = useRef<Array<{ok(): void; fail(): void}>>([]);
+  const sendFinish = useRef<(() => void) | null>(null);
+  const upload = useRef<UseMobileLocalAttachmentsOptions['upload']>((candidate, uri) => new Promise((resolve, reject) => {
+    setStatus('Upload held: choose Complete / Fail');
+    pending.current.push({
+      ok: async () => { const image = candidate.mimeType?.startsWith('image/');
+        const url = image ? `data:${candidate.mimeType};base64,${await FileSystem.readAsStringAsync(uri, { encoding: 'base64' })}` : uri;
+        resolve({ id: `acceptance-${Date.now()}`, name: candidate.name, size: candidate.size,
+          mimeType: candidate.mimeType || 'application/octet-stream', path: uri, url,
+          ext: image ? '.jpg' : '.pdf', category: image ? 'image' : 'file' } as RemoteSerializedAttachment);
+        setStatus('Upload completed (mock transport)'); },
+      fail: () => { reject(new Error('Acceptance: simulated upload failure')); setStatus('Upload failed (mock transport)'); },
+    });
+  })).current;
+  if (!__DEV__ || !MOBILE_VISUAL_MOCK_ENABLED) return null;
+  const control = (label: string, action: () => void) => <Pressable key={label} accessibilityRole="button" accessibilityLabel={label}
+    onPress={action} style={{ minHeight: 44, paddingHorizontal: spacing.sm, justifyContent: 'center', borderWidth: 1, borderColor: colors.border }}>
+    <Text style={[textStyles.caption, { color: colors.textPrimary }]}>{label}</Text></Pressable>;
+  return <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+    <Stack.Screen options={{ headerShown: false }} />
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+      <View style={{ padding: spacing.md, gap: spacing.xs }}>
+        <Text style={[textStyles.body, { color: colors.textPrimary }]}>#7712 native UI acceptance · AFTER</Text>
+        <Text style={[textStyles.caption, { color: colors.textSecondary }]}>Synthetic room / controlled transport · {mode}</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          {control('Light', () => void setPreference('light'))}{control('Dark', () => void setPreference('dark'))}
+          {control('Group', () => setKind('group'))}{control('Shared input', () => setKind('shared'))}
+          {control('Complete upload', () => pending.current.splice(0).forEach(p => p.ok()))}
+          {control('Fail upload', () => pending.current.splice(0).forEach(p => p.fail()))}
+          {control('Complete send', () => sendFinish.current?.())}
+          {control('Sample PDF projection', () => setSent(current => [...current, { text: 'Synthetic PDF projection (not an upload)', mentions: [], clientId: 'pdf-projection', division: false,
+            attachments: [{ id: 'pdf-projection', name: 'acceptance.pdf', mimeType: 'application/pdf', size: 2048, path: '', ext: '.pdf', category: 'file' }] }]))}
+        </View>
+        <Text style={[textStyles.caption, { color: colors.textSecondary }]}>{status}</Text>
+      </View>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ gap: spacing.sm, paddingHorizontal: spacing.md }} keyboardShouldPersistTaps="always">
+        {sent.map((message, index) => <View key={index}>
+          <Text style={[textStyles.caption, { color: colors.textSecondary, textAlign: 'right' }]}>我 · synthetic send {index + 1}</Text>
+          <Text style={[textStyles.body, { color: colors.textPrimary, textAlign: 'right' }]}>{message.text}</Text>
+          <BotGroupMessageAttachments messageId={`acceptance-${index}`} align="right"
+            attachments={message.attachments.map(a => ({ id: a.id, name: a.name, category: a.category === 'image' ? 'image' : 'pdf',
+              mimeType: a.mimeType, size: a.size, url: a.url || a.path, path: null }))}
+            onResolveRemoteMedia={async (media) => ({ url: media.url, ossKey: '', mimeType: 'image/jpeg', size: 0, expiresAt: '2099-01-01T00:00:00Z', previewable: true })} />
+        </View>)}
+      </ScrollView>
+      {kind === 'group' ? <BotGroupComposer members={[{ botId: 'cindy-default', name: 'Cindy', status: 'active' }]}
+        identityFor={(botId, name) => ({ botId, name })} deviceId="cindy-visual-mock-mac" online running={false}
+        planState={null} attachmentsSupported uploadAttachment={upload} divisionSupported={false}
+        onSend={(input) => new Promise<void>((resolve) => { setStatus('Sending held (mock transport)');
+          sendFinish.current = () => { setSent(current => [...current, input]); setStatus('Sent (mock transport)'); sendFinish.current = null; resolve(); }; })}
+        onStop={async () => {}} /> : <View style={{ padding: spacing.lg }}>
+        <Text style={[textStyles.caption, { color: colors.textSecondary }]}>Production shared input · non-morph · plus taps {plus}</Text>
+        <MobileComposerInputRow accessibilityLabel="Shared composer" inputTestID="acceptance.shared.input"
+          value={value} onChangeText={setValue} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+          cardActive={focused || !!value} placeholder="Shared non-morph input"
+          leading={control('+ shared', () => setPlus(n => n + 1))}
+          toolbar={control('+ shared toolbar', () => setPlus(n => n + 1))} />
+      </View>}
+    </KeyboardAvoidingView>
+  </SafeAreaView>;
+}
