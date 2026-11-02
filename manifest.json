@@ -1,0 +1,86 @@
+{
+  "date": "2026-11-02",
+  "nativeFingerprint": "575f37bf001e7127835f90ed445b2c608a75a054",
+  "runtime": "iOS 26.5",
+  "viewport": "402x874 pt",
+  "uiMock": true,
+  "screenshots": [
+    {
+      "name": "new-task-panel-dark.jpg",
+      "scene": "新建任务统一入口，未授予相册广泛读取权限",
+      "theme": "dark",
+      "sha256": "9b9ed73993d9436033def97aba36c1ab06c6245b3eb895ad0a3879f9eec24b19",
+      "sourceHead": "5932856d42f25ed66fcf47ffbfc5d3af5fd81a8d"
+    },
+    {
+      "name": "native-picker-mixed-dark.jpg",
+      "scene": "系统 PHPicker 同批选择一张公开图片与一个视频",
+      "theme": "dark",
+      "sha256": "8411e8e8d138e5564ffc585096487ff8b363bb6862a9afd8011bfedd705937e0",
+      "sourceHead": "5932856d42f25ed66fcf47ffbfc5d3af5fd81a8d"
+    },
+    {
+      "name": "mixed-selection-return-dark.jpg",
+      "scene": "选择后返回新建任务，检查视频文件与图片分别保留",
+      "theme": "dark",
+      "sha256": "7321b5c7cdf4f4f7506c13083dea25b87b2d4872e6c963f5eea15b743c26dab4",
+      "sourceHead": "5932856d42f25ed66fcf47ffbfc5d3af5fd81a8d"
+    },
+    {
+      "name": "mixed-upload-auth-block-light.jpg",
+      "scene": "混选进入既有上传队列，mock 令牌 INVALID_TOKEN，保留失败与重试入口，未发送",
+      "theme": "light",
+      "sha256": "469ef91cd676341b6ec564afc820ed83ccfa11b3901bedef441dc8b3b646362e",
+      "sourceHead": "5932856d42f25ed66fcf47ffbfc5d3af5fd81a8d"
+    },
+    {
+      "name": "new-task-panel-light.jpg",
+      "scene": "新建任务统一照片与视频入口，Light",
+      "theme": "light",
+      "sha256": "0f17695f9cbea03eff5d6e6854dc4d8d0182a8d03e9187c120b0d8b5aff0540e",
+      "sourceHead": "5932856d42f25ed66fcf47ffbfc5d3af5fd81a8d"
+    },
+    {
+      "name": "native-picker-light.jpg",
+      "scene": "未授予全相册权限时仍打开系统混选器，Light",
+      "theme": "light",
+      "sha256": "0e3b402a2337b715bd42e7a2376895c1dc27237ebd635483d8b35c9b8771ac8e",
+      "sourceHead": "5932856d42f25ed66fcf47ffbfc5d3af5fd81a8d"
+    },
+    {
+      "name": "existing-task-panel-light.jpg",
+      "scene": "已有普通任务统一入口，Light",
+      "theme": "light",
+      "sha256": "d853b9f85d6beaea0b279ddab2568733c15ab8ab6923ada673c9a1cb4b54f6fd",
+      "sourceHead": "5932856d42f25ed66fcf47ffbfc5d3af5fd81a8d"
+    },
+    {
+      "name": "existing-task-panel-dark.jpg",
+      "scene": "已有普通任务统一入口，Dark",
+      "theme": "dark",
+      "sha256": "3d8e8fb0e7d8cb4cd42d4454760067361b0502c6feacfdcf8c1ecb45a3614d93",
+      "sourceHead": "5932856d42f25ed66fcf47ffbfc5d3af5fd81a8d"
+    },
+    {
+      "name": "group-panel-dark.jpg",
+      "scene": "开发夹具能力补齐后的群聊统一照片与视频入口，Dark",
+      "theme": "dark",
+      "sourceHead": "a8d807569a",
+      "sha256": "8be6312d92d0b7fed7477875ef3bcf0d2e60cb0a12f893518e86141658f150d2"
+    },
+    {
+      "name": "group-panel-light.jpg",
+      "scene": "开发夹具能力补齐后的群聊统一照片与视频入口，Light",
+      "theme": "light",
+      "sourceHead": "a8d807569a",
+      "sha256": "d28d76d88b513a3bc576386ad3c7dbc365208b239bf2f2b316e2b575cac5b1b8"
+    },
+    {
+      "name": "group-native-picker-light.jpg",
+      "scene": "群聊入口实际打开包含视频的系统相册，取消返回，未发送",
+      "theme": "light",
+      "sourceHead": "a8d807569a",
+      "sha256": "13fa041dfd8bfe9662e47fd46f2ba7bddf135af568db5ebf92e156f17ade9778"
+    }
+  ]
+}
