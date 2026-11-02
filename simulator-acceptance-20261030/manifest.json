@@ -1,0 +1,222 @@
+[
+  {
+    "name": "light-multi-collapsed",
+    "file": "light-multi-collapsed.jpg",
+    "capturedAt": "2026-10-30T10:34:32.467Z",
+    "screen": {
+      "width": 402,
+      "height": 874,
+      "orientation": "portrait"
+    },
+    "sha256": "8dc9b297a4be4dcf9f1cbc0675fd9c72c29adc586abeb73a8e7f59cb6dde43f9"
+  },
+  {
+    "name": "light-multi-expanded",
+    "file": "light-multi-expanded.jpg",
+    "capturedAt": "2026-10-30T10:34:38.049Z",
+    "screen": {
+      "width": 402,
+      "height": 874,
+      "orientation": "portrait"
+    },
+    "sha256": "6b0406ac9789ad8821d4cdb851c013608c665b7256b6338e1cf93cbbe7640de5"
+  },
+  {
+    "name": "light-multi-scrolled",
+    "file": "light-multi-scrolled.jpg",
+    "capturedAt": "2026-10-30T10:35:03.802Z",
+    "screen": {
+      "width": 402,
+      "height": 874,
+      "orientation": "portrait"
+    },
+    "sha256": "e55ed16545e8449fe71de8ecd222a7f168a0d258cfc49d83620fe40149c30d9c"
+  },
+  {
+    "name": "light-single-queued",
+    "file": "light-single-queued.jpg",
+    "capturedAt": "2026-10-30T10:36:19.122Z",
+    "screen": {
+      "width": 402,
+      "height": 874,
+      "orientation": "portrait"
+    },
+    "sha256": "b0401928b6eeba93937545f4d9c79ebedf5355f50a5702a88a0c80af8d099083"
+  },
+  {
+    "name": "light-permission-actions",
+    "file": "light-permission-actions.jpg",
+    "capturedAt": "2026-10-30T10:35:46.023Z",
+    "screen": {
+      "width": 402,
+      "height": 874,
+      "orientation": "portrait"
+    },
+    "sha256": "cc6f02ab532453462fbae30b3acfa5771fa88385da521f6c9cfde42be13cceb7"
+  },
+  {
+    "name": "light-permission-resolved",
+    "file": "light-permission-resolved.jpg",
+    "capturedAt": "2026-10-30T10:36:14.135Z",
+    "screen": {
+      "width": 402,
+      "height": 874,
+      "orientation": "portrait"
+    },
+    "sha256": "1698d98a7fe30a2315fc9a6e5569719c9cf2cc2e0deabf8621d2f72178a33def"
+  },
+  {
+    "name": "light-question-actions",
+    "file": "light-question-actions.jpg",
+    "capturedAt": "2026-10-30T10:38:19.779Z",
+    "screen": {
+      "width": 402,
+      "height": 874,
+      "orientation": "portrait"
+    },
+    "sha256": "b5cb137b0c46c652fa8fcd65edabbe5ec270210778246c83ae15d208cfbd39e5"
+  },
+  {
+    "name": "light-keyboard",
+    "file": "light-keyboard.jpg",
+    "capturedAt": "2026-10-30T10:40:11.892Z",
+    "screen": {
+      "width": 402,
+      "height": 874,
+      "orientation": "portrait"
+    },
+    "sha256": "b02ec7e19088b9d61be6c0083cfff58b1b8369fb25e1b41894e49f65e1bce0cc"
+  },
+  {
+    "name": "light-keyboard-expanded",
+    "file": "light-keyboard-expanded.jpg",
+    "capturedAt": "2026-10-30T10:40:06.316Z",
+    "screen": {
+      "width": 402,
+      "height": 874,
+      "orientation": "portrait"
+    },
+    "sha256": "ab1af57b2eb230356998d81682252c30e79458c77291fb1a838e6b1957e87753"
+  },
+  {
+    "name": "dark-multi-collapsed",
+    "file": "dark-multi-collapsed.jpg",
+    "capturedAt": "2026-10-30T10:37:35.644Z",
+    "screen": {
+      "width": 402,
+      "height": 874,
+      "orientation": "portrait"
+    },
+    "sha256": "8d9126284950876596afb6f60fc5a14f04d16a5e2b7e774c056f7d468414f96a"
+  },
+  {
+    "name": "dark-multi-expanded",
+    "file": "dark-multi-expanded.jpg",
+    "capturedAt": "2026-10-30T10:37:40.132Z",
+    "screen": {
+      "width": 402,
+      "height": 874,
+      "orientation": "portrait"
+    },
+    "sha256": "bc6db5e35363e582f962ef12275bd4f5491eabd5625ee430232c89bcaed0fb80"
+  },
+  {
+    "name": "dark-single-queued",
+    "file": "dark-single-queued.jpg",
+    "capturedAt": "2026-10-30T10:36:45.949Z",
+    "screen": {
+      "width": 402,
+      "height": 874,
+      "orientation": "portrait"
+    },
+    "sha256": "30bc6c753a61ce4e4277a378f99400fa8fd16a6bebfb42418ae02d3cc4bbf37a"
+  },
+  {
+    "name": "dark-single-expanded",
+    "file": "dark-single-expanded.jpg",
+    "capturedAt": "2026-10-30T10:36:51.963Z",
+    "screen": {
+      "width": 402,
+      "height": 874,
+      "orientation": "portrait"
+    },
+    "sha256": "73a1616ef018269a1b02de0b0493ec9689006f354958b335dbc45802ca779b63"
+  },
+  {
+    "name": "dark-permission-actions-clean",
+    "file": "dark-permission-actions-clean.jpg",
+    "capturedAt": "2026-10-30T10:41:34.892Z",
+    "screen": {
+      "width": 402,
+      "height": 874,
+      "orientation": "portrait"
+    },
+    "sha256": "557959ac4878b60714b453766ac4077edd87d0fb4fdd4fefbfd492f980773b56"
+  },
+  {
+    "name": "dark-permission-resolved",
+    "file": "dark-permission-resolved.jpg",
+    "capturedAt": "2026-10-30T10:41:39.656Z",
+    "screen": {
+      "width": 402,
+      "height": 874,
+      "orientation": "portrait"
+    },
+    "sha256": "250c961a960709ee96dab42a4e616295b9c911e38ffe156b146723d00a66a910"
+  },
+  {
+    "name": "dark-question-selected",
+    "file": "dark-question-selected.jpg",
+    "capturedAt": "2026-10-30T10:38:50.273Z",
+    "screen": {
+      "width": 402,
+      "height": 874,
+      "orientation": "portrait"
+    },
+    "sha256": "b77adaae0f589ebdfbe77d57450aca30b6b39ce3e017566c9e01030a81eedd72"
+  },
+  {
+    "name": "dark-question-resolved",
+    "file": "dark-question-resolved.jpg",
+    "capturedAt": "2026-10-30T10:38:55.785Z",
+    "screen": {
+      "width": 402,
+      "height": 874,
+      "orientation": "portrait"
+    },
+    "sha256": "dd1b0099bf9ef3fe80b2e5fb357ba6dcf550512229e01f6edec78621aa026ee2"
+  },
+  {
+    "name": "dark-keyboard",
+    "file": "dark-keyboard.jpg",
+    "capturedAt": "2026-10-30T10:39:23.484Z",
+    "screen": {
+      "width": 402,
+      "height": 874,
+      "orientation": "portrait"
+    },
+    "sha256": "dc97b39537d6bba05852068121528134e19c00ab4c0cfb0cd234af9cb18b9d3e"
+  },
+  {
+    "name": "dark-keyboard-expanded",
+    "file": "dark-keyboard-expanded.jpg",
+    "capturedAt": "2026-10-30T10:39:59.773Z",
+    "screen": {
+      "width": 402,
+      "height": 874,
+      "orientation": "portrait"
+    },
+    "sha256": "c3b39bea3b2e03ec2ac11b82ae8b01dcf1d408770c897758b2751249889f3d67"
+  },
+  {
+    "name": "build-label",
+    "file": "build-label.jpg",
+    "capturedAt": "2026-10-30T10:42:15.229Z",
+    "screen": {
+      "width": 402,
+      "height": 874,
+      "orientation": "portrait"
+    },
+    "sha256": "1b295d9ac0dc72a538f2767c9377bc2aa052b968c785d4e2671bae88d9468c8f"
+  }
+]

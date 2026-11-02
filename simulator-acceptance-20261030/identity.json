@@ -1,0 +1,24 @@
+{
+  "healthy": true,
+  "pageVerified": false,
+  "region": "global",
+  "uiMock": true,
+  "bundleId": "com.xd.cindy",
+  "source": "feat/mobile-direct-group-attachments@55cf935b5+6adbab3b36",
+  "expectedSource": "feat/mobile-direct-group-attachments@55cf935b5+6adbab3b36",
+  "expectedPort": 8081,
+  "currentSourceOnExpectedPort": true,
+  "native": {
+    "healthy": true,
+    "code": "native-matched",
+    "installedFingerprint": "ddb763835cdf9497f45a5995db8830ae098b362f",
+    "expectedFingerprint": "ddb763835cdf9497f45a5995db8830ae098b362f"
+  },
+  "installed": {
+    "version": "0.1.0",
+    "buildNumber": "2026072301"
+  },
+  "testedPRCommit": "86837dffd61b5503f2ee621b29d50b662c6d4eac",
+  "currentPRCommitAtPublication": "876bc498c9e820e35dd1a14c4cfe799de6f01c6f",
+  "componentMatchCurrentHead": true
+}

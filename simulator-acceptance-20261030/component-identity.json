@@ -1,0 +1,12 @@
+[
+  {
+    "file": "apps/mobile/src/session/BotGroupWorkArea.tsx",
+    "matchesPRHead": true,
+    "sha256": "79ad0fa7493d0e2d19d7dde4b0b4262b390268013a17fff482550b5b194237d0"
+  },
+  {
+    "file": "apps/mobile/src/session/BotGroupSpeakerRow.tsx",
+    "matchesPRHead": true,
+    "sha256": "a74f7b5e697f7e4589ed24175f9fa188a966ac47a92be01d199b49aad601ab90"
+  }
+]
