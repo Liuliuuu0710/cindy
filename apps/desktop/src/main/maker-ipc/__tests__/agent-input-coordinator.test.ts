@@ -7101,7 +7101,9 @@ describe('AgentInputCoordinator steer transaction', () => {
     const source = readFileSync(resolve(__dirname, '../register.ts'), 'utf8');
     const start = source.indexOf('    steerQueuedMessage: async (sessionId, item, expectedTurn) =>');
     const end = source.indexOf('    getQueueSnapshot:', start);
-    expect(start).toBeGreaterThan(0); expect(end).toBeGreaterThan(start);
+    // Validate extraction before executing the real Host adapter; its behavior,
+    // rather than source spelling, is the assertion below.
+    if (start < 0 || end <= start) throw new Error('Host steer adapter could not be extracted');
     const adapter = transpileModule(`return ({${source.slice(start, end)}}).steerQueuedMessage;`, { compilerOptions: { target: ScriptTarget.ES2022 } }).outputText;
     const host = new Function('inputCoordinator', adapter)({
       ensureQueueRestored: async () => { if (boundary === 'restore') revoked = true; },

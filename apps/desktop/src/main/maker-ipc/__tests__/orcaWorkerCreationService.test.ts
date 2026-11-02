@@ -36,8 +36,8 @@ describe('Host provenance across Orca creation waits', () => {
   const helper = source.slice(source.indexOf('  const assertPluginWorkerAutoAuthorized ='), source.indexOf('  const orcaWorkerCreationService ='));
   function callback(start: string, end: string, bindings: Record<string, unknown>) {
     const from = source.indexOf(start), to = source.indexOf(end, from);
-    expect(from).toBeGreaterThan(0);
-    expect(to).toBeGreaterThan(from);
+    // These bounds validate the executable fixture, not a source-text contract.
+    if (from < 0 || to <= from) throw new Error('Host creation callback could not be extracted');
     const js = ts.transpileModule(`${helper}\nreturn ({${source.slice(from, to)}});`, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
     return new Function('captureTaskActionGuard', 'hasAcceptedUserTaskInput', 'assertPluginWorkerDirectoryScope', ...Object.keys(bindings), js)(captureTaskActionGuard, hasAcceptedUserTaskInput, assertPluginWorkerDirectoryScope, ...Object.values(bindings));
   }

@@ -1,3 +1,4 @@
+import { failedStepVisualFixture } from './failedStepVisualFixture';
 import {
   REMOTE_RESOURCE_LIST_CHANNEL,
   REMOTE_RESOURCE_GET_CHANNEL,
@@ -40,6 +41,8 @@ const teammates: ReadonlyArray<{ id: string; name: string; preview: string; minu
 const FIXTURE_NOW = Date.now();
 
 export function teammateVisualFixture(channel: string, args: unknown[], now = FIXTURE_NOW): unknown {
+  const failedStep = failedStepVisualFixture(channel, args, now);
+  if (failedStep !== undefined) return failedStep;
   if (channel === 'maker:bot-delegations:list') {
     const bot = teammates.find(item => args[0] === `${VISUAL_TEAMMATE_SESSION_ID}:${item.id}`);
     const ids = bot?.id === 'cindy-default' ? ['visual-running', `${UI_MOCK_ID_PREFIX}rich-answer`]

@@ -2635,7 +2635,9 @@ describe('BotGroupChatView', () => {
       expect(screen.queryByRole('menuitem', { name: /bots\.groupChat\.plan\.removeStep/ })).toBeNull();
     });
 
-    it('offers a retry when a step did not finish', async () => {
+    // Unit: failure controls use the real view and existing mutation entry. Previously only
+    // retry was exposed here; disabled actions must never invoke unsupported host commands.
+    it('offers retry and explicit unavailable recovery choices when a step did not finish', async () => {
       const failed = plan({
         status: 'waiting',
         currentStep: 1,
@@ -2659,8 +2661,37 @@ describe('BotGroupChatView', () => {
       expect(row.textContent).toContain('bots.groupChat.timeline.stepFailed:小满');
       // A member notice inside a plan talks about the step, not a chat reply.
       expect(screen.getByText('bots.groupChat.notice.stepTimeout:小满')).toBeTruthy();
+      for (const key of ['skipStep', 'rollbackStep']) {
+        const button = within(row).getByRole('button', { name: `bots.groupChat.plan.${key}` });
+        expect((button as HTMLButtonElement).disabled).toBe(true);
+        fireEvent.click(button);
+      }
+      expect(within(row).getByText('bots.groupChat.plan.skipUnavailable')).toBeTruthy();
+      expect(within(row).getByText('bots.groupChat.plan.rollbackUnavailable')).toBeTruthy();
+      expect(mocks.retryBotGroupPlan).not.toHaveBeenCalled();
+      expect(mocks.editBotGroupPlanStep).not.toHaveBeenCalled();
       fireEvent.click(screen.getByRole('button', { name: 'bots.groupChat.timeline.retryStep' }));
       await waitFor(() => expect(mocks.retryBotGroupPlan).toHaveBeenCalledWith({ groupId: 'g1', planId: 'p1' }));
+    });
+
+    it('changes a failed step’s teammate from the recovery row and waits for an explicit retry', async () => {
+      const failed = plan({ status: 'waiting', currentStep: 1,
+        steps: [{ ...plan().steps[0]!, status: 'done' }, { ...plan().steps[1]!, status: 'failed' }] });
+      mocks.getBotGroup.mockResolvedValue({ ok: true, group: withPlan(failed) });
+      let finishEdit!: (value: { ok: true }) => void;
+      mocks.editBotGroupPlanStep.mockReturnValueOnce(new Promise(resolve => { finishEdit = resolve; }));
+      renderView();
+      const row = await screen.findByTestId('bot-group-plan-follow-up');
+      const change = within(row).getByRole('button', { name: 'bots.groupChat.plan.reassignStep' });
+      fireEvent.pointerDown(change, { button: 0, ctrlKey: false });
+      fireEvent.click(await screen.findByRole('menuitem', { name: /咪咪/ }));
+      await waitFor(() => expect(mocks.editBotGroupPlanStep).toHaveBeenCalledWith({
+        groupId: 'g1', planId: 'p1', position: 1, action: 'reassign', botId: 'mimi',
+      }));
+      expect((within(row).getByRole('button', { name: 'bots.groupChat.timeline.retryStep' }) as HTMLButtonElement).disabled).toBe(true);
+      expect(mocks.retryBotGroupPlan).not.toHaveBeenCalled();
+      await act(async () => { finishEdit({ ok: true }); });
+      await waitFor(() => expect((within(row).getByRole('button', { name: 'bots.groupChat.timeline.retryStep' }) as HTMLButtonElement).disabled).toBe(false));
     });
 
     it('closes a finished plan with a divider and shows plan notices', async () => {

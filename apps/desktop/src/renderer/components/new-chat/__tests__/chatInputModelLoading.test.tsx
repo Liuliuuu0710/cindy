@@ -746,3 +746,29 @@ it('keeps save/cancel when editing a queued companion message', async () => {
   expect(onSubmit).toHaveBeenCalledOnce();
   expect(onStartVoiceConversation).not.toHaveBeenCalled();
 });
+
+// Unit regression: actual ChatInput controls protect the voice stop target through
+// capture, submission and refinement; source spelling cannot prove hit order.
+it("keeps the task stop before dictation and lets an active recording stop", async () => {
+  const onStop = vi.fn();
+  const inputProps = { ...companionProps(), isStreaming: true, onSend: vi.fn(), onStop };
+  const view = render(<ChatInput {...inputProps} />);
+  await act(async () => { h.editor?.commands.setContent("<p>Next message</p>"); });
+  for (const state of ["idle", "listening", "submitting", "refining"] as const) {
+    h.listening = state === "listening";
+    h.processing = state === "submitting" || state === "refining" ? state : null;
+    view.rerender(<ChatInput {...inputProps} />);
+    const stop = screen.getByRole("button", { name: "newChat.sendButton.stop" });
+    const labels = { idle: 'newChat.chatInput.voiceInput.start', listening: 'newChat.chatInput.voiceInput.stop',
+      submitting: 'voiceInputOverlay.status.submitting', refining: 'newChat.chatInput.voiceInput.refining' };
+    const dictation = screen.getByRole("button", { name: labels[state] });
+    expect(stop.compareDocumentPosition(dictation) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect((stop as HTMLButtonElement).disabled).toBe(false);
+    if (state === "listening") {
+      expect((dictation as HTMLButtonElement).disabled).toBe(false);
+      fireEvent.click(dictation);
+      expect(h.stop).toHaveBeenCalledOnce();
+    }
+  }
+  expect(onStop).not.toHaveBeenCalled();
+});

@@ -1316,6 +1316,7 @@ function BotGroupChatContent({ groupId, direct }: { groupId: string; direct: boo
                 pending={followUpPending(pendingFor(openPlan.id))}
                 onContinue={() => void runPlanAction('continue', openPlan.id)}
                 onRetry={() => void runPlanAction('retry', openPlan.id)}
+                onReassign={(step, botId) => void editPlanStep(openPlan.id, step, 'reassign', botId)}
                 onEnd={() => void runPlanAction('dismiss', openPlan.id)}
               />
             </div>
@@ -1459,5 +1460,5 @@ function planCardPending(action: PlanPending['action'] | null): BotGroupPlanCard
 }
 
 function followUpPending(action: PlanPending['action'] | null): BotGroupFollowUpAction | null {
-  return action === 'continue' || action === 'retry' || action === 'dismiss' ? action : null;
+  return action === 'continue' || action === 'retry' || action === 'dismiss' || action === 'edit' ? action : null;
 }

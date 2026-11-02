@@ -38,7 +38,13 @@ const h = vi.hoisted(() => ({
 
 // Keep the real attachment components; only replace native reader and filesystem surfaces for jsdom.
 vi.mock('react-native-webview', () => ({ WebView: () => null }));
-vi.mock('expo-modules-core', () => ({ requireOptionalNativeModule: () => null }));
+// Keep the group body renderer real; jsdom supplies only the native text host.
+// Otherwise the UITextView CommonJS entry requires RN's untransformed Flow source.
+vi.mock('react-native-uitextview', async () => ({ UITextView: (await import('@/components/AppText')).Text }));
+vi.mock('expo-modules-core', () => ({
+  requireOptionalNativeModule: () => null,
+  requireNativeViewManager: () => ({ children }: any) => el('div', null, children),
+}));
 vi.mock('expo-file-system', () => ({ Directory: class {}, File: class {}, Paths: { cache: 'file:///test-cache' } }));
 vi.mock('expo-web-browser', () => ({ openBrowserAsync: vi.fn(async () => ({})) }));
 vi.mock('@/components/ChatReplyIcon', () => ({ ChatReplyIcon: () => null }));
@@ -122,6 +128,7 @@ vi.mock('@/platform/chrome/NativePullDownMenu', () => ({
   },
 }));
 vi.mock('@/components/AppText', () => ({
+  MAX_FONT_SIZE_MULTIPLIER: 1.2,
   Text: ({ children, testID }: any) => el('span', { 'data-testid': testID }, children),
   TextInput: ({ testID, ...props }: any) => { h.inputs[testID] = props; return el('input', { 'data-testid': testID, value: props.value ?? '', readOnly: true }); },
 }));
@@ -627,15 +634,36 @@ describe('group timeline', () => {
     expect(byId('placeholder')?.textContent).toBe('groupChat.composer.placeholderPlanWaiting(name=咪咪)');
   });
 
-  it('offers 重试 when a step did not finish', async () => {
+  // Unit: real screen controls must expose reassignment without silently replaying a
+  // failed step; unsupported skip/rollback never produce a remote write.
+  it('offers retry and reassignment, with unavailable skip and rollback, for a failed step', async () => {
     const data = group({ openPlan: { id: 'p1', status: 'waiting', currentStep: 1, stepCount: 2, currentBotName: '阿布', currentStepStatus: 'failed' } });
     data.plans[0] = { ...data.plans[0]!, status: 'waiting', currentStep: 1,
       steps: [{ ...data.plans[0]!.steps[0]!, status: 'done' }, { ...data.plans[0]!.steps[1]!, status: 'failed' }] };
     await render(data);
     expect(byId('botGroup.followUp.retry')?.textContent).toContain('groupChat.timeline.retryStep');
     expect(node.textContent).toContain('groupChat.followUp.failedStep(step=2)');
+    for (const action of ['skip', 'rollback']) {
+      expect(byId(`botGroup.followUp.${action}`)?.disabled).toBe(true);
+      await click(`botGroup.followUp.${action}`);
+    }
+    expect(node.textContent).toContain('groupChat.plan.skipUnavailable');
+    expect(node.textContent).toContain('groupChat.plan.rollbackUnavailable');
+    expect(byId('botGroup.followUp.reassign.action.abu')).toBeNull();
+    await click('botGroup.followUp.reassign.action.mimi');
+    expect(h.chat.act).toHaveBeenLastCalledWith('plan-edit', { planId: 'p1', position: 1, action: 'reassign', botId: 'mimi' });
+    expect(h.chat.act).not.toHaveBeenCalledWith('plan-retry', expect.anything());
     await click('botGroup.followUp.retry');
     expect(h.chat.act).toHaveBeenLastCalledWith('plan-retry', { planId: 'p1' });
+  });
+
+  it('keeps failed work read-only when the viewer cannot manage the plan', async () => {
+    const data = group({ openPlan: { id: 'p1', status: 'waiting', currentStep: 1, stepCount: 2, currentBotName: '阿布', currentStepStatus: 'failed' } });
+    data.plans[0] = { ...data.plans[0]!, status: 'waiting', currentStep: 1, canManage: false,
+      steps: [{ ...data.plans[0]!.steps[0]!, status: 'done' }, { ...data.plans[0]!.steps[1]!, status: 'failed' }] };
+    await render(data);
+    expect(byId('botGroup.followUpRow.retry')).toBeNull();
+    expect(h.chat.act).not.toHaveBeenCalled();
   });
 
   it('shows superseded and stopped plans read-only', async () => {

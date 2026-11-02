@@ -526,7 +526,7 @@ function planCardPending(action: PlanPending['action'] | null): BotGroupPlanCard
 }
 
 function followUpPending(action: PlanPending['action'] | null): BotGroupFollowUpAction | null {
-  return action === 'continue' || action === 'retry' || action === 'dismiss' ? action : null;
+  return action === 'continue' || action === 'retry' || action === 'dismiss' || action === 'edit' ? action : null;
 }
 
 export function BotGroupTimeline({
@@ -617,8 +617,10 @@ export function BotGroupTimeline({
         </Pressable> : null}
       </View>;
     })}
-    {openPlan && followUp ? <View style={styles.indented}>
+    {openPlan && followUp && (openPlan.canManage ?? true) ? <View style={styles.indented}>
       <BotGroupPlanFollowUpRow followUp={followUp} identityFor={identityFor} deviceId={deviceId} online={online}
+        members={openPlan.kind === 'talk' ? [] : group.members}
+        onReassign={openPlan.kind === 'talk' ? undefined : (step, botId) => onEditStep(openPlan.id, step, 'reassign', botId)}
         stepNumber={openPlan.steps.indexOf(followUp.kind === 'continue' ? followUp.next : followUp.failed) + 1} stepTotal={openPlan.steps.length}
         pending={followUpPending(pendingFor(openPlan.id))}
         onContinue={() => onPlanAction('continue', openPlan.id)}

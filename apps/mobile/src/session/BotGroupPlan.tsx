@@ -35,7 +35,7 @@ import { BotGroupMenu, type BotGroupMenuSection } from './BotGroupMenu';
 export const BOT_GROUP_COMPACT_HIT_SLOP = { top: 4, bottom: 4, left: 4, right: 4 } as const;
 
 export type BotGroupPlanCardAction = 'start' | 'dismiss' | 'edit';
-export type BotGroupFollowUpAction = 'continue' | 'retry' | 'dismiss';
+export type BotGroupFollowUpAction = 'continue' | 'retry' | 'dismiss' | 'edit';
 export type BotGroupIdentityLookup = (botId: string, fallbackName?: string) => BotGroupIdentity;
 
 const REMOVE_STEP_ID = 'remove';
@@ -266,7 +266,7 @@ export function BotGroupPlanEndDivider({ stepCount }: { stepCount: number | null
  * Under an open plan that stopped after a step (K9): the same card shell as every companion card —
  * what comes next (or what did not finish), then 「结束分工」 and the primary 「继续 / 重试」.
  */
-export function BotGroupPlanFollowUpRow({ followUp, identityFor, deviceId, online, pending, stepNumber, stepTotal, onContinue, onRetry, onEnd }: {
+export function BotGroupPlanFollowUpRow({ followUp, identityFor, deviceId, online, pending, stepNumber, stepTotal, onContinue, onRetry, onEnd, members = [], onReassign }: {
   followUp: BotGroupPlanFollowUp;
   identityFor: BotGroupIdentityLookup;
   deviceId: string;
@@ -278,6 +278,8 @@ export function BotGroupPlanFollowUpRow({ followUp, identityFor, deviceId, onlin
   onContinue(): void;
   onRetry(): void;
   onEnd(): void;
+  members?: readonly BotGroupMemberView[];
+  onReassign?: (step: BotGroupPlanStepView, botId: string) => void;
 }) {
   const { t } = useTranslation();
   const styles = useThemedStyles(makeStyles);
@@ -287,6 +289,8 @@ export function BotGroupPlanFollowUpRow({ followUp, identityFor, deviceId, onlin
   const busy = pending !== null;
   const primary = followUp.kind === 'continue' ? 'continue' : 'retry';
   const failed = followUp.kind === 'retry';
+  const candidates = members.filter(member => isActiveBotGroupMember(member)
+    && (!member.actorKind || member.actorKind === 'bot') && member.botId !== step.botId);
   const label = failed
     ? t('groupChat.timeline.stepFailed', { name: identity.name })
     : `${t('groupChat.timeline.nextStep')}${identity.name} ${step.task}`;
@@ -300,6 +304,22 @@ export function BotGroupPlanFollowUpRow({ followUp, identityFor, deviceId, onlin
       <View style={styles.whoAvatar}><BotGroupAvatar deviceId={deviceId} identity={identity} size={BOT_GROUP_INLINE_AVATAR_SIZE} online={online} /></View>
       <Text numberOfLines={2} style={styles.whoText}><Text style={styles.whoName}>{identity.name}</Text>{` ${step.task}`}</Text>
     </View>
+    {failed && onReassign ? <BotGroupMenu title={t('groupChat.plan.stepMenuTitle')}
+      sections={[{ id: 'members', options: candidates.map(member => ({ id: member.botId, title: identityFor(member.botId, member.name).name })) }]}
+      disabled={busy || !online || candidates.length === 0} testID="botGroup.followUp.reassign"
+      onSelect={botId => onReassign(step, botId)}>
+      {open => <CompanionCardButton label={t('groupChat.plan.reassignStep')} onPress={() => open?.()}
+        busy={pending === 'edit'} disabled={busy || !online || candidates.length === 0} />}
+    </BotGroupMenu> : null}
+    {failed && onReassign ? <>
+      <Text style={styles.recoveryNote}>{t(candidates.length ? 'groupChat.plan.reassignThenRetry' : 'groupChat.plan.noReplacement')}</Text>
+      <CompanionCardActions>
+        <CompanionCardButton label={t('groupChat.plan.skipStep')} onPress={() => {}} disabled testID="botGroup.followUp.skip" />
+        <CompanionCardButton label={t('groupChat.plan.rollbackStep')} onPress={() => {}} disabled testID="botGroup.followUp.rollback" />
+      </CompanionCardActions>
+      <Text style={styles.recoveryNote}>{t('groupChat.plan.skipUnavailable')}</Text>
+      <Text style={styles.recoveryNote}>{t('groupChat.plan.rollbackUnavailable')}</Text>
+    </> : null}
     <CompanionCardActions>
       <CompanionCardButton label={t('groupChat.timeline.endPlan')} busy={pending === 'dismiss'} disabled={busy || !online}
         onPress={onEnd} testID="botGroup.followUp.end" />
@@ -336,6 +356,7 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   stepStatus: { color: colors.textTertiary, fontSize: typeScale.caption, lineHeight: lineHeight.caption, flexShrink: 0 },
   muted: { opacity: 0.6 },
   note: { marginTop: spacing.xs, color: colors.textTertiary, fontSize: typeScale.caption, lineHeight: lineHeight.caption },
+  recoveryNote: { color: colors.textSecondary, fontSize: typeScale.footnote, lineHeight: lineHeight.caption },
   files: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   fileChip: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, minHeight: 32, maxWidth: '100%',
     paddingHorizontal: spacing.md, borderRadius: radius.pill, borderWidth: StyleSheet.hairlineWidth,

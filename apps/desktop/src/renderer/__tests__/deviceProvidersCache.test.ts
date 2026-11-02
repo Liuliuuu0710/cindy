@@ -2,9 +2,10 @@
  * useDeviceProviders 的 deviceId-aware 缓存单测(device-link「以被控端为准」)。
  * 守住:远程走隧道 maker:provider:list、按 deviceId 隔离、inflight 去重、缓存命中不重拉、
  * evict 只清该设备、evict 在途结果丢弃不复活 —— 与 useAgentCapabilities 同范式。
- * 模块级缓存:每个用例 vi.resetModules() + 动态 import 拿干净模块。
+ * 模块级缓存通过生产账号边界入口清理，避免逐用例重载模块。
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { evictAllDeviceProviders } from '@/hooks/useDeviceProviders';
 import {
   connectedProvidersForAgent,
   visibleModelUnion,
@@ -12,7 +13,7 @@ import {
 } from '@cindy/model-providers';
 
 beforeEach(() => {
-  vi.resetModules();
+  evictAllDeviceProviders();
 });
 
 it('expires only subscription share snapshots and preserves ordinary API discovery cache semantics', async () => {

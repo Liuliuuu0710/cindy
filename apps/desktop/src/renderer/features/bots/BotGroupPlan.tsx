@@ -9,7 +9,7 @@
  *
  * 交接文件相对安排的工作目录；点开交给系统默认方式，路径越出工作目录的一律不打开。
  */
-import { useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { Check, ChevronDown, ChevronUp, CircleAlert, CircleCheck, CircleDashed, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -477,12 +477,12 @@ function BotGroupHandoffFileChip({ file, workDir }: { file: string; workDir: str
   return name === file ? chip : <Tip text={file}>{chip}</Tip>;
 }
 
-function DividerRow({ children, testId }: { children: ReactNode; testId?: string }) {
+function DividerRow({ children, testId, wrap = false }: { children: ReactNode; testId?: string; wrap?: boolean }) {
   return (
-    <div data-testid={testId} className="flex select-none items-center gap-3 text-12 text-[var(--text-tertiary)]">
-      <span aria-hidden className="h-px min-w-6 flex-1 bg-[var(--border-default)]" />
+    <div data-testid={testId} className={cn('flex min-w-0 select-none items-center gap-3 text-12 text-[var(--text-tertiary)]', wrap && 'flex-wrap')}>
+      {!wrap ? <span aria-hidden className="h-px min-w-6 flex-1 bg-[var(--border-default)]" /> : null}
       {children}
-      <span aria-hidden className="h-px min-w-6 flex-1 bg-[var(--border-default)]" />
+      {!wrap ? <span aria-hidden className="h-px min-w-6 flex-1 bg-[var(--border-default)]" /> : null}
     </div>
   );
 }
@@ -501,7 +501,7 @@ export function BotGroupPlanEndDivider({ stepCount }: { stepCount: number | null
   );
 }
 
-export type BotGroupFollowUpAction = 'continue' | 'retry' | 'dismiss';
+export type BotGroupFollowUpAction = 'continue' | 'retry' | 'dismiss' | 'edit';
 
 /** Under an open plan that stopped after a step: continue with the next one, or retry. */
 export function BotGroupPlanFollowUpRow({
@@ -513,6 +513,7 @@ export function BotGroupPlanFollowUpRow({
   onContinue,
   onRetry,
   onEnd,
+  onReassign,
 }: {
   /** A discussion's turns: the end button only ends the discussion. */
   talk?: boolean;
@@ -523,13 +524,19 @@ export function BotGroupPlanFollowUpRow({
   onContinue: () => void;
   onRetry: () => void;
   onEnd: () => void;
+  onReassign?: (step: BotGroupPlanStepView, botId: string) => void;
 }) {
   const { t } = useTranslation();
+  const skipDescriptionId = useId();
+  const rollbackDescriptionId = useId();
   const step = followUp.kind === 'continue' ? followUp.next : followUp.failed;
   const identity = stepIdentity(step, members);
   const busy = pending !== null;
+  const failedWork = followUp.kind === 'retry' && !talk;
+  const candidates = members.filter(member => isActiveBotGroupMember(member)
+    && (!member.actorKind || member.actorKind === 'bot') && member.botId !== step.botId);
   return (
-    <DividerRow testId="bot-group-plan-follow-up">
+    <DividerRow testId="bot-group-plan-follow-up" wrap={failedWork}>
       {followUp.kind === 'continue' ? (
         <span className="flex min-w-0 items-center gap-1.5 text-[var(--text-secondary)]">
           <span className="shrink-0">{t('bots.groupChat.timeline.nextStep')}</span>
@@ -542,7 +549,7 @@ export function BotGroupPlanFollowUpRow({
           {t('bots.groupChat.timeline.stepFailed', { name: identity.name })}
         </span>
       )}
-      <span className="flex shrink-0 items-center gap-1">
+      <span className={cn('flex min-w-0 flex-wrap items-center gap-1', failedWork ? 'w-full' : 'shrink-0')}>
         <Button
           type="button"
           variant="secondary"
@@ -554,6 +561,32 @@ export function BotGroupPlanFollowUpRow({
         >
           {t(followUp.kind === 'continue' ? 'bots.groupChat.timeline.continuePlan' : 'bots.groupChat.timeline.retryStep')}
         </Button>
+        {failedWork && onReassign ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild disabled={busy || candidates.length === 0}>
+              <Button type="button" variant="secondary" size="sm" compact
+                loading={pending === 'edit'} disabled={busy || candidates.length === 0}>
+                {t('bots.groupChat.plan.reassignStep')}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>{t('bots.groupChat.plan.stepMenuTitle')}</DropdownMenuLabel>
+              {candidates.map(member => (
+                <DropdownMenuItem key={member.botId} className={MENU_ITEM_CLASS}
+                  onSelect={() => onReassign(step, member.botId)}>
+                  <BotAvatar bot={member} size="xs" />
+                  <span className="min-w-0 flex-1 truncate">{member.name}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
+        {failedWork ? <>
+          <Button type="button" variant="secondary" size="sm" compact disabled
+            aria-describedby={skipDescriptionId}>{t('bots.groupChat.plan.skipStep')}</Button>
+          <Button type="button" variant="secondary" size="sm" compact disabled
+            aria-describedby={rollbackDescriptionId}>{t('bots.groupChat.plan.rollbackStep')}</Button>
+        </> : null}
         <Button
           type="button"
           variant="secondary"
@@ -567,6 +600,11 @@ export function BotGroupPlanFollowUpRow({
           {t(talk ? 'bots.groupChat.timeline.endTalk' : 'bots.groupChat.timeline.endPlan')}
         </Button>
       </span>
+      {failedWork ? <div className="w-full space-y-1 text-12 leading-normal text-[var(--text-secondary)]">
+        {onReassign ? <p>{t(candidates.length ? 'bots.groupChat.plan.reassignThenRetry' : 'bots.groupChat.plan.noReplacement')}</p> : null}
+        <p id={skipDescriptionId}>{t('bots.groupChat.plan.skipUnavailable')}</p>
+        <p id={rollbackDescriptionId}>{t('bots.groupChat.plan.rollbackUnavailable')}</p>
+      </div> : null}
     </DividerRow>
   );
 }
