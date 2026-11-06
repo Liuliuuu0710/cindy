@@ -1,0 +1,124 @@
+{
+  "sid": "7723c703-0f7d-4929-891f-83646a78e40d",
+  "rootId": "d523c7fd-67cd-43db-9414-5cbaabc74809",
+  "errors": [],
+  "startedAt": "2026-11-06T09:30:40.775Z",
+  "actions": [
+    {
+      "mode": "light",
+      "expected": 1,
+      "actual": 1,
+      "events": [
+        {
+          "callId": "d523c7fd-67cd-43db-9414-5cbaabc74809",
+          "actionId": "count",
+          "at": 1793957479458
+        }
+      ],
+      "state": {
+        "hostDark": false,
+        "frameBody": "PR 9120 客户端验收\n\n稿件版本：2\n\n插件实际收到按钮事件：1\n\n计数一次",
+        "color": "rgba(0, 0, 0, 0.88)",
+        "sandbox": "allow-same-origin",
+        "srcdoc": 4745
+      }
+    },
+    {
+      "mode": "dark",
+      "expected": 2,
+      "actual": 2,
+      "events": [
+        {
+          "callId": "d523c7fd-67cd-43db-9414-5cbaabc74809",
+          "actionId": "count",
+          "at": 1793957479458
+        },
+        {
+          "callId": "d523c7fd-67cd-43db-9414-5cbaabc74809",
+          "actionId": "count",
+          "at": 1793957481123
+        }
+      ],
+      "state": {
+        "hostDark": true,
+        "frameBody": "PR 9120 客户端验收\n\n稿件版本：2\n\n插件实际收到按钮事件：2\n\n计数一次",
+        "color": "rgba(255, 255, 255, 0.82)",
+        "sandbox": "allow-same-origin",
+        "srcdoc": 4800
+      }
+    },
+    {
+      "mode": "light",
+      "expected": 3,
+      "actual": 3,
+      "events": [
+        {
+          "callId": "d523c7fd-67cd-43db-9414-5cbaabc74809",
+          "actionId": "count",
+          "at": 1793957479458
+        },
+        {
+          "callId": "d523c7fd-67cd-43db-9414-5cbaabc74809",
+          "actionId": "count",
+          "at": 1793957481123
+        },
+        {
+          "callId": "d523c7fd-67cd-43db-9414-5cbaabc74809",
+          "actionId": "count",
+          "at": 1793957482603
+        }
+      ],
+      "state": {
+        "hostDark": false,
+        "frameBody": "PR 9120 客户端验收\n\n稿件版本：2\n\n插件实际收到按钮事件：3\n\n计数一次",
+        "color": "rgba(0, 0, 0, 0.88)",
+        "sandbox": "allow-same-origin",
+        "srcdoc": 4745
+      }
+    }
+  ],
+  "finishedAt": "2026-11-06T09:32:12.627Z",
+  "finalStats": {
+    "ok": true,
+    "result": {
+      "rootId": "d523c7fd-67cd-43db-9414-5cbaabc74809",
+      "revision": 2,
+      "clicks": 4,
+      "events": [
+        {
+          "callId": "d523c7fd-67cd-43db-9414-5cbaabc74809",
+          "actionId": "count",
+          "at": 1793957479458
+        },
+        {
+          "callId": "d523c7fd-67cd-43db-9414-5cbaabc74809",
+          "actionId": "count",
+          "at": 1793957481123
+        },
+        {
+          "callId": "d523c7fd-67cd-43db-9414-5cbaabc74809",
+          "actionId": "count",
+          "at": 1793957482603
+        },
+        {
+          "callId": "d523c7fd-67cd-43db-9414-5cbaabc74809",
+          "actionId": "count",
+          "at": 1793957531269
+        }
+      ]
+    }
+  },
+  "doubleClick": {
+    "expected": 4,
+    "actual": 4
+  },
+  "environment": {
+    "platform": "macOS arm64",
+    "electron": "42.11.12",
+    "sourceCommit": "68733584f970425fdba3f42edec39a4453176ae2",
+    "mergedCommit": "e0d3cbec228f174b75aa34a8d6bb7080ee6fbe88",
+    "sandbox": "qa9118",
+    "mode": "full Desktop --mock --passive",
+    "instrumentation": "Temporary dev-only driver delegates test-plugin calls to getCindyGhostsMcpDeps().callGhostTool; production renderer, card service, sandbox, persistence and action bridge unmodified. Theme changed through existing cross-window preference propagation."
+  }
+}
